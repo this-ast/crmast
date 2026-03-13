@@ -1,53 +1,46 @@
-# Развёртывание CRM на Ubuntu 18
+# Развёртывание CRM на Ubuntu
 
-## Быстрый старт
+## Один скрипт для всего
 
-1. Скопируйте скрипт на сервер:
-   ```bash
-   scp deploy/setup-server.sh user@your-server:/tmp/
-   ```
+Скрипт сам определяет режим:
+- **Первая установка** — спрашивает домен, GitHub, Supabase, ставит всё
+- **Обновление** — подтягивает код с GitHub, пересобирает, перезагружает Nginx
 
-2. Подключитесь и запустите:
-   ```bash
-   ssh user@your-server
-   sudo bash /tmp/setup-server.sh
-   ```
-
-3. Ответьте на вопросы:
-   - **Домен** — например `crm.example.com` (DNS должен указывать на IP сервера)
-   - **GitHub** — URL репозитория, например `https://github.com/username/crm.git`
-   - **Ветка** — `main` или другая
-
-4. При первом запуске введите ключи Supabase (если `.env` ещё не создан):
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-
-## Обновление проекта
+## Первая установка
 
 ```bash
-sudo bash /tmp/setup-server.sh --update-only
+scp deploy/setup-server.sh user@server:/tmp/
+ssh user@server
+sudo bash /tmp/setup-server.sh
 ```
 
-Или вручную:
+Скрипт запросит:
+| Параметр | Пример |
+|----------|--------|
+| Домен | crm.example.com |
+| URL репозитория | https://github.com/this-ast/crmast.git |
+| Ветка | main |
+| VITE_SUPABASE_URL | https://xxx.supabase.co |
+| VITE_SUPABASE_ANON_KEY | eyJhbG... |
+
+## Обновление
+
+Просто запустите скрипт снова:
+
 ```bash
-cd /var/www/crm
-git pull
-npm install && npm run build
-sudo systemctl reload nginx
+sudo bash /tmp/setup-server.sh
 ```
+
+Скрипт:
+- подтянет изменения с GitHub
+- пересоберёт проект
+- перезагрузит Nginx
+
+Ключи Supabase берутся из существующего `.env`. Если `.env` удалён — скрипт запросит ключи заново.
 
 ## Требования
 
 - Ubuntu 18.04+
 - Root или sudo
-- Домен с DNS, указывающим на IP сервера
-- Открытые порты 80 и 443
-
-## Что устанавливает скрипт
-
-- Node.js 20 (NodeSource)
-- Nginx
-- Certbot (Let's Encrypt SSL)
-- Клонирует проект из GitHub
-- Собирает production-сборку
-- Настраивает автообновление SSL (cron)
+- Домен с DNS на IP сервера
+- Порты 80 и 443 открыты

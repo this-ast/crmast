@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
-# CRM — Автоматическая установка и настройка на Ubuntu 18
-# Домен, SSL, Nginx, Node.js, сборка проекта, обновление из GitHub
+# CRM — Установка и обновление на Ubuntu 18+
+# Один скрипт: при первом запуске — полная установка, при повторном — обновление с GitHub
 # =============================================================================
 
 set -e
@@ -15,51 +15,93 @@ log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err() { echo -e "${RED}[ERR]${NC} $1"; exit 1; }
 
-# --- Режим только обновления ---
-UPDATE_ONLY=false
-[[ "$1" == "--update-only" ]] && UPDATE_ONLY=true
-
-# --- Путь установки ---
+# --- Пути ---
 INSTALL_DIR="/var/www/crm"
 NGINX_CONF="/etc/nginx/sites-available/crm"
 NGINX_ENABLED="/etc/nginx/sites-enabled/crm"
 
 # --- Проверка root ---
-[[ $EUID -eq 0 ]] || err "Запустите скрипт с правами root: sudo $0"
+[[ $EUID -eq 0 ]] || err "Запустите с правами root: sudo $0"
 
-if [[ "$UPDATE_ONLY" == true ]]; then
-  log "Режим: только обновление проекта"
-  cd "$INSTALL_DIR" || err "Директория $INSTALL_DIR не найдена"
-  [[ -d .git ]] || err "Не найден git-репозиторий в $INSTALL_DIR"
-  read -p "Ветка для обновления (пусто = текущая): " GITHUB_BRANCH
-  [[ -n "$GITHUB_BRANCH" ]] && git checkout "$GITHUB_BRANCH" && git pull origin "$GITHUB_BRANCH" || git pull
+# --- Определение режима: установка или обновление ---
+IS_UPDATE=false
+if [[ -d "$INSTALL_DIR" && -d "$INSTALL_DIR/.git" && -f "$INSTALL_DIR/package.json" ]]; then
+  IS_UPDATE=true
+  log "Обнаружена существующая установка → режим ОБНОВЛЕНИЯ"
+else
+  log "Первичная установка"
+fi
+
+# =============================================================================
+# РЕЖИМ ОБНОВЛЕНИЯ
+# =============================================================================
+if [[ "$IS_UPDATE" == true ]]; then
+  cd "$INSTALL_DIR" || err "Не удалось перейти в $INSTALL_DIR"
+
+  # Проверка .env
+  if [[ ! -f .env ]]; then
+    warn "Файл .env отсутствует. Нужны ключи Supabase для сборки."
+    read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
+    read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
+    cat > .env << ENV
+VITE_SUPABASE_URL=$SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON
+ENV
+    log "Создан .env"
+  fi
+
+  log "Обновление из GitHub..."
+  git fetch origin
+  git pull origin "$(git branch --show-current)"
+
+  log "Установка npm-зависимостей..."
+  npm install
+
   log "Сборка проекта..."
-  npm install && npm run build
+  npm run build
+
+  log "Перезагрузка Nginx..."
   systemctl reload nginx
-  log "Обновление завершено. Сайт: $(grep -m1 server_name $NGINX_CONF 2>/dev/null | awk '{print $2}' | tr -d ';')"
+
+  DOMAIN=$(grep -m1 "server_name" "$NGINX_CONF" 2>/dev/null | awk '{print $2}' | tr -d ';' || echo "—")
+  log "Обновление завершено. Сайт: https://$DOMAIN"
   exit 0
 fi
 
-# --- Ввод домена ---
+# =============================================================================
+# РЕЖИМ ПЕРВИЧНОЙ УСТАНОВКИ
+# =============================================================================
 echo ""
-read -p "Введите домен (например: crm.example.com): " DOMAIN
+echo "=== Первичная установка CRM ==="
+echo ""
+
+# --- 1. Домен ---
+read -p "Домен (например: crm.example.com): " DOMAIN
 [[ -z "$DOMAIN" ]] && err "Домен не указан"
 
-# --- Репозиторий GitHub (опционально) ---
-read -p "URL репозитория GitHub (пусто = текущая папка): " GITHUB_REPO
+# --- 2. GitHub ---
+read -p "URL репозитория GitHub (например: https://github.com/this-ast/crmast.git): " GITHUB_REPO
+[[ -z "$GITHUB_REPO" ]] && err "URL репозитория обязателен"
+
 read -p "Ветка (пусто = main): " GITHUB_BRANCH
 GITHUB_BRANCH=${GITHUB_BRANCH:-main}
 
-log "Домен: $DOMAIN"
-log "Путь: $INSTALL_DIR"
-[[ -n "$GITHUB_REPO" ]] && log "GitHub: $GITHUB_REPO ($GITHUB_BRANCH)"
+# --- 3. Supabase ---
+echo ""
+echo "Ключи Supabase (Supabase Dashboard → Settings → API):"
+read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
+[[ -z "$SUPABASE_URL" ]] && err "Supabase URL обязателен"
+
+read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
+[[ -z "$SUPABASE_ANON" ]] && err "Supabase Anon Key обязателен"
 
 # --- Обновление системы ---
+mkdir -p "$INSTALL_DIR"
 log "Обновление пакетов..."
 apt-get update -qq
 apt-get upgrade -y -qq
 
-# --- Установка зависимостей ---
+# --- Системные зависимости ---
 log "Установка зависимостей..."
 apt-get install -y -qq \
   curl wget git unzip \
@@ -67,7 +109,7 @@ apt-get install -y -qq \
   certbot python3-certbot-nginx \
   build-essential
 
-# --- Node.js 20 (NodeSource) ---
+# --- Node.js 20 ---
 if ! command -v node &>/dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
   log "Установка Node.js 20..."
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -75,49 +117,27 @@ if ! command -v node &>/dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 
 fi
 log "Node.js: $(node -v) | npm: $(npm -v)"
 
-# --- Создание директории ---
-mkdir -p "$INSTALL_DIR"
+# --- Клонирование ---
+log "Клонирование из GitHub..."
 cd "$INSTALL_DIR"
+git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" .
 
-# --- Клонирование / обновление из GitHub ---
-if [[ -n "$GITHUB_REPO" ]]; then
-  if [[ -d .git ]]; then
-    log "Обновление из GitHub..."
-    git fetch origin
-    git checkout "$GITHUB_BRANCH"
-    git pull origin "$GITHUB_BRANCH"
-  else
-    log "Клонирование из GitHub..."
-    git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" .
-  fi
-else
-  warn "GitHub не указан. Скопируйте проект в $INSTALL_DIR вручную и запустите скрипт снова с --update-only"
-  if [[ ! -f package.json ]]; then
-    err "package.json не найден в $INSTALL_DIR. Укажите GitHub или скопируйте проект."
-  fi
-fi
-
-# --- Переменные окружения (Supabase) ---
-if [[ ! -f "$INSTALL_DIR/.env" ]]; then
-  warn "Файл .env не найден. Нужны ключи Supabase для сборки."
-  read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
-  read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
-  cat > "$INSTALL_DIR/.env" << ENV
+# --- .env ---
+log "Создание .env..."
+cat > .env << ENV
 VITE_SUPABASE_URL=$SUPABASE_URL
 VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON
 ENV
-  log "Создан .env"
-fi
+chmod 600 .env
 
-# --- Сборка проекта ---
-log "Установка зависимостей npm..."
-cd "$INSTALL_DIR"
-npm ci 2>/dev/null || npm install
+# --- Сборка ---
+log "Установка npm-зависимостей..."
+npm install
 
 log "Сборка проекта..."
 npm run build
 
-# --- Nginx: временная конфигурация (HTTP) для certbot ---
+# --- Nginx (HTTP для certbot) ---
 log "Настройка Nginx..."
 cat > "$NGINX_CONF" << NGX
 server {
@@ -135,23 +155,15 @@ server {
 }
 NGX
 
-# Удаляем default site, включаем наш
 rm -f /etc/nginx/sites-enabled/default
 ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
-
 nginx -t && systemctl reload nginx
 
-# --- SSL сертификат (Let's Encrypt) ---
+# --- SSL ---
 log "Получение SSL сертификата..."
-certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email 2>/dev/null || {
-  warn "Certbot не смог получить сертификат. Проверьте:"
-  echo "  - DNS: домен $DOMAIN указывает на IP этого сервера"
-  echo "  - Порт 80 открыт в firewall"
-  echo "  - Запустите вручную: certbot --nginx -d $DOMAIN"
-}
-
-# --- Финальная конфигурация Nginx (с SSL) ---
-cat > "$NGINX_CONF" << NGX
+if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email 2>/dev/null; then
+  log "SSL сертификат получен"
+  cat > "$NGINX_CONF" << NGX
 server {
     listen 80;
     server_name $DOMAIN;
@@ -178,14 +190,14 @@ server {
     }
 }
 NGX
+  nginx -t && systemctl reload nginx
+  (crontab -l 2>/dev/null | grep -v certbot; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+else
+  warn "Certbot не смог получить сертификат. Проверьте DNS и порт 80."
+  echo "  Запустите вручную: certbot --nginx -d $DOMAIN"
+fi
 
-# Применяем только если certbot успешно создал сертификаты
-[[ -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]] && nginx -t && systemctl reload nginx
-
-# --- Автообновление SSL ---
-(crontab -l 2>/dev/null | grep -v certbot; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
-
-# --- Firewall (если ufw установлен) ---
+# --- Firewall ---
 if command -v ufw &>/dev/null; then
   ufw allow 80/tcp 2>/dev/null
   ufw allow 443/tcp 2>/dev/null
@@ -199,8 +211,6 @@ echo ""
 echo "  Сайт: https://$DOMAIN"
 echo "  Путь: $INSTALL_DIR"
 echo ""
-echo "  Обновить проект из GitHub:"
-echo "    cd $INSTALL_DIR && git pull && npm run build && systemctl reload nginx"
-echo ""
-echo "  Или запустить скрипт с --update-only для автоматического обновления."
+echo "  Обновление (запустите этот же скрипт снова):"
+echo "    sudo $0"
 echo ""

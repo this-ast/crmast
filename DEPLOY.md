@@ -42,19 +42,17 @@ sudo bash /tmp/setup-server.sh
 | Вопрос | Пример |
 |--------|--------|
 | Домен | crm.example.com |
-| URL репозитория GitHub | https://github.com/this-ast/crm.git |
+| URL репозитория GitHub | https://github.com/this-ast/crmast.git |
 | Ветка | main |
-
-### Шаг 4: Ключи Supabase
-
-При первом запуске скрипт запросит:
-- `VITE_SUPABASE_URL` — из панели Supabase → Settings → API
-- `VITE_SUPABASE_ANON_KEY` — тот же раздел
+| VITE_SUPABASE_URL | https://xxx.supabase.co |
+| VITE_SUPABASE_ANON_KEY | из Supabase → Settings → API |
 
 ## 4. Обновление на сервере
 
+Запустите тот же скрипт снова — он определит, что проект уже установлен, и обновит его с GitHub:
+
 ```bash
-sudo bash /tmp/setup-server.sh --update-only
+sudo bash /tmp/setup-server.sh
 ```
 
 Или вручную:
