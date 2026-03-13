@@ -8,9 +8,15 @@
 
 ## Первая установка
 
+На сервере (скрипт скачивается с GitHub):
+
 ```bash
-scp deploy/setup-server.sh user@server:/tmp/
-ssh user@server
+curl -sL https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh | sudo bash
+```
+
+Или по шагам:
+```bash
+wget https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh -O /tmp/setup-server.sh
 sudo bash /tmp/setup-server.sh
 ```
 
@@ -25,10 +31,10 @@ sudo bash /tmp/setup-server.sh
 
 ## Обновление
 
-Просто запустите скрипт снова:
+Скачайте и запустите скрипт снова:
 
 ```bash
-sudo bash /tmp/setup-server.sh
+curl -sL https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh | sudo bash
 ```
 
 Скрипт:

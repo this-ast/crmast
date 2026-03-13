@@ -24,18 +24,14 @@ git push -u origin main
 
 ## 3. Развёртывание на Ubuntu-сервере
 
-### Шаг 1: Скопируйте скрипт на сервер
-
-```bash
-scp deploy/setup-server.sh user@IP_СЕРВЕРА:/tmp/
-```
-
-### Шаг 2: Запустите установку
+Подключитесь к серверу и запустите (скрипт скачивается с GitHub):
 
 ```bash
 ssh user@IP_СЕРВЕРА
-sudo bash /tmp/setup-server.sh
+curl -sL https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh | sudo bash
 ```
+
+Скрипт клонирует проект из GitHub и выполнит установку.
 
 ### Шаг 3: Ответьте на вопросы
 

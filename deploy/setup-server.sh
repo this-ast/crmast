@@ -80,8 +80,8 @@ read -p "Домен (например: crm.example.com): " DOMAIN
 [[ -z "$DOMAIN" ]] && err "Домен не указан"
 
 # --- 2. GitHub ---
-read -p "URL репозитория GitHub (например: https://github.com/this-ast/crmast.git): " GITHUB_REPO
-[[ -z "$GITHUB_REPO" ]] && err "URL репозитория обязателен"
+read -p "URL репозитория GitHub (Enter = https://github.com/this-ast/crmast.git): " GITHUB_REPO
+GITHUB_REPO=${GITHUB_REPO:-https://github.com/this-ast/crmast.git}
 
 read -p "Ветка (пусто = main): " GITHUB_BRANCH
 GITHUB_BRANCH=${GITHUB_BRANCH:-main}
