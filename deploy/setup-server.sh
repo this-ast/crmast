@@ -41,8 +41,8 @@ if [[ "$IS_UPDATE" == true ]]; then
   # Проверка .env
   if [[ ! -f .env ]]; then
     warn "Файл .env отсутствует. Нужны ключи Supabase для сборки."
-    read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
-    read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
+    read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL < /dev/tty
+    read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON < /dev/tty
     cat > .env << ENV
 VITE_SUPABASE_URL=$SUPABASE_URL
 VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON
@@ -75,24 +75,27 @@ echo ""
 echo "=== Первичная установка CRM ==="
 echo ""
 
+# --- Чтение с терминала (при curl|bash stdin занят) ---
+read_tty() { read -p "$1" "$2" < /dev/tty; }
+
 # --- 1. Домен ---
-read -p "Домен (например: crm.example.com): " DOMAIN
+read_tty "Домен (например: crm.example.com): " DOMAIN
 [[ -z "$DOMAIN" ]] && err "Домен не указан"
 
 # --- 2. GitHub ---
-read -p "URL репозитория GitHub (Enter = https://github.com/this-ast/crmast.git): " GITHUB_REPO
+read_tty "URL репозитория GitHub (Enter = https://github.com/this-ast/crmast.git): " GITHUB_REPO
 GITHUB_REPO=${GITHUB_REPO:-https://github.com/this-ast/crmast.git}
 
-read -p "Ветка (пусто = main): " GITHUB_BRANCH
+read_tty "Ветка (пусто = main): " GITHUB_BRANCH
 GITHUB_BRANCH=${GITHUB_BRANCH:-main}
 
 # --- 3. Supabase ---
 echo ""
 echo "Ключи Supabase (Supabase Dashboard → Settings → API):"
-read -p "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
+read_tty "VITE_SUPABASE_URL (https://xxx.supabase.co): " SUPABASE_URL
 [[ -z "$SUPABASE_URL" ]] && err "Supabase URL обязателен"
 
-read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
+read_tty "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
 [[ -z "$SUPABASE_ANON" ]] && err "Supabase Anon Key обязателен"
 
 # --- Обновление системы ---
@@ -110,30 +113,39 @@ apt-get install -y -qq \
   certbot python3-certbot-nginx \
   build-essential
 
-# --- Node.js 20 (бинарник — без зависимости от apt) ---
+# --- Node.js 20 ---
+# Сначала NodeSource (пакеты для Ubuntu 18), при ошибке apt — бинарник
 install_node() {
-  local NODE_VER="v20.18.0"
-  local ARCH=$(uname -m)
-  [[ "$ARCH" == "x86_64" ]] && NODE_ARCH="x64" || NODE_ARCH="arm64"
-  local TMP=$(mktemp -d)
-  cd "$TMP"
-  wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NODE_ARCH}.tar.xz" -O node.tar.xz 2>/dev/null || {
-    NODE_ARCH="x64"
-    wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-x64.tar.xz" -O node.tar.xz
-  }
-  tar -xf node.tar.xz
-  rm -rf /usr/local/node
-  mv "node-${NODE_VER}-linux-${NODE_ARCH}" /usr/local/node
-  ln -sf /usr/local/node/bin/node /usr/local/bin/node
-  ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
-  ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
-  cd /
-  rm -rf "$TMP"
+  if ! command -v node &>/dev/null || [[ $(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
+    log "Установка Node.js 20..."
+    # 1. Пробуем NodeSource (работает на Ubuntu 18)
+    apt --fix-broken install -y -qq 2>/dev/null || true
+    if curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null && apt-get install -y -qq nodejs 2>/dev/null; then
+      log "Node.js установлен через NodeSource"
+      return
+    fi
+    # 2. Fallback: бинарник (требует glibc 2.28 = Ubuntu 20+)
+    warn "NodeSource не сработал, пробуем бинарник..."
+    local NODE_VER="v20.18.0"
+    local ARCH=$(uname -m)
+    [[ "$ARCH" == "x86_64" ]] && local NODE_ARCH="x64" || local NODE_ARCH="arm64"
+    local TMP=$(mktemp -d)
+    cd "$TMP"
+    wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NODE_ARCH}.tar.xz" -O node.tar.xz 2>/dev/null || { NODE_ARCH="x64"; wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-x64.tar.xz" -O node.tar.xz; }
+    tar -xf node.tar.xz
+    rm -rf /usr/local/node
+    mv node-${NODE_VER}-linux-${NODE_ARCH} /usr/local/node
+    ln -sf /usr/local/node/bin/node /usr/local/bin/node
+    ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
+    ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
+    cd /
+    rm -rf "$TMP"
+  fi
 }
 
-if ! command -v node &>/dev/null || [[ $(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
-  log "Установка Node.js 20..."
-  install_node
+install_node
+if ! node -v &>/dev/null; then
+  err "Node.js не установлен. Выполните: apt --fix-broken install -y && apt install nodejs -y. Либо обновите до Ubuntu 20.04+."
 fi
 log "Node.js: $(node -v) | npm: $(npm -v)"
 
