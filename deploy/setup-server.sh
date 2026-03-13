@@ -97,6 +97,7 @@ read -p "VITE_SUPABASE_ANON_KEY: " SUPABASE_ANON
 
 # --- Обновление системы ---
 mkdir -p "$INSTALL_DIR"
+export DEBIAN_FRONTEND=noninteractive
 log "Обновление пакетов..."
 apt-get update -qq
 apt-get upgrade -y -qq
@@ -109,24 +110,30 @@ apt-get install -y -qq \
   certbot python3-certbot-nginx \
   build-essential
 
-# --- Node.js 20 ---
-if ! command -v node &>/dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
+# --- Node.js 20 (бинарник — без зависимости от apt) ---
+install_node() {
+  local NODE_VER="v20.18.0"
+  local ARCH=$(uname -m)
+  [[ "$ARCH" == "x86_64" ]] && NODE_ARCH="x64" || NODE_ARCH="arm64"
+  local TMP=$(mktemp -d)
+  cd "$TMP"
+  wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NODE_ARCH}.tar.xz" -O node.tar.xz 2>/dev/null || {
+    NODE_ARCH="x64"
+    wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-x64.tar.xz" -O node.tar.xz
+  }
+  tar -xf node.tar.xz
+  rm -rf /usr/local/node
+  mv "node-${NODE_VER}-linux-${NODE_ARCH}" /usr/local/node
+  ln -sf /usr/local/node/bin/node /usr/local/bin/node
+  ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
+  ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
+  cd /
+  rm -rf "$TMP"
+}
+
+if ! command -v node &>/dev/null || [[ $(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
   log "Установка Node.js 20..."
-  if curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null && apt-get install -y -qq nodejs 2>/dev/null; then
-    log "Node.js установлен через NodeSource"
-  else
-    warn "NodeSource не сработал, пробуем бинарник..."
-    ARCH=$(uname -m)
-    [[ "$ARCH" == "x86_64" ]] && NODE_ARCH="x64" || NODE_ARCH="arm64"
-    cd /tmp
-    wget -q "https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-${NODE_ARCH}.tar.xz" || { NODE_ARCH="x64"; wget -q "https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-x64.tar.xz"; }
-    tar -xf "node-v20.18.0-linux-${NODE_ARCH}.tar.xz"
-    mv "node-v20.18.0-linux-${NODE_ARCH}" /usr/local/node
-    ln -sf /usr/local/node/bin/node /usr/local/bin/node
-    ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
-    ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
-    rm -f "/tmp/node-v20.18.0-linux-${NODE_ARCH}.tar.xz"
-  fi
+  install_node
 fi
 log "Node.js: $(node -v) | npm: $(npm -v)"
 
