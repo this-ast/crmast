@@ -112,8 +112,21 @@ apt-get install -y -qq \
 # --- Node.js 20 ---
 if ! command -v node &>/dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
   log "Установка Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y -qq nodejs
+  if curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null && apt-get install -y -qq nodejs 2>/dev/null; then
+    log "Node.js установлен через NodeSource"
+  else
+    warn "NodeSource не сработал, пробуем бинарник..."
+    ARCH=$(uname -m)
+    [[ "$ARCH" == "x86_64" ]] && NODE_ARCH="x64" || NODE_ARCH="arm64"
+    cd /tmp
+    wget -q "https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-${NODE_ARCH}.tar.xz" || { NODE_ARCH="x64"; wget -q "https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-x64.tar.xz"; }
+    tar -xf "node-v20.18.0-linux-${NODE_ARCH}.tar.xz"
+    mv "node-v20.18.0-linux-${NODE_ARCH}" /usr/local/node
+    ln -sf /usr/local/node/bin/node /usr/local/bin/node
+    ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
+    ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
+    rm -f "/tmp/node-v20.18.0-linux-${NODE_ARCH}.tar.xz"
+  fi
 fi
 log "Node.js: $(node -v) | npm: $(npm -v)"
 
