@@ -6,6 +6,13 @@
 
 set -e
 
+# При запуске через curl|bash stdin занят — скачиваем в файл и перезапускаем
+if [[ ! -t 0 ]]; then
+  echo "Скачивание скрипта..."
+  curl -sL "https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh" -o /tmp/setup-server.sh
+  exec bash /tmp/setup-server.sh
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -114,39 +121,22 @@ apt-get install -y -qq \
   build-essential
 
 # --- Node.js 20 ---
-# Сначала NodeSource (пакеты для Ubuntu 18), при ошибке apt — бинарник
+# Бинарник nodejs.org требует glibc 2.28 (Ubuntu 20+). Используем только NodeSource для Ubuntu 18.
 install_node() {
-  if ! command -v node &>/dev/null || [[ $(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v') -lt 18 ]]; then
-    log "Установка Node.js 20..."
-    # 1. Пробуем NodeSource (работает на Ubuntu 18)
-    apt --fix-broken install -y -qq 2>/dev/null || true
-    if curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null && apt-get install -y -qq nodejs 2>/dev/null; then
-      log "Node.js установлен через NodeSource"
-      return
-    fi
-    # 2. Fallback: бинарник (требует glibc 2.28 = Ubuntu 20+)
-    warn "NodeSource не сработал, пробуем бинарник..."
-    local NODE_VER="v20.18.0"
-    local ARCH=$(uname -m)
-    [[ "$ARCH" == "x86_64" ]] && local NODE_ARCH="x64" || local NODE_ARCH="arm64"
-    local TMP=$(mktemp -d)
-    cd "$TMP"
-    wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-${NODE_ARCH}.tar.xz" -O node.tar.xz 2>/dev/null || { NODE_ARCH="x64"; wget -q "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-x64.tar.xz" -O node.tar.xz; }
-    tar -xf node.tar.xz
-    rm -rf /usr/local/node
-    mv node-${NODE_VER}-linux-${NODE_ARCH} /usr/local/node
-    ln -sf /usr/local/node/bin/node /usr/local/bin/node
-    ln -sf /usr/local/node/bin/npm /usr/local/bin/npm
-    ln -sf /usr/local/node/bin/npx /usr/local/bin/npx
-    cd /
-    rm -rf "$TMP"
+  if command -v node &>/dev/null && [[ $(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v') -ge 18 ]]; then
+    return
   fi
+  log "Установка Node.js 20..."
+  apt --fix-broken install -y 2>/dev/null || true
+  apt-get update -qq
+  if curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y -qq nodejs; then
+    log "Node.js установлен"
+    return
+  fi
+  err "Node.js не установлен. Выполните на сервере: apt --fix-broken install -y && apt update && apt install -y nodejs. Если ошибка сохраняется — обновите до Ubuntu 20.04 или новее."
 }
 
 install_node
-if ! node -v &>/dev/null; then
-  err "Node.js не установлен. Выполните: apt --fix-broken install -y && apt install nodejs -y. Либо обновите до Ubuntu 20.04+."
-fi
 log "Node.js: $(node -v) | npm: $(npm -v)"
 
 # --- Клонирование ---
