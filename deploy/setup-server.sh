@@ -6,11 +6,11 @@
 
 set -e
 
-# При запуске через curl|bash stdin занят — скачиваем в файл и перезапускаем
+# При запуске через curl|bash stdin занят — скачиваем в файл и перезапускаем с терминалом
 if [[ ! -t 0 ]]; then
   echo "Скачивание скрипта..."
   curl -sL "https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh" -o /tmp/setup-server.sh
-  exec bash /tmp/setup-server.sh
+  exec bash /tmp/setup-server.sh < /dev/tty
 fi
 
 RED='\033[0;31m'
