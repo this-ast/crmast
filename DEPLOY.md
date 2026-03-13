@@ -1,9 +1,9 @@
 # Инструкция по развёртыванию CRM
 
-## 1. Подготовка репозитория на GitHub
+## 1. Создание репозитория на GitHub
 
-1. Перейдите на [github.com/new](https://github.com/new)
-2. **Repository name:** `crm` (или другое)
+1. Откройте [github.com/new](https://github.com/new)
+2. **Repository name:** `crm`
 3. **Description:** CRM для риэлторов и агентств недвижимости
 4. Выберите **Public**
 5. **НЕ** добавляйте README, .gitignore, license — проект уже содержит их
@@ -11,21 +11,12 @@
 
 ## 2. Первый push в репозиторий
 
-В папке проекта выполните:
+Проект уже инициализирован и закоммичен. Осталось:
 
 ```bash
 cd "/Users/bigboy/Documents/CRM "
 
-# Инициализация (если ещё не сделано)
-git init
-git add .
-git commit -m "Initial commit: CRM для риэлторов"
-
-# Подключение к вашему репозиторию (замените this-ast/crm на ваш username/repo)
-git remote add origin https://github.com/this-ast/crm.git
-
-# Push
-git branch -M main
+# Push (при запросе пароля используйте Personal Access Token)
 git push -u origin main
 ```
 
