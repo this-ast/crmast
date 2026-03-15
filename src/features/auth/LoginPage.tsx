@@ -40,7 +40,13 @@ export function LoginPage() {
         navigate(from, { replace: true })
       }
     } catch (e) {
-      setServerError('Ошибка соединения: ' + (e instanceof Error ? e.message : String(e)))
+      const msg = e instanceof Error ? e.message : String(e)
+      const isNetworkError = /load failed|failed to fetch|network|hostname|не удалось найти|недоступен/i.test(msg)
+      setServerError(
+        isNetworkError
+          ? 'Сервер недоступен. Если вы в РФ — разверните прокси (см. proxy/README.md) и добавьте VITE_SUPABASE_PROXY_URL в .env'
+          : 'Ошибка соединения: ' + msg
+      )
     }
   }
 
