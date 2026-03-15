@@ -44,6 +44,15 @@ curl -sL https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-ser
 
 Ключи Supabase берутся из существующего `.env`. Если `.env` удалён — скрипт запросит ключи заново.
 
+## Удаление
+
+```bash
+curl -sL https://raw.githubusercontent.com/this-ast/crmast/main/deploy/uninstall-server.sh -o /tmp/uninstall-server.sh
+sudo bash /tmp/uninstall-server.sh
+```
+
+Или скопируйте `deploy/uninstall-server.sh` на сервер и запустите.
+
 ## Требования
 
 - Ubuntu 18.04+
