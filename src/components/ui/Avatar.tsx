@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { cn, getInitials } from '@/lib/utils'
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
@@ -17,7 +18,13 @@ const sizeStyles: Record<AvatarSize, string> = {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  if (src) {
+  const [imgError, setImgError] = useState(false)
+  useEffect(() => {
+    setImgError(false)
+  }, [src])
+  const showImg = src && !imgError
+
+  if (showImg) {
     return (
       <img
         src={src}
@@ -27,6 +34,7 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
           sizeStyles[size],
           className
         )}
+        onError={() => setImgError(true)}
       />
     )
   }

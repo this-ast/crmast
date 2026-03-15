@@ -15,11 +15,18 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>
 
 export function ProfileSettings() {
-  const { profile, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
+  const [retrying, setRetrying] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleRetry = async () => {
+    setRetrying(true)
+    await refreshProfile()
+    setRetrying(false)
+  }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -87,6 +94,25 @@ export function ProfileSettings() {
     setSaving(false)
   }
 
+  if (!profile && user) {
+    return (
+      <Card>
+        <CardHeader
+          title="Личный профиль"
+          description="Не удалось загрузить профиль"
+        />
+        <div className="rounded-lg bg-warning-50 p-4 text-warning-600 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mb-3 text-sm">
+            Профиль не загружен. Возможно, проблема с подключением или данными в базе.
+          </p>
+          <Button onClick={handleRetry} loading={retrying} variant="outline">
+            Повторить загрузку
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader
@@ -135,7 +161,7 @@ export function ProfileSettings() {
 
         <Input
           label="Email"
-          value={profile?.email || ''}
+          value={profile?.email || user?.email || ''}
           disabled
           hint="Email нельзя изменить"
         />
