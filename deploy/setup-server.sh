@@ -65,8 +65,8 @@ ENV
   fi
 
   log "Обновление из GitHub..."
-  git fetch origin
-  git reset --hard origin/main
+  git fetch origin main
+  git reset --hard FETCH_HEAD
 
   log "Установка npm-зависимостей..."
   npm install
