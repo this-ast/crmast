@@ -1,10 +1,11 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import type { PropertyFormData, PropertyType } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
-import { useCreateProperty, useUpdateProperty } from '@/hooks/useProperties'
+import { useCreateProperty, useUpdateProperty, useProperty } from '@/hooks/useProperties'
 import { useClients } from '@/hooks/useClients'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { cn } from '@/utils/cn'
@@ -77,6 +78,7 @@ const COMMUNICATIONS_OPTIONS = [
 export default function PropertyForm() {
   const { closeForm, editingPropertyId } = usePropertyStore()
   const { data: clients = [] } = useClients()
+  const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
 
@@ -85,6 +87,7 @@ export default function PropertyForm() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<PropertyFormData>({
     resolver: zodResolver(schema),
@@ -93,6 +96,33 @@ export default function PropertyForm() {
       status: 'active',
     } as PropertyFormData,
   })
+
+  // Заполняем форму данными при редактировании
+  useEffect(() => {
+    if (editingProperty && editingPropertyId) {
+      reset({
+        type: editingProperty.type,
+        status: editingProperty.status,
+        price: editingProperty.price,
+        area: editingProperty.area,
+        rooms: editingProperty.rooms,
+        floor: editingProperty.floor,
+        total_floors: editingProperty.total_floors,
+        view: editingProperty.view,
+        address: editingProperty.address,
+        complex_name: editingProperty.complex_name,
+        description: editingProperty.description,
+        owner_id: editingProperty.owner_id,
+        area_sotki: editingProperty.area_sotki,
+        communications: editingProperty.communications,
+        cadastral_number: editingProperty.cadastral_number,
+        is_active_business: editingProperty.is_active_business,
+        has_wet_points: editingProperty.has_wet_points,
+        has_parking: editingProperty.has_parking,
+        entrance_groups: editingProperty.entrance_groups,
+      })
+    }
+  }, [editingProperty, editingPropertyId, reset])
 
   const type = watch('type') as PropertyType
   const communications = watch('communications') ?? []

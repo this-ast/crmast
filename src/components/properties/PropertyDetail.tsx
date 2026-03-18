@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
-  ChevronRight, Building2, X, type LucideIcon
+  ChevronRight, Building2, X, Pencil, Trash2, type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
 import {
@@ -12,6 +12,9 @@ import {
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
+import { useDeleteProperty } from '@/hooks/useProperties'
+import { usePropertyStore } from '@/store/usePropertyStore'
+import toast from 'react-hot-toast'
 
 interface PropertyDetailProps {
   property: PropertyWithOwner
@@ -42,9 +45,12 @@ function InfoRow({
 
 export default function PropertyDetail({ property, onClose }: PropertyDetailProps) {
   const [phoneRevealed, setPhoneRevealed] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const deleteProperty = useDeleteProperty()
+  const { openForm } = usePropertyStore()
 
   const {
-    article, type, status, price, area, rooms, floor, total_floors, view,
+    id, article, type, status, price, area, rooms, floor, total_floors, view,
     complex_name, address, description, owner,
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
@@ -55,6 +61,21 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
     if (type === 'apartment') return 'Квартира'
     return PROPERTY_TYPE_LABELS[type]
   })()
+
+  const handleEdit = () => {
+    onClose()
+    setTimeout(() => openForm(id), 150)
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteProperty.mutateAsync(id)
+      toast.success('Объект удалён')
+      onClose()
+    } catch {
+      toast.error('Ошибка при удалении')
+    }
+  }
 
   return (
     <div className="flex flex-col max-h-[85vh]">
@@ -79,13 +100,51 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             </div>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleEdit}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            title="Редактировать"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            title="Удалить"
+          >
+            <Trash2 size={16} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-1"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="mx-6 mt-4 p-4 bg-red-50 rounded-xl border border-red-100">
+          <p className="text-sm font-medium text-red-700 mb-3">Удалить этот объект?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleteProperty.isPending}
+              className="flex-1 py-1.5 rounded-lg bg-red-600 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -111,7 +170,6 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 {view && <InfoRow icon={Eye} label="Вид из окон" value={view} />}
               </>
             )}
-            {/* Land specific */}
             {type === 'land' && (
               <>
                 {area_sotki && <InfoRow icon={Maximize2} label="Площадь" value={`${area_sotki} соток`} />}
@@ -135,7 +193,6 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 )}
               </>
             )}
-            {/* Commercial specific */}
             {type === 'commercial' && (
               <>
                 {is_active_business !== undefined && (

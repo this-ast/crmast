@@ -27,7 +27,9 @@ export default function PropertyFilters() {
     filters.status !== 'all' ||
     filters.search !== '' ||
     filters.priceMin !== '' ||
-    filters.priceMax !== ''
+    filters.priceMax !== '' ||
+    filters.areaMin !== '' ||
+    filters.areaMax !== ''
 
   return (
     <div className="space-y-3">
@@ -69,12 +71,12 @@ export default function PropertyFilters() {
         ))}
       </div>
 
-      {/* Status + Reset row */}
-      <div className="flex items-center gap-2">
+      {/* Status + price + area row */}
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={filters.status}
           onChange={(e) => setFilter('status', e.target.value as PropertyStatus | 'all')}
-          className="flex-1 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {statuses.map(({ value, label }) => (
             <option key={value} value={value}>
@@ -82,6 +84,35 @@ export default function PropertyFilters() {
             </option>
           ))}
         </select>
+
+        <input
+          type="number"
+          placeholder="Цена от"
+          value={filters.priceMin}
+          onChange={(e) => setFilter('priceMin', e.target.value)}
+          className="w-28 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="number"
+          placeholder="Цена до"
+          value={filters.priceMax}
+          onChange={(e) => setFilter('priceMax', e.target.value)}
+          className="w-28 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="number"
+          placeholder="м² от"
+          value={filters.areaMin}
+          onChange={(e) => setFilter('areaMin', e.target.value)}
+          className="w-20 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="number"
+          placeholder="м² до"
+          value={filters.areaMax}
+          onChange={(e) => setFilter('areaMax', e.target.value)}
+          className="w-20 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
         {hasActiveFilters && (
           <button

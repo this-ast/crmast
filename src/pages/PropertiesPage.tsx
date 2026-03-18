@@ -38,6 +38,8 @@ function filterProperties(
 
     if (filters.priceMin && p.price < Number(filters.priceMin)) return false
     if (filters.priceMax && p.price > Number(filters.priceMax)) return false
+    if (filters.areaMin && p.area < Number(filters.areaMin)) return false
+    if (filters.areaMax && p.area > Number(filters.areaMax)) return false
 
     return true
   })
