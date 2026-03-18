@@ -6,11 +6,18 @@
 
 set -e
 
-# При запуске через curl|bash stdin занят — скачиваем в файл и перезапускаем с терминалом
+# При запуске через curl|bash stdin занят.
+# Режим обновления не требует TTY — запускаем напрямую.
+# Первичная установка требует TTY для ввода домена и ключей — скачиваем и перезапускаем.
 if [[ ! -t 0 ]]; then
-  echo "Скачивание скрипта..."
-  curl -sL "https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh" -o /tmp/setup-server.sh
-  exec bash /tmp/setup-server.sh < /dev/tty
+  INSTALL_DIR_CHECK="/var/www/crm"
+  if [[ -d "$INSTALL_DIR_CHECK/.git" && -f "$INSTALL_DIR_CHECK/package.json" ]]; then
+    : # режим обновления — TTY не нужен, продолжаем
+  else
+    echo "Скачивание скрипта..."
+    curl -sL "https://raw.githubusercontent.com/this-ast/crmast/main/deploy/setup-server.sh" -o /tmp/setup-server.sh
+    exec bash /tmp/setup-server.sh < /dev/tty
+  fi
 fi
 
 RED='\033[0;31m'
