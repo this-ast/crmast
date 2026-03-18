@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+
+[env]
+PORT = "3001"
+SUPABASE_TARGET_URL = ""
