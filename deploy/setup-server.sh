@@ -59,7 +59,7 @@ ENV
 
   log "Обновление из GitHub..."
   git fetch origin
-  git pull origin "$(git branch --show-current)"
+  git reset --hard origin/main
 
   log "Установка npm-зависимостей..."
   npm install
