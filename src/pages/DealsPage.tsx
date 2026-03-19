@@ -557,8 +557,9 @@ export default function DealsPage() {
 
       {/* Error */}
       {error && (
-        <div className="p-4 bg-red-50 rounded-xl text-red-700 text-sm">
-          Ошибка загрузки. Убедитесь что таблица deals создана в Supabase (запустите add_deals.sql).
+        <div className="p-4 bg-red-50 rounded-xl text-red-700 text-sm space-y-1">
+          <p className="font-medium">Ошибка загрузки сделок</p>
+          <p className="text-red-500 text-xs font-mono">{(error as Error).message}</p>
         </div>
       )}
 

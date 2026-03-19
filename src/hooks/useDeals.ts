@@ -6,9 +6,9 @@ const QUERY_KEY = 'deals'
 
 const WITH_RELATIONS = `
   *,
-  buyer:clients!deals_buyer_id_fkey(id, client_number, name, phone),
-  seller:clients!deals_seller_id_fkey(id, client_number, name, phone),
-  property:properties!deals_property_id_fkey(id, article, type, address, price)
+  buyer:clients!buyer_id(id, client_number, name, phone),
+  seller:clients!seller_id(id, client_number, name, phone),
+  property:properties!property_id(id, article, type, address, price)
 `
 
 export function useDeals() {
