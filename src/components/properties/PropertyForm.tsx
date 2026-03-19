@@ -157,7 +157,23 @@ export default function PropertyForm() {
     }
   }
 
-  const onSubmit = async (data: PropertyFormData) => {
+  const onSubmit = async (raw: PropertyFormData) => {
+    // Clean optional numeric fields: coerce.number() converts "" → 0,
+    // but 0 is meaningless for rooms/floor etc. — send undefined instead.
+    const data: PropertyFormData = {
+      ...raw,
+      rooms:          raw.rooms          || undefined,
+      floor:          raw.floor          || undefined,
+      total_floors:   raw.total_floors   || undefined,
+      area_sotki:     raw.area_sotki     || undefined,
+      entrance_groups: raw.entrance_groups || undefined,
+      // Clean empty strings from optional text fields
+      view:             raw.view             || undefined,
+      complex_name:     raw.complex_name     || undefined,
+      description:      raw.description      || undefined,
+      cadastral_number: raw.cadastral_number || undefined,
+    }
+
     try {
       if (editingPropertyId) {
         await updateProperty.mutateAsync({ id: editingPropertyId, data })

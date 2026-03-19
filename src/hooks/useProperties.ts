@@ -96,9 +96,14 @@ export function useUpdateProperty() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PropertyFormData> }): Promise<Property> => {
+      // Strip undefined values so Supabase only updates provided fields
+      const payload = Object.fromEntries(
+        Object.entries(data).filter(([, v]) => v !== undefined)
+      )
+
       const { data: updated, error } = await supabase
         .from('properties')
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update(payload)
         .eq('id', id)
         .select()
         .single()
