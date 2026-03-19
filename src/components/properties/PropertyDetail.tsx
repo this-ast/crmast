@@ -59,6 +59,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
     market_type, deal_type, has_mortgage, has_installment,
+    has_trade_in, has_maternal_cap, has_military_mort,
   } = property
 
   const title = (() => {
@@ -121,6 +122,21 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
               {has_installment && (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                   📅 Рассрочка
+                </span>
+              )}
+              {has_trade_in && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                  🔄 Трейд-ин
+                </span>
+              )}
+              {has_maternal_cap && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pink-100 text-pink-700">
+                  👶 Маткапитал
+                </span>
+              )}
+              {has_military_mort && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                  🎖 Воен. ипотека
                 </span>
               )}
             </div>

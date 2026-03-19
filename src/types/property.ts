@@ -12,8 +12,11 @@ export interface Property {
   // Market & deal
   market_type?: MarketType  // вторичка / новострой
   deal_type: DealType       // продажа / аренда
-  has_mortgage: boolean     // ипотека
-  has_installment: boolean  // рассрочка
+  has_mortgage: boolean       // ипотека
+  has_installment: boolean    // рассрочка
+  has_trade_in: boolean       // трейд-ин
+  has_maternal_cap: boolean   // маткапитал
+  has_military_mort: boolean  // военная ипотека
 
   // Price & Area
   price: number
@@ -71,6 +74,9 @@ export interface PropertyFormData {
   deal_type: DealType
   has_mortgage: boolean
   has_installment: boolean
+  has_trade_in: boolean
+  has_maternal_cap: boolean
+  has_military_mort: boolean
   price: number
   area: number
   rooms?: number

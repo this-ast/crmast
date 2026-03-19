@@ -18,6 +18,9 @@ const schema = z.object({
   deal_type: z.enum(['sale', 'rent']),
   has_mortgage: z.boolean(),
   has_installment: z.boolean(),
+  has_trade_in: z.boolean(),
+  has_maternal_cap: z.boolean(),
+  has_military_mort: z.boolean(),
   price: z.coerce.number().min(1, 'Укажите цену'),
   area: z.coerce.number().min(1, 'Укажите площадь'),
   rooms: z.coerce.number().optional(),
@@ -101,6 +104,9 @@ export default function PropertyForm() {
       deal_type: 'sale',
       has_mortgage: false,
       has_installment: false,
+      has_trade_in: false,
+      has_maternal_cap: false,
+      has_military_mort: false,
     } as PropertyFormData,
   })
 
@@ -113,6 +119,9 @@ export default function PropertyForm() {
         deal_type: editingProperty.deal_type ?? 'sale',
         has_mortgage: editingProperty.has_mortgage ?? false,
         has_installment: editingProperty.has_installment ?? false,
+        has_trade_in: editingProperty.has_trade_in ?? false,
+        has_maternal_cap: editingProperty.has_maternal_cap ?? false,
+        has_military_mort: editingProperty.has_military_mort ?? false,
         price: editingProperty.price,
         area: editingProperty.area,
         rooms: editingProperty.rooms,
@@ -266,26 +275,30 @@ export default function PropertyForm() {
           </div>
         </div>
 
-        {/* Conditions: ипотека, рассрочка */}
+        {/* Conditions */}
         {showConditions && (
           <div>
             <FieldLabel>Условия сделки</FieldLabel>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-violet-600 accent-violet-600"
-                  {...register('has_mortgage')}
-                />
+                <input type="checkbox" className="w-4 h-4 rounded text-violet-600 accent-violet-600" {...register('has_mortgage')} />
                 <span className="text-sm text-slate-700">🏦 Ипотека</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-emerald-600 accent-emerald-600"
-                  {...register('has_installment')}
-                />
+                <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 accent-emerald-600" {...register('has_installment')} />
                 <span className="text-sm text-slate-700">📅 Рассрочка</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded text-orange-500 accent-orange-500" {...register('has_trade_in')} />
+                <span className="text-sm text-slate-700">🔄 Трейд-ин</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded text-pink-500 accent-pink-500" {...register('has_maternal_cap')} />
+                <span className="text-sm text-slate-700">👶 Маткапитал</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded accent-slate-700" {...register('has_military_mort')} />
+                <span className="text-sm text-slate-700">🎖 Военная ипотека</span>
               </label>
             </div>
           </div>

@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Building2, AlertCircle, Loader2 } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
@@ -63,6 +64,9 @@ function filterProperties(
     // Conditions
     if (filters.filterMortgage && !p.has_mortgage) return false
     if (filters.filterInstallment && !p.has_installment) return false
+    if (filters.filterTradeIn && !p.has_trade_in) return false
+    if (filters.filterMaternalCap && !p.has_maternal_cap) return false
+    if (filters.filterMilitaryMort && !p.has_military_mort) return false
 
     return true
   })
@@ -70,6 +74,7 @@ function filterProperties(
 
 export default function PropertiesPage() {
   const { data: properties = [], isLoading, error } = useProperties()
+  const [searchParams, setSearchParams] = useSearchParams()
   const {
     filters,
     selectedPropertyId,
@@ -81,6 +86,18 @@ export default function PropertiesPage() {
     openForm,
     closeForm,
   } = usePropertyStore()
+
+  // Auto-open detail when navigated from client page via ?open={id}
+  useEffect(() => {
+    const openId = searchParams.get('open')
+    if (openId && properties.length > 0) {
+      const found = properties.find((p) => p.id === openId)
+      if (found) {
+        openDetail(openId)
+        setSearchParams({}, { replace: true })
+      }
+    }
+  }, [searchParams, properties, openDetail, setSearchParams])
 
   const filtered = useMemo(() => filterProperties(properties, filters), [properties, filters])
 

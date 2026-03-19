@@ -23,6 +23,9 @@ interface PropertyFilters {
   floorMax: string
   filterMortgage: boolean
   filterInstallment: boolean
+  filterTradeIn: boolean
+  filterMaternalCap: boolean
+  filterMilitaryMort: boolean
 }
 
 interface PropertyStore {
@@ -55,6 +58,9 @@ const defaultFilters: PropertyFilters = {
   floorMax: '',
   filterMortgage: false,
   filterInstallment: false,
+  filterTradeIn: false,
+  filterMaternalCap: false,
+  filterMilitaryMort: false,
 }
 
 export const usePropertyStore = create<PropertyStore>((set) => ({

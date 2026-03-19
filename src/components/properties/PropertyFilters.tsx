@@ -60,7 +60,10 @@ export default function PropertyFilters() {
     filters.floorMin !== '' ||
     filters.floorMax !== '' ||
     filters.filterMortgage ||
-    filters.filterInstallment
+    filters.filterInstallment ||
+    filters.filterTradeIn ||
+    filters.filterMaternalCap ||
+    filters.filterMilitaryMort
 
   // Derive what sub-filter labels to use
   const { dealType } = categoryToFilters(category)
@@ -247,6 +250,39 @@ export default function PropertyFilters() {
             )}
           >
             📅 Рассрочка
+          </button>
+          <button
+            onClick={() => setFilter('filterTradeIn', !filters.filterTradeIn)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              filters.filterTradeIn
+                ? 'bg-orange-500 text-white border-orange-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:text-orange-600'
+            )}
+          >
+            🔄 Трейд-ин
+          </button>
+          <button
+            onClick={() => setFilter('filterMaternalCap', !filters.filterMaternalCap)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              filters.filterMaternalCap
+                ? 'bg-pink-500 text-white border-pink-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-pink-300 hover:text-pink-600'
+            )}
+          >
+            👶 Маткапитал
+          </button>
+          <button
+            onClick={() => setFilter('filterMilitaryMort', !filters.filterMilitaryMort)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              filters.filterMilitaryMort
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-700'
+            )}
+          >
+            🎖 Воен. ипотека
           </button>
 
           {hasActiveFilters && (
