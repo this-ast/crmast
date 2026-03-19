@@ -44,11 +44,14 @@ create table if not exists agent_settings (
 );
 
 -- Auto updated_at для новых таблиц
-create trigger if not exists trg_complexes_updated_at
+drop trigger if exists trg_complexes_updated_at      on complexes;
+drop trigger if exists trg_agent_settings_updated_at on agent_settings;
+
+create trigger trg_complexes_updated_at
   before update on complexes
   for each row execute function update_updated_at();
 
-create trigger if not exists trg_agent_settings_updated_at
+create trigger trg_agent_settings_updated_at
   before update on agent_settings
   for each row execute function update_updated_at();
 
