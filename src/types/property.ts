@@ -1,11 +1,19 @@
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial'
 export type PropertyStatus = 'active' | 'sold' | 'reserved' | 'withdrawn'
+export type MarketType = 'secondary' | 'new_build'
+export type DealType = 'sale' | 'rent'
 
 export interface Property {
   id: string
   article: string // APT-001, DOM-001, UCH-001, KOM-001
   type: PropertyType
   status: PropertyStatus
+
+  // Market & deal
+  market_type?: MarketType  // вторичка / новострой
+  deal_type: DealType       // продажа / аренда
+  has_mortgage: boolean     // ипотека
+  has_installment: boolean  // рассрочка
 
   // Price & Area
   price: number
@@ -59,6 +67,10 @@ export interface PropertyWithOwner extends Property {
 export interface PropertyFormData {
   type: PropertyType
   status: PropertyStatus
+  market_type?: MarketType
+  deal_type: DealType
+  has_mortgage: boolean
+  has_installment: boolean
   price: number
   area: number
   rooms?: number
@@ -106,6 +118,16 @@ export const PROPERTY_STATUS_COLORS: Record<PropertyStatus, string> = {
   sold: 'bg-slate-100 text-slate-600',
   reserved: 'bg-amber-100 text-amber-700',
   withdrawn: 'bg-red-100 text-red-600',
+}
+
+export const MARKET_TYPE_LABELS: Record<MarketType, string> = {
+  secondary: 'Вторичка',
+  new_build: 'Новострой',
+}
+
+export const DEAL_TYPE_LABELS: Record<DealType, string> = {
+  sale: 'Продажа',
+  rent: 'Аренда',
 }
 
 export const ARTICLE_PREFIXES: Record<PropertyType, string> = {

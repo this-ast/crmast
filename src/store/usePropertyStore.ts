@@ -1,14 +1,28 @@
 import { create } from 'zustand'
-import type { PropertyType, PropertyStatus } from '@/types'
+import type { PropertyType, PropertyStatus, MarketType, DealType } from '@/types'
+
+// Virtual filter category (maps to type | marketType | dealType)
+export type FilterCategory =
+  | PropertyType
+  | 'all'
+  | 'secondary'   // market_type = secondary
+  | 'new_build'   // market_type = new_build
+  | 'rent'        // deal_type = rent
 
 interface PropertyFilters {
-  type: PropertyType | 'all'
+  category: FilterCategory
   status: PropertyStatus | 'all'
   search: string
+  ownerSearch: string
   priceMin: string
   priceMax: string
   areaMin: string
   areaMax: string
+  rooms: string       // '' | '1' | '2' | '3' | '4' | '5+'
+  floorMin: string
+  floorMax: string
+  filterMortgage: boolean
+  filterInstallment: boolean
 }
 
 interface PropertyStore {
@@ -19,6 +33,7 @@ interface PropertyStore {
   editingPropertyId: string | null
 
   setFilter: <K extends keyof PropertyFilters>(key: K, value: PropertyFilters[K]) => void
+  setCategory: (category: FilterCategory) => void
   resetFilters: () => void
   openDetail: (id: string) => void
   closeDetail: () => void
@@ -27,13 +42,19 @@ interface PropertyStore {
 }
 
 const defaultFilters: PropertyFilters = {
-  type: 'all',
+  category: 'all',
   status: 'all',
   search: '',
+  ownerSearch: '',
   priceMin: '',
   priceMax: '',
   areaMin: '',
   areaMax: '',
+  rooms: '',
+  floorMin: '',
+  floorMax: '',
+  filterMortgage: false,
+  filterInstallment: false,
 }
 
 export const usePropertyStore = create<PropertyStore>((set) => ({
@@ -48,6 +69,18 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
       filters: { ...state.filters, [key]: value },
     })),
 
+  setCategory: (category) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        category,
+        // Reset sub-filters that don't apply to the new category
+        rooms: '',
+        floorMin: '',
+        floorMax: '',
+      },
+    })),
+
   resetFilters: () => set({ filters: defaultFilters }),
 
   openDetail: (id) => set({ selectedPropertyId: id, isDetailOpen: true }),
@@ -57,3 +90,23 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
     set({ isFormOpen: true, editingPropertyId: editId ?? null }),
   closeForm: () => set({ isFormOpen: false, editingPropertyId: null }),
 }))
+
+// Derive actual type/marketType/dealType from category
+export function categoryToFilters(category: FilterCategory): {
+  type: PropertyType | 'all'
+  marketType: MarketType | 'all'
+  dealType: DealType | 'all'
+} {
+  switch (category) {
+    case 'secondary':
+      return { type: 'all', marketType: 'secondary', dealType: 'all' }
+    case 'new_build':
+      return { type: 'all', marketType: 'new_build', dealType: 'all' }
+    case 'rent':
+      return { type: 'all', marketType: 'all', dealType: 'rent' }
+    case 'all':
+      return { type: 'all', marketType: 'all', dealType: 'all' }
+    default:
+      return { type: category, marketType: 'all', dealType: 'all' }
+  }
+}

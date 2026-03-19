@@ -1,13 +1,16 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
-  ChevronRight, Building2, X, Pencil, Trash2, type LucideIcon
+  ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
 import {
   PROPERTY_TYPE_LABELS,
   PROPERTY_STATUS_COLORS,
   PROPERTY_STATUS_LABELS,
+  MARKET_TYPE_LABELS,
+  DEAL_TYPE_LABELS,
 } from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -48,12 +51,14 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const [confirmDelete, setConfirmDelete] = useState(false)
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
+  const navigate = useNavigate()
 
   const {
     id, article, type, status, price, area, rooms, floor, total_floors, view,
     complex_name, address, description, owner,
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
+    market_type, deal_type, has_mortgage, has_installment,
   } = property
 
   const title = (() => {
@@ -77,6 +82,12 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
     }
   }
 
+  const handleOwnerClick = () => {
+    if (!owner) return
+    onClose()
+    setTimeout(() => navigate(`/clients?highlight=${owner.id}`), 150)
+  }
+
   return (
     <div className="flex flex-col max-h-[85vh]">
       {/* Header */}
@@ -85,22 +96,37 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           <PropertyTypeIcon type={type} size="lg" />
           <div>
             <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded">
                 {article}
               </span>
-              <span
-                className={cn(
-                  'text-xs font-medium px-2 py-0.5 rounded-full',
-                  PROPERTY_STATUS_COLORS[status]
-                )}
-              >
+              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', PROPERTY_STATUS_COLORS[status])}>
                 {PROPERTY_STATUS_LABELS[status]}
               </span>
+              {deal_type === 'rent' && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                  🔑 {DEAL_TYPE_LABELS[deal_type]}
+                </span>
+              )}
+              {market_type && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  {market_type === 'secondary' ? '🏘' : '🏗'} {MARKET_TYPE_LABELS[market_type]}
+                </span>
+              )}
+              {has_mortgage && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+                  🏦 Ипотека
+                </span>
+              )}
+              {has_installment && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                  📅 Рассрочка
+                </span>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleEdit}
             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -150,7 +176,9 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Price */}
         <div className="bg-blue-50 rounded-xl px-4 py-3">
-          <p className="text-xs text-blue-500 font-medium mb-0.5">Цена</p>
+          <p className="text-xs text-blue-500 font-medium mb-0.5">
+            {deal_type === 'rent' ? 'Аренда в месяц' : 'Цена'}
+          </p>
           <p className="text-2xl font-bold text-blue-700">{formatPrice(price)}</p>
         </div>
 
@@ -183,9 +211,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                     value={
                       <div className="flex flex-wrap gap-1 mt-1">
                         {communications.map((c) => (
-                          <span key={c} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                            {c}
-                          </span>
+                          <span key={c} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{c}</span>
                         ))}
                       </div>
                     }
@@ -196,32 +222,16 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             {type === 'commercial' && (
               <>
                 {is_active_business !== undefined && (
-                  <InfoRow
-                    icon={Building2}
-                    label="Действующий бизнес"
-                    value={is_active_business ? 'Да' : 'Нет'}
-                  />
+                  <InfoRow icon={Building2} label="Действующий бизнес" value={is_active_business ? 'Да' : 'Нет'} />
                 )}
                 {has_wet_points !== undefined && (
-                  <InfoRow
-                    icon={Layers}
-                    label="Мокрые точки"
-                    value={has_wet_points ? 'Есть' : 'Нет'}
-                  />
+                  <InfoRow icon={Layers} label="Мокрые точки" value={has_wet_points ? 'Есть' : 'Нет'} />
                 )}
                 {has_parking !== undefined && (
-                  <InfoRow
-                    icon={Layers}
-                    label="Парковка"
-                    value={has_parking ? 'Есть' : 'Нет'}
-                  />
+                  <InfoRow icon={Layers} label="Парковка" value={has_parking ? 'Есть' : 'Нет'} />
                 )}
                 {entrance_groups !== undefined && (
-                  <InfoRow
-                    icon={ChevronRight}
-                    label="Входных групп"
-                    value={entrance_groups}
-                  />
+                  <InfoRow icon={ChevronRight} label="Входных групп" value={entrance_groups} />
                 )}
                 {communications && communications.length > 0 && (
                   <InfoRow
@@ -230,9 +240,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                     value={
                       <div className="flex flex-wrap gap-1 mt-1">
                         {communications.map((c) => (
-                          <span key={c} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                            {c}
-                          </span>
+                          <span key={c} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{c}</span>
                         ))}
                       </div>
                     }
@@ -249,9 +257,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             Локация
           </h3>
           <div className="space-y-3">
-            {complex_name && (
-              <InfoRow icon={Building2} label="ЖК" value={complex_name} />
-            )}
+            {complex_name && <InfoRow icon={Building2} label="ЖК" value={complex_name} />}
             <InfoRow icon={MapPin} label="Адрес" value={address} />
           </div>
         </div>
@@ -271,22 +277,28 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           </div>
         )}
 
-        {/* Owner */}
+        {/* Owner — clickable */}
         {owner && (
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
               Собственник
             </h3>
             <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+              <button
+                onClick={handleOwnerClick}
+                className="flex items-center gap-3 w-full text-left group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                   <User size={16} className="text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{owner.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {owner.name}
+                  </p>
                   <p className="text-xs text-slate-400 font-mono">Клиент #{owner.client_number}</p>
                 </div>
-              </div>
+                <ExternalLink size={14} className="text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
+              </button>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Phone size={14} className="text-slate-400" />

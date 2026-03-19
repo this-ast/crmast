@@ -14,6 +14,10 @@ import toast from 'react-hot-toast'
 const schema = z.object({
   type: z.enum(['apartment', 'house', 'land', 'commercial']),
   status: z.enum(['active', 'sold', 'reserved', 'withdrawn']),
+  market_type: z.enum(['secondary', 'new_build']).optional(),
+  deal_type: z.enum(['sale', 'rent']),
+  has_mortgage: z.boolean(),
+  has_installment: z.boolean(),
   price: z.coerce.number().min(1, 'Укажите цену'),
   area: z.coerce.number().min(1, 'Укажите площадь'),
   rooms: z.coerce.number().optional(),
@@ -94,15 +98,21 @@ export default function PropertyForm() {
     defaultValues: {
       type: 'apartment',
       status: 'active',
+      deal_type: 'sale',
+      has_mortgage: false,
+      has_installment: false,
     } as PropertyFormData,
   })
 
-  // Заполняем форму данными при редактировании
   useEffect(() => {
     if (editingProperty && editingPropertyId) {
       reset({
         type: editingProperty.type,
         status: editingProperty.status,
+        market_type: editingProperty.market_type,
+        deal_type: editingProperty.deal_type ?? 'sale',
+        has_mortgage: editingProperty.has_mortgage ?? false,
+        has_installment: editingProperty.has_installment ?? false,
         price: editingProperty.price,
         area: editingProperty.area,
         rooms: editingProperty.rooms,
@@ -125,6 +135,8 @@ export default function PropertyForm() {
   }, [editingProperty, editingPropertyId, reset])
 
   const type = watch('type') as PropertyType
+  const dealType = watch('deal_type')
+  const marketType = watch('market_type')
   const communications = watch('communications') ?? []
 
   const toggleCommunication = (value: string) => {
@@ -151,11 +163,13 @@ export default function PropertyForm() {
     }
   }
 
+  const showMarketType = type === 'apartment' || type === 'house'
+  const showConditions = type !== 'land'
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
-      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Type selection */}
+        {/* Type */}
         <div>
           <FieldLabel required>Тип объекта</FieldLabel>
           <div className="grid grid-cols-4 gap-2">
@@ -178,13 +192,62 @@ export default function PropertyForm() {
           </div>
         </div>
 
+        {/* Deal type + Market type */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Deal type: Продажа / Аренда */}
+          <div>
+            <FieldLabel>Тип сделки</FieldLabel>
+            <div className="flex gap-2">
+              {(['sale', 'rent'] as const).map((dt) => (
+                <button
+                  key={dt}
+                  type="button"
+                  onClick={() => setValue('deal_type', dt)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-xs font-medium border transition-all',
+                    dealType === dt
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  {dt === 'sale' ? '💰 Продажа' : '🔑 Аренда'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Market type: Вторичка / Новострой (only for apt/house) */}
+          {showMarketType && (
+            <div>
+              <FieldLabel>Рынок</FieldLabel>
+              <div className="flex gap-2">
+                {([undefined, 'secondary', 'new_build'] as const).map((mt) => (
+                  <button
+                    key={mt ?? 'none'}
+                    type="button"
+                    onClick={() => setValue('market_type', mt)}
+                    className={cn(
+                      'flex-1 py-2 rounded-lg text-xs font-medium border transition-all',
+                      marketType === mt
+                        ? 'bg-slate-700 text-white border-slate-700'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    )}
+                  >
+                    {mt === undefined ? '—' : mt === 'secondary' ? '🏘 Вторичка' : '🏗 Новострой'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Status */}
         <div>
           <FieldLabel required>Статус</FieldLabel>
           <Select {...register('status')}>
             <option value="active">Активный</option>
             <option value="reserved">Резерв</option>
-            <option value="sold">Продан</option>
+            <option value="sold">{dealType === 'rent' ? 'Сдан' : 'Продан'}</option>
             <option value="withdrawn">Снят</option>
           </Select>
         </div>
@@ -192,7 +255,7 @@ export default function PropertyForm() {
         {/* Price & Area */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FieldLabel required>Цена (₽)</FieldLabel>
+            <FieldLabel required>{dealType === 'rent' ? 'Аренда/мес (₽)' : 'Цена (₽)'}</FieldLabel>
             <Input type="number" placeholder="5500000" {...register('price')} />
             <FieldError message={errors.price?.message} />
           </div>
@@ -202,6 +265,31 @@ export default function PropertyForm() {
             <FieldError message={errors.area?.message} />
           </div>
         </div>
+
+        {/* Conditions: ипотека, рассрочка */}
+        {showConditions && (
+          <div>
+            <FieldLabel>Условия сделки</FieldLabel>
+            <div className="flex gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded text-violet-600 accent-violet-600"
+                  {...register('has_mortgage')}
+                />
+                <span className="text-sm text-slate-700">🏦 Ипотека</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded text-emerald-600 accent-emerald-600"
+                  {...register('has_installment')}
+                />
+                <span className="text-sm text-slate-700">📅 Рассрочка</span>
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Apartment specific */}
         {type === 'apartment' && (
@@ -271,27 +359,15 @@ export default function PropertyForm() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-blue-600"
-                  {...register('is_active_business')}
-                />
+                <input type="checkbox" className="w-4 h-4 rounded" {...register('is_active_business')} />
                 <span className="text-sm text-slate-700">Действующий бизнес</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-blue-600"
-                  {...register('has_wet_points')}
-                />
+                <input type="checkbox" className="w-4 h-4 rounded" {...register('has_wet_points')} />
                 <span className="text-sm text-slate-700">Мокрые точки</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-blue-600"
-                  {...register('has_parking')}
-                />
+                <input type="checkbox" className="w-4 h-4 rounded" {...register('has_parking')} />
                 <span className="text-sm text-slate-700">Парковка</span>
               </label>
               <div>

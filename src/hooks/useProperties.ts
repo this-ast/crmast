@@ -126,3 +126,20 @@ export function useDeleteProperty() {
     },
   })
 }
+
+export function usePropertiesByOwner(ownerId: string) {
+  return useQuery({
+    queryKey: [QUERY_KEY, 'owner', ownerId],
+    queryFn: async (): Promise<Property[]> => {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('owner_id', ownerId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!ownerId,
+  })
+}

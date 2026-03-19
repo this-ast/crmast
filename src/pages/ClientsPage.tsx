@@ -1,15 +1,20 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { Search, Plus, Users, Phone, X, Loader2, AlertCircle, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import {
+  Search, Plus, Users, Phone, X, Loader2, AlertCircle,
+  Pencil, Trash2, ChevronDown, ChevronUp, Building2,
+} from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
+import { usePropertiesByOwner } from '@/hooks/useProperties'
 import type { Client, ClientFormData } from '@/types'
-import { CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS } from '@/types'
-import { formatPhone, maskPhone } from '@/utils/format'
+import { CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
+import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import Modal from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
 
-// ─── Client Form ───────────────────────────────────────────────────────────────
+// ─── Client Form ────────────────────────────────────────────────────────────────
 
 function ClientForm({
   initial,
@@ -163,22 +168,73 @@ function ClientForm({
   )
 }
 
+// ─── Client Properties mini-list ─────────────────────────────────────────────
+
+function ClientProperties({ clientId }: { clientId: string }) {
+  const navigate = useNavigate()
+  const { data: props = [], isLoading } = usePropertiesByOwner(clientId)
+
+  if (isLoading) return <p className="text-xs text-slate-400">Загрузка объектов...</p>
+  if (props.length === 0) return <p className="text-xs text-slate-400">Объектов нет</p>
+
+  return (
+    <div className="space-y-1.5">
+      {props.map((p) => (
+        <button
+          key={p.id}
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/properties?open=${p.id}`)
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all text-left group"
+        >
+          <span className="text-base">{PROPERTY_TYPE_ICONS[p.type]}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-slate-800 truncate group-hover:text-blue-700">
+              {PROPERTY_TYPE_LABELS[p.type]}
+              {p.rooms ? ` ${p.rooms}-комн.` : ''}
+              {p.address ? ` · ${p.address}` : ''}
+            </p>
+            <p className="text-xs text-slate-400">{formatPrice(p.price)} · {p.area} м²</p>
+          </div>
+          <span className="text-xs font-mono text-slate-300">{p.article}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Client Row ────────────────────────────────────────────────────────────────
 
 function ClientRow({
   client,
+  highlighted,
   onEdit,
   onDelete,
 }: {
   client: Client
+  highlighted: boolean
   onEdit: (c: Client) => void
   onDelete: (c: Client) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(highlighted)
   const [phoneRevealed, setPhoneRevealed] = useState(false)
+  const rowRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (highlighted && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlighted])
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div
+      ref={rowRef}
+      className={cn(
+        'bg-white rounded-xl border overflow-hidden transition-all',
+        highlighted ? 'border-blue-400 shadow-sm shadow-blue-100' : 'border-slate-100'
+      )}
+    >
       {/* Main row */}
       <div
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors"
@@ -278,6 +334,15 @@ function ClientRow({
             </div>
           )}
 
+          {/* Properties */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 size={13} className="text-slate-400" />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Объекты</p>
+            </div>
+            <ClientProperties clientId={client.id} />
+          </div>
+
           <div className="flex gap-2 pt-1">
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(client) }}
@@ -308,11 +373,23 @@ export default function ClientsPage() {
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
 
+  const [searchParams, setSearchParams] = useSearchParams()
+  const highlightId = searchParams.get('highlight') ?? ''
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
+
+  // Clear highlight param after 3s so it doesn't persist on refresh
+  useEffect(() => {
+    if (!highlightId) return
+    const t = setTimeout(() => {
+      setSearchParams({}, { replace: true })
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [highlightId, setSearchParams])
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
@@ -443,6 +520,7 @@ export default function ClientsPage() {
             <ClientRow
               key={client.id}
               client={client}
+              highlighted={client.id === highlightId}
               onEdit={openEdit}
               onDelete={setDeletingClient}
             />
