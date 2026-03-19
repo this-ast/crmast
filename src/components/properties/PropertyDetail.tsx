@@ -371,7 +371,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 return (
                   <button
                     key={deal.id}
-                    onClick={() => { onClose(); setTimeout(() => navigate('/deals'), 150) }}
+                    onClick={() => { onClose(); setTimeout(() => navigate(`/deals?open=${deal.id}`), 150) }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors text-left group"
                   >
                     <HeartHandshake size={15} className="text-emerald-500 shrink-0" />

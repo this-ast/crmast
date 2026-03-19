@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import {
   Plus, HeartHandshake, Loader2, Search, X, Pencil, Trash2,
@@ -200,19 +200,34 @@ function DealForm({
 
 function DealCard({
   deal,
+  defaultExpanded = false,
   onEdit,
   onDelete,
 }: {
   deal: Deal
+  defaultExpanded?: boolean
   onEdit: (d: Deal) => void
   onDelete: (d: Deal) => void
 }) {
   const navigate = useNavigate()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const cardRef = useRef<HTMLDivElement>(null)
   const statusMeta = DEAL_STATUSES.find((s) => s.value === deal.status)
 
+  useEffect(() => {
+    if (defaultExpanded && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [defaultExpanded])
+
   return (
-    <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div
+      ref={cardRef}
+      className={cn(
+        'bg-white rounded-xl border overflow-hidden transition-all',
+        defaultExpanded ? 'border-blue-400 shadow-sm shadow-blue-100' : 'border-slate-100'
+      )}
+    >
       {/* Header row */}
       <div
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors"
@@ -396,11 +411,23 @@ export default function DealsPage() {
   const updateDeal = useUpdateDeal()
   const deleteDeal = useDeleteDeal()
 
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openId = searchParams.get('open') ?? ''
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [expandedId, setExpandedId] = useState<string>(openId)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
   const [deletingDeal, setDeletingDeal] = useState<Deal | null>(null)
+
+  // Auto-expand deal from URL param, then clear it
+  useEffect(() => {
+    if (!openId) return
+    setExpandedId(openId)
+    const t = setTimeout(() => setSearchParams({}, { replace: true }), 1500)
+    return () => clearTimeout(t)
+  }, [openId, setSearchParams])
 
   // Enrich deals with client/property data from already-loaded lists
   const deals = useMemo<Deal[]>(() => rawDeals.map((d) => ({
@@ -594,7 +621,7 @@ export default function DealsPage() {
       {!isLoading && filtered.length > 0 && (
         <div className="space-y-2">
           {filtered.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onEdit={openEdit} onDelete={setDeletingDeal} />
+            <DealCard key={deal.id} deal={deal} defaultExpanded={deal.id === expandedId} onEdit={openEdit} onDelete={setDeletingDeal} />
           ))}
         </div>
       )}
