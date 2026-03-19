@@ -4,22 +4,14 @@ import type { Deal, DealFormData } from '@/types'
 
 const QUERY_KEY = 'deals'
 
-const WITH_RELATIONS = `
-  *,
-  buyer:clients!buyer_id(id, client_number, name, phone),
-  seller:clients!seller_id(id, client_number, name, phone),
-  property:properties!property_id(id, article, type, address, price)
-`
-
 export function useDeals() {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: async (): Promise<Deal[]> => {
       const { data, error } = await supabase
         .from('deals')
-        .select(WITH_RELATIONS)
+        .select('*')
         .order('deal_number', { ascending: false })
-      // 42P01 = table does not exist yet — treat as empty
       if (error) {
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
@@ -36,7 +28,7 @@ export function useDealsByProperty(propertyId: string | undefined) {
     queryFn: async (): Promise<Deal[]> => {
       const { data, error } = await supabase
         .from('deals')
-        .select(WITH_RELATIONS)
+        .select('*')
         .eq('property_id', propertyId!)
         .order('deal_number', { ascending: false })
       if (error) {
@@ -55,7 +47,7 @@ export function useDealsByClient(clientId: string | undefined) {
     queryFn: async (): Promise<Deal[]> => {
       const { data, error } = await supabase
         .from('deals')
-        .select(WITH_RELATIONS)
+        .select('*')
         .or(`buyer_id.eq.${clientId},seller_id.eq.${clientId}`)
         .order('deal_number', { ascending: false })
       if (error) {
@@ -80,7 +72,7 @@ export function useCreateDeal() {
       const { data: created, error } = await supabase
         .from('deals')
         .insert(cleanData(data))
-        .select(WITH_RELATIONS)
+        .select('*')
         .single()
       if (error) throw new Error(error.message ?? JSON.stringify(error))
       return created as Deal
@@ -97,7 +89,7 @@ export function useUpdateDeal() {
         .from('deals')
         .update(cleanData(data as DealFormData))
         .eq('id', id)
-        .select(WITH_RELATIONS)
+        .select('*')
         .single()
       if (error) throw new Error(error.message ?? JSON.stringify(error))
       return updated as Deal

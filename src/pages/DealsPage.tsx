@@ -389,7 +389,9 @@ function DealCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DealsPage() {
-  const { data: deals = [], isLoading, error } = useDeals()
+  const { data: rawDeals = [], isLoading, error } = useDeals()
+  const { data: clients = [] } = useClients()
+  const { data: properties = [] } = useProperties()
   const createDeal = useCreateDeal()
   const updateDeal = useUpdateDeal()
   const deleteDeal = useDeleteDeal()
@@ -399,6 +401,20 @@ export default function DealsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
   const [deletingDeal, setDeletingDeal] = useState<Deal | null>(null)
+
+  // Enrich deals with client/property data from already-loaded lists
+  const deals = useMemo<Deal[]>(() => rawDeals.map((d) => ({
+    ...d,
+    buyer:    d.buyer_id    ? clients.find((c) => c.id === d.buyer_id)    ?? null : null,
+    seller:   d.seller_id   ? clients.find((c) => c.id === d.seller_id)   ?? null : null,
+    property: d.property_id ? (properties.find((p) => p.id === d.property_id)
+      ? { id: properties.find((p) => p.id === d.property_id)!.id,
+          article: properties.find((p) => p.id === d.property_id)!.article,
+          type: properties.find((p) => p.id === d.property_id)!.type,
+          address: properties.find((p) => p.id === d.property_id)!.address,
+          price: properties.find((p) => p.id === d.property_id)!.price }
+      : null) : null,
+  })), [rawDeals, clients, properties])
 
   const filtered = useMemo(() => {
     return deals.filter((d) => {
