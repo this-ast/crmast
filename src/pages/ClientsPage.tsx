@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
@@ -487,6 +488,8 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('client_number')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
@@ -499,7 +502,7 @@ export default function ClientsPage() {
   }, [highlightId, setSearchParams])
 
   const filtered = useMemo(() => {
-    return clients.filter((c) => {
+    const list = clients.filter((c) => {
       if (typeFilter && c.client_type !== typeFilter) return false
       if (statusFilter && c.status !== statusFilter) return false
       if (search) {
@@ -510,7 +513,32 @@ export default function ClientsPage() {
       }
       return true
     })
-  }, [clients, search, typeFilter, statusFilter])
+
+    list.sort((a, b) => {
+      let va: string | number | null = null
+      let vb: string | number | null = null
+      if (sortBy === 'client_number') {
+        va = a.client_number
+        vb = b.client_number
+      } else if (sortBy === 'created_at') {
+        va = a.created_at ?? ''
+        vb = b.created_at ?? ''
+      } else if (sortBy === 'updated_at') {
+        va = a.updated_at ?? ''
+        vb = b.updated_at ?? ''
+      } else if (sortBy === 'last_contact') {
+        va = a.last_contact ?? ''
+        vb = b.last_contact ?? ''
+      }
+      if (va === null || va === '') return sortDir === 'asc' ? 1 : -1
+      if (vb === null || vb === '') return sortDir === 'asc' ? -1 : 1
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return list
+  }, [clients, search, typeFilter, statusFilter, sortBy, sortDir])
 
   const handleSave = async (data: ClientFormData) => {
     try {
@@ -609,7 +637,7 @@ export default function ClientsPage() {
         })}
       </div>
 
-      {/* Search + status filter */}
+      {/* Search + status filter + sort */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-64">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -629,6 +657,7 @@ export default function ClientsPage() {
             </button>
           )}
         </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -637,6 +666,41 @@ export default function ClientsPage() {
           <option value="">Все статусы</option>
           {uniqueStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
+
+        {/* Sort controls */}
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1 py-1">
+          {([
+            { value: 'client_number', label: '№' },
+            { value: 'created_at',    label: 'Добавлен' },
+            { value: 'updated_at',    label: 'Обновлён' },
+            { value: 'last_contact',  label: 'Контакт' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                if (sortBy === opt.value) {
+                  setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+                } else {
+                  setSortBy(opt.value)
+                  setSortDir('asc')
+                }
+              }}
+              className={cn(
+                'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all',
+                sortBy === opt.value
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-500 hover:bg-slate-100'
+              )}
+            >
+              {opt.label}
+              {sortBy === opt.value && (
+                sortDir === 'asc'
+                  ? <ArrowUp size={11} />
+                  : <ArrowDown size={11} />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Loading */}
