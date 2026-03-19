@@ -26,6 +26,13 @@ interface PropertyFilters {
   filterTradeIn: boolean
   filterMaternalCap: boolean
   filterMilitaryMort: boolean
+  // Land / house
+  areaSotkiMin: string
+  areaSotkiMax: string
+  // Commercial
+  filterParking: boolean
+  filterActiveBusiness: boolean
+  filterWetPoints: boolean
 }
 
 interface PropertyStore {
@@ -61,6 +68,11 @@ const defaultFilters: PropertyFilters = {
   filterTradeIn: false,
   filterMaternalCap: false,
   filterMilitaryMort: false,
+  areaSotkiMin: '',
+  areaSotkiMax: '',
+  filterParking: false,
+  filterActiveBusiness: false,
+  filterWetPoints: false,
 }
 
 export const usePropertyStore = create<PropertyStore>((set) => ({
@@ -80,10 +92,14 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
       filters: {
         ...state.filters,
         category,
-        // Reset sub-filters that don't apply to the new category
         rooms: '',
         floorMin: '',
         floorMax: '',
+        areaSotkiMin: '',
+        areaSotkiMax: '',
+        filterParking: false,
+        filterActiveBusiness: false,
+        filterWetPoints: false,
       },
     })),
 

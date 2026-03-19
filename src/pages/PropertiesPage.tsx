@@ -61,12 +61,21 @@ function filterProperties(
     if (filters.floorMin && (!p.floor || p.floor < Number(filters.floorMin))) return false
     if (filters.floorMax && (!p.floor || p.floor > Number(filters.floorMax))) return false
 
-    // Conditions
+    // Sotki (land / house)
+    if (filters.areaSotkiMin && (!p.area_sotki || p.area_sotki < Number(filters.areaSotkiMin))) return false
+    if (filters.areaSotkiMax && (!p.area_sotki || p.area_sotki > Number(filters.areaSotkiMax))) return false
+
+    // Deal conditions
     if (filters.filterMortgage && !p.has_mortgage) return false
     if (filters.filterInstallment && !p.has_installment) return false
     if (filters.filterTradeIn && !p.has_trade_in) return false
     if (filters.filterMaternalCap && !p.has_maternal_cap) return false
     if (filters.filterMilitaryMort && !p.has_military_mort) return false
+
+    // Commercial conditions
+    if (filters.filterParking && !p.has_parking) return false
+    if (filters.filterActiveBusiness && !p.is_active_business) return false
+    if (filters.filterWetPoints && !p.has_wet_points) return false
 
     return true
   })
