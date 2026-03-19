@@ -167,8 +167,10 @@ export default function PropertyForm() {
         toast.success('Объект добавлен')
       }
       closeForm()
-    } catch {
-      toast.error('Ошибка при сохранении')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Ошибка: ${msg}`, { duration: 8000 })
+      console.error('[PropertyForm] save error:', err)
     }
   }
 
