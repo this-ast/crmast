@@ -17,6 +17,8 @@ import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
 import { useDeleteProperty } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
+import { useAgentSettings } from '@/hooks/useAgentSettings'
+import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
 import toast from 'react-hot-toast'
 
 interface PropertyDetailProps {
@@ -51,6 +53,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const [confirmDelete, setConfirmDelete] = useState(false)
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
+  const { data: agentSettings } = useAgentSettings()
   const navigate = useNavigate()
 
   const {
@@ -143,6 +146,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <PropertyPdfButton property={property} agentSettings={agentSettings ?? {}} />
           <button
             onClick={handleEdit}
             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -273,7 +277,25 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             Локация
           </h3>
           <div className="space-y-3">
-            {complex_name && <InfoRow icon={Building2} label="ЖК" value={complex_name} />}
+            {complex_name && (
+              <InfoRow
+                icon={Building2}
+                label="ЖК"
+                value={
+                  property.complex_id ? (
+                    <button
+                      onClick={() => { onClose(); setTimeout(() => navigate(`/complexes?open=${property.complex_id}`), 150) }}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      {complex_name}
+                      <ExternalLink size={12} />
+                    </button>
+                  ) : (
+                    complex_name
+                  )
+                }
+              />
+            )}
             <InfoRow icon={MapPin} label="Адрес" value={address} />
           </div>
         </div>

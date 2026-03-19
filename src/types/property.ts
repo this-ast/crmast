@@ -42,16 +42,19 @@ export interface Property {
   // Owner reference
   owner_id: string
 
+  // Complex reference
+  complex_id?: string
+
   // Land specific
   area_sotki?: number
-  communications?: string[] // коммуникации
-  cadastral_number?: string // кадастровый номер
+  communications?: string[]
+  cadastral_number?: string
 
   // Commercial specific
-  is_active_business?: boolean // действующий бизнес
-  has_wet_points?: boolean // мокрые точки
-  has_parking?: boolean // парковка
-  entrance_groups?: number // входных групп
+  is_active_business?: boolean
+  has_wet_points?: boolean
+  has_parking?: boolean
+  entrance_groups?: number
 
   created_at: string
   updated_at: string
@@ -87,6 +90,8 @@ export interface PropertyFormData {
   complex_name?: string
   description?: string
   owner_id: string
+  // Complex
+  complex_id?: string
   // Land
   area_sotki?: number
   communications?: string[]

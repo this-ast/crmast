@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Building2, Users, HeartHandshake, Settings } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, HeartHandshake, Settings, Landmark } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const nav = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Дашборд' },
   { to: '/properties', icon: Building2, label: 'Объекты' },
+  { to: '/complexes', icon: Landmark, label: 'ЖК' },
   { to: '/clients', icon: Users, label: 'Клиенты' },
   { to: '/deals', icon: HeartHandshake, label: 'Сделки' },
 ]
