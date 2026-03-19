@@ -19,7 +19,11 @@ export function useDeals() {
         .from('deals')
         .select(WITH_RELATIONS)
         .order('deal_number', { ascending: false })
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      // 42P01 = table does not exist yet — treat as empty
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return (data ?? []) as Deal[]
     },
   })
@@ -35,7 +39,10 @@ export function useDealsByProperty(propertyId: string | undefined) {
         .select(WITH_RELATIONS)
         .eq('property_id', propertyId!)
         .order('deal_number', { ascending: false })
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return (data ?? []) as Deal[]
     },
   })
@@ -51,7 +58,10 @@ export function useDealsByClient(clientId: string | undefined) {
         .select(WITH_RELATIONS)
         .or(`buyer_id.eq.${clientId},seller_id.eq.${clientId}`)
         .order('deal_number', { ascending: false })
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return (data ?? []) as Deal[]
     },
   })
