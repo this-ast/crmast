@@ -23,7 +23,7 @@ export function useProperties() {
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return data ?? []
     },
   })
@@ -47,7 +47,7 @@ export function useProperty(id: string) {
         .eq('id', id)
         .single()
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return data
     },
     enabled: !!id,
@@ -82,7 +82,7 @@ export function useCreateProperty() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return created
     },
     onSuccess: () => {
@@ -103,7 +103,7 @@ export function useUpdateProperty() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return updated
     },
     onSuccess: (_, { id }) => {
@@ -119,7 +119,7 @@ export function useDeleteProperty() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('properties').delete().eq('id', id)
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
@@ -137,7 +137,7 @@ export function usePropertiesByOwner(ownerId: string) {
         .eq('owner_id', ownerId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return data ?? []
     },
     enabled: !!ownerId,

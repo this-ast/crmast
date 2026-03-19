@@ -13,7 +13,7 @@ export function useClients() {
         .select('*')
         .order('client_number', { ascending: true })
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return data ?? []
     },
   })
@@ -30,7 +30,7 @@ export function useCreateClient() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return created
     },
     onSuccess: () => {
@@ -51,7 +51,7 @@ export function useUpdateClient() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
       return updated
     },
     onSuccess: () => {
@@ -66,7 +66,7 @@ export function useDeleteClient() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('clients').delete().eq('id', id)
-      if (error) throw error
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
