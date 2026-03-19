@@ -8,11 +8,13 @@ import {
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
+import { useDealsByClient } from '@/hooks/useDeals'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
   CLIENT_TYPES, CLIENT_TYPE_ICONS, CLIENT_TYPE_COLORS,
   PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS,
+  DEAL_STATUSES,
 } from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -273,6 +275,55 @@ function ClientProperties({ clientId }: { clientId: string }) {
   )
 }
 
+// ─── Client Deals mini-list ───────────────────────────────────────────────────
+
+function ClientDealsSection({ clientId }: { clientId: string }) {
+  const navigate = useNavigate()
+  const { data: deals = [], isLoading } = useDealsByClient(clientId)
+
+  if (isLoading || deals.length === 0) return null
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-sm">🤝</span>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Сделки</p>
+      </div>
+      <div className="space-y-1.5">
+        {deals.map((d) => {
+          const statusMeta = DEAL_STATUSES.find((s) => s.value === d.status)
+          return (
+            <button
+              key={d.id}
+              onClick={(e) => { e.stopPropagation(); navigate('/deals') }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all text-left group"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-slate-800 truncate group-hover:text-emerald-700">
+                  #{d.deal_number} {d.title || 'Сделка'}
+                  {d.deal_date ? ` · ${d.deal_date}` : ''}
+                </p>
+                <div className="flex items-center gap-2">
+                  {statusMeta && (
+                    <span className={cn('text-xs font-medium px-1.5 rounded', statusMeta.color)}>
+                      {statusMeta.label}
+                    </span>
+                  )}
+                  {d.commission != null && d.commission > 0 && (
+                    <span className="text-xs text-emerald-600 font-medium">
+                      {(d.commission / 1000).toFixed(0)}k ₽
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Client Row ────────────────────────────────────────────────────────────────
 
 function ClientRow({
@@ -440,6 +491,9 @@ function ClientRow({
             </div>
             <ClientProperties clientId={client.id} />
           </div>
+
+          {/* Deals */}
+          <ClientDealsSection clientId={client.id} />
 
           <div className="flex gap-2 pt-1">
             <button

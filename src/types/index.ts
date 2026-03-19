@@ -1,3 +1,4 @@
 export * from './property'
 export * from './client'
 export * from './complex'
+export * from './deal'

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
-  ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, type LucideIcon
+  ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, HeartHandshake,
+  type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
 import {
@@ -11,6 +12,7 @@ import {
   PROPERTY_STATUS_LABELS,
   MARKET_TYPE_LABELS,
   DEAL_TYPE_LABELS,
+  DEAL_STATUSES,
 } from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -18,6 +20,7 @@ import PropertyTypeIcon from './PropertyTypeIcon'
 import { useDeleteProperty } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
+import { useDealsByProperty } from '@/hooks/useDeals'
 import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
 import toast from 'react-hot-toast'
 
@@ -54,6 +57,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
   const { data: agentSettings } = useAgentSettings()
+  const { data: deals = [] } = useDealsByProperty(property.id)
   const navigate = useNavigate()
 
   const {
@@ -351,6 +355,47 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                   {phoneRevealed ? 'Скрыть' : 'Показать'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Deals */}
+        {deals.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Сделки
+            </h3>
+            <div className="space-y-2">
+              {deals.map((deal) => {
+                const statusMeta = DEAL_STATUSES.find((s) => s.value === deal.status)
+                return (
+                  <button
+                    key={deal.id}
+                    onClick={() => { onClose(); setTimeout(() => navigate('/deals'), 150) }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors text-left group"
+                  >
+                    <HeartHandshake size={15} className="text-emerald-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-emerald-700">
+                        #{deal.deal_number} {deal.title || 'Сделка'}
+                        {deal.deal_date ? ` · ${deal.deal_date}` : ''}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {statusMeta && (
+                          <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded', statusMeta.color)}>
+                            {statusMeta.label}
+                          </span>
+                        )}
+                        {deal.commission != null && deal.commission > 0 && (
+                          <span className="text-xs text-emerald-600 font-medium">
+                            {formatPrice(deal.commission)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
