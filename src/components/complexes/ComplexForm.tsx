@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -64,6 +64,7 @@ export default function ComplexForm() {
   const { data: editingComplex } = useComplex(editingComplexId ?? '')
   const createComplex = useCreateComplex()
   const updateComplex = useUpdateComplex()
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const uploadPhoto = useUploadComplexPhoto()
   const deletePhoto = useDeleteComplexPhoto()
   const uploadDoc = useUploadComplexDocument()
@@ -107,6 +108,7 @@ export default function ComplexForm() {
   }, [editingComplex, editingComplexId, reset])
 
   const onSubmit = async (values: FormValues) => {
+    setSubmitError(null)
     const data: ComplexFormData = {
       name: values.name,
       developer: values.developer || undefined,
@@ -129,7 +131,9 @@ export default function ComplexForm() {
       }
       closeForm()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Ошибка при сохранении')
+      const msg = err instanceof Error ? err.message : 'Ошибка при сохранении'
+      setSubmitError(msg)
+      toast.error(msg)
     }
   }
 
@@ -490,6 +494,11 @@ export default function ComplexForm() {
       </div>
 
       {/* Footer */}
+      {submitError && (
+        <div className="mx-6 mb-0 mt-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+          {submitError}
+        </div>
+      )}
       <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
         <button
           type="button"
