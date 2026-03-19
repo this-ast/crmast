@@ -3,16 +3,62 @@ import { useForm } from 'react-hook-form'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
-  Pencil, Trash2, ChevronDown, ChevronUp, Building2,
+  Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import type { Client, ClientFormData } from '@/types'
-import { CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
+import {
+  CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
+  CLIENT_TYPES, CLIENT_TYPE_ICONS, CLIENT_TYPE_COLORS,
+  PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS,
+} from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import Modal from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
+
+// ─── Overdue Contact Banner ──────────────────────────────────────────────────
+
+function OverdueBanner({ clients }: { clients: Client[] }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const overdue = clients.filter(
+    (c) =>
+      c.next_contact &&
+      c.next_contact <= today &&
+      c.status !== 'Архив' &&
+      c.status !== 'Сделка'
+  )
+  if (overdue.length === 0) return null
+
+  return (
+    <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="flex items-center gap-2 mb-2">
+        <Bell size={15} className="text-amber-600" />
+        <p className="text-sm font-semibold text-amber-800">
+          Нужно связаться ({overdue.length})
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        {overdue.map((c) => (
+          <div key={c.id} className="flex items-start gap-2">
+            <span className="text-xs font-medium text-amber-700 min-w-0 truncate">
+              {c.name}
+            </span>
+            {c.next_step && (
+              <span className="text-xs text-amber-600 truncate">— {c.next_step}</span>
+            )}
+            {c.next_contact && (
+              <span className="text-xs text-amber-500 shrink-0 ml-auto">
+                {c.next_contact === today ? 'сегодня' : `до ${c.next_contact}`}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // ─── Client Form ────────────────────────────────────────────────────────────────
 
@@ -57,6 +103,24 @@ function ClientForm({
         </div>
 
         <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Тип клиента</label>
+          <div className="flex flex-wrap gap-2">
+            {CLIENT_TYPES.map((t) => (
+              <label key={t} className="cursor-pointer">
+                <input type="radio" {...register('client_type')} value={t} className="sr-only peer" />
+                <span className={cn(
+                  'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer',
+                  'border-slate-200 text-slate-600 bg-white',
+                  'peer-checked:border-blue-400 peer-checked:bg-blue-50 peer-checked:text-blue-700'
+                )}>
+                  {CLIENT_TYPE_ICONS[t]} {t}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Запрос</label>
           <textarea
             {...register('request')}
@@ -93,7 +157,11 @@ function ClientForm({
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">— не указан —</option>
-              {CLIENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {CLIENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s} · {CLIENT_STATUS_PRIORITY[s]?.replace(/^[^\s]+\s/, '')}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -221,6 +289,13 @@ function ClientRow({
   const [phoneRevealed, setPhoneRevealed] = useState(false)
   const rowRef = useRef<HTMLDivElement>(null)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const isOverdue =
+    client.next_contact &&
+    client.next_contact <= today &&
+    client.status !== 'Архив' &&
+    client.status !== 'Сделка'
+
   useEffect(() => {
     if (highlighted && rowRef.current) {
       rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -232,7 +307,8 @@ function ClientRow({
       ref={rowRef}
       className={cn(
         'bg-white rounded-xl border overflow-hidden transition-all',
-        highlighted ? 'border-blue-400 shadow-sm shadow-blue-100' : 'border-slate-100'
+        highlighted ? 'border-blue-400 shadow-sm shadow-blue-100' :
+        isOverdue ? 'border-amber-300' : 'border-slate-100'
       )}
     >
       {/* Main row */}
@@ -247,6 +323,14 @@ function ClientRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-slate-900 truncate">{client.name}</span>
+            {client.client_type && (
+              <span className={cn(
+                'text-xs font-medium px-1.5 py-0.5 rounded-md',
+                CLIENT_TYPE_COLORS[client.client_type] ?? 'bg-slate-100 text-slate-600'
+              )}>
+                {CLIENT_TYPE_ICONS[client.client_type]} {client.client_type}
+              </span>
+            )}
             {client.status && (
               <span className={cn(
                 'text-xs font-medium px-2 py-0.5 rounded-full',
@@ -255,8 +339,10 @@ function ClientRow({
                 {client.status}
               </span>
             )}
-            {client.priority && (
-              <span className="text-xs text-slate-500">{client.priority}</span>
+            {isOverdue && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                ⏰ Контакт
+              </span>
             )}
           </div>
           {client.request && (
@@ -308,10 +394,21 @@ function ClientRow({
             {client.next_contact && (
               <div>
                 <p className="text-xs text-slate-400 mb-1">Следующий контакт</p>
-                <p className="text-sm text-slate-700">{client.next_contact}</p>
+                <p className={cn(
+                  'text-sm font-medium',
+                  isOverdue ? 'text-amber-600' : 'text-slate-700'
+                )}>
+                  {isOverdue ? '⏰ ' : ''}{client.next_contact}
+                </p>
               </div>
             )}
           </div>
+
+          {client.status && CLIENT_STATUS_PRIORITY[client.status] && (
+            <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+              Приоритет работы: <span className="font-medium text-slate-700">{CLIENT_STATUS_PRIORITY[client.status]}</span>
+            </div>
+          )}
 
           {client.request && (
             <div>
@@ -365,6 +462,17 @@ function ClientRow({
   )
 }
 
+// ─── Type Filter Tabs ─────────────────────────────────────────────────────────
+
+const TYPE_TABS = [
+  { value: '', label: 'Все' },
+  { value: 'Покупатель', label: '🛒 Покупатели' },
+  { value: 'Продавец', label: '🏠 Продавцы' },
+  { value: 'Подрядчик-перекуп', label: '🔄 Перекупы' },
+  { value: 'Арендодатель', label: '🔑 Арендодатели' },
+  { value: 'Арендатор', label: '🏡 Арендаторы' },
+]
+
 // ─── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
@@ -377,22 +485,22 @@ export default function ClientsPage() {
   const highlightId = searchParams.get('highlight') ?? ''
 
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
 
-  // Clear highlight param after 3s so it doesn't persist on refresh
+  // Clear highlight param after 3s
   useEffect(() => {
     if (!highlightId) return
-    const t = setTimeout(() => {
-      setSearchParams({}, { replace: true })
-    }, 3000)
+    const t = setTimeout(() => setSearchParams({}, { replace: true }), 3000)
     return () => clearTimeout(t)
   }, [highlightId, setSearchParams])
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
+      if (typeFilter && c.client_type !== typeFilter) return false
       if (statusFilter && c.status !== statusFilter) return false
       if (search) {
         const q = search.toLowerCase()
@@ -402,7 +510,7 @@ export default function ClientsPage() {
       }
       return true
     })
-  }, [clients, search, statusFilter])
+  }, [clients, search, typeFilter, statusFilter])
 
   const handleSave = async (data: ClientFormData) => {
     try {
@@ -436,7 +544,19 @@ export default function ClientsPage() {
     setIsFormOpen(true)
   }
 
-  const uniqueStatuses = [...new Set(clients.map((c) => c.status).filter(Boolean))] as string[]
+  // Count per type for tab badges
+  const typeCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const c of clients) {
+      if (c.client_type) map[c.client_type] = (map[c.client_type] ?? 0) + 1
+    }
+    return map
+  }, [clients])
+
+  const uniqueStatuses = useMemo(() =>
+    [...new Set(clients.map((c) => c.status).filter(Boolean))] as string[],
+    [clients]
+  )
 
   return (
     <div className="p-6 max-w-screen-xl mx-auto">
@@ -457,7 +577,39 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {/* Search + filters */}
+      {/* Overdue notifications */}
+      {!isLoading && <OverdueBanner clients={clients} />}
+
+      {/* Type filter tabs */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {TYPE_TABS.map((tab) => {
+          const count = tab.value ? (typeCounts[tab.value] ?? 0) : clients.length
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setTypeFilter(tab.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                typeFilter === tab.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'
+              )}
+            >
+              {tab.label}
+              {count > 0 && (
+                <span className={cn(
+                  'ml-1.5 text-xs',
+                  typeFilter === tab.value ? 'opacity-80' : 'text-slate-400'
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Search + status filter */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-64">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -508,7 +660,7 @@ export default function ClientsPage() {
           <Users size={40} className="text-slate-300 mb-3" />
           <p className="text-slate-500 font-medium">Клиенты не найдены</p>
           <p className="text-slate-400 text-sm mt-1">
-            {clients.length === 0 ? 'Добавьте первого клиента' : 'Попробуйте изменить поиск'}
+            {clients.length === 0 ? 'Добавьте первого клиента' : 'Попробуйте изменить фильтры'}
           </p>
         </div>
       )}
