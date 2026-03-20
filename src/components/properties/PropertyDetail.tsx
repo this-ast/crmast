@@ -22,6 +22,7 @@ import { usePropertyStore } from '@/store/usePropertyStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { useDealsByProperty } from '@/hooks/useDeals'
 import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
+import Timeline from '@/components/timeline/Timeline'
 import toast from 'react-hot-toast'
 
 interface PropertyDetailProps {
@@ -358,6 +359,11 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             </div>
           </div>
         )}
+
+        {/* Timeline */}
+        <div>
+          <Timeline entityType="property" entityId={id} />
+        </div>
 
         {/* Deals */}
         {deals.length > 0 && (

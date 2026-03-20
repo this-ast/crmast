@@ -9,6 +9,7 @@ import {
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
+import Timeline from '@/components/timeline/Timeline'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
@@ -494,6 +495,11 @@ function ClientRow({
 
           {/* Deals */}
           <ClientDealsSection clientId={client.id} />
+
+          {/* Timeline */}
+          <div className="border-t border-slate-50 pt-3">
+            <Timeline entityType="client" entityId={client.id} />
+          </div>
 
           <div className="flex gap-2 pt-1">
             <button
