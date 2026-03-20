@@ -5,6 +5,7 @@ import PropertiesPage from '@/pages/PropertiesPage'
 import ClientsPage from '@/pages/ClientsPage'
 import ComplexesPage from '@/pages/ComplexesPage'
 import DealsPage from '@/pages/DealsPage'
+import TemplatesPage from '@/pages/TemplatesPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="complexes" element={<ComplexesPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="deals" element={<DealsPage />} />
+        <Route path="templates" element={<TemplatesPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

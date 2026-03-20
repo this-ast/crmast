@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Building2, Users, HeartHandshake, Settings, Landmark } from 'lucide-react'
+import { LayoutDashboard, Building2, Users, HeartHandshake, Settings, Landmark, MessageSquare } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const nav = [
@@ -8,6 +8,7 @@ const nav = [
   { to: '/complexes', icon: Landmark, label: 'ЖК' },
   { to: '/clients', icon: Users, label: 'Клиенты' },
   { to: '/deals', icon: HeartHandshake, label: 'Сделки' },
+  { to: '/templates', icon: MessageSquare, label: 'Шаблоны' },
 ]
 
 export default function Sidebar() {
