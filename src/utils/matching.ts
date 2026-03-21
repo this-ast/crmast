@@ -96,6 +96,21 @@ export function getMatchingProperties(
     .sort((a, b) => b.matchScore - a.matchScore)
 }
 
+// Max possible score = 4 (budget) + 2 (deal type) + 3 (rooms) + 1 (prop type) = 10
+export const MAX_MATCH_SCORE = 10
+
+export type MatchLevel = 'high' | 'medium' | 'low'
+
+export function getMatchLevel(score: number): MatchLevel {
+  if (score >= 7) return 'high'
+  if (score >= 4) return 'medium'
+  return 'low'
+}
+
+export function getMatchPercent(score: number): number {
+  return Math.min(100, Math.round((score / MAX_MATCH_SCORE) * 100))
+}
+
 // Return clients sorted by match score for a property (score > 0 only)
 export function getMatchingClients(
   property: Property,

@@ -274,7 +274,7 @@ const COMM_OPTIONS = ['Электричество', 'Газ', 'Водоснаб�
 // ─── Main Form ─────────────────────────────────────────────────────────────────
 
 export default function PropertyForm() {
-  const { closeForm, editingPropertyId } = usePropertyStore()
+  const { closeForm, editingPropertyId, openDetail } = usePropertyStore()
   const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
@@ -400,11 +400,14 @@ export default function PropertyForm() {
       if (editingPropertyId) {
         await updateProperty.mutateAsync({ id: editingPropertyId, data })
         toast.success('Объект обновлён')
+        closeForm()
       } else {
-        await createProperty.mutateAsync(data)
+        const created = await createProperty.mutateAsync(data)
         toast.success('Объект добавлен')
+        closeForm()
+        // Auto-open detail to show matching clients
+        setTimeout(() => openDetail(created.id), 150)
       }
-      closeForm()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       toast.error(`Ошибка: ${msg}`, { duration: 8000 })

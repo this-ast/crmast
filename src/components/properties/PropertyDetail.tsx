@@ -24,6 +24,7 @@ import { useDealsByProperty } from '@/hooks/useDeals'
 import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
 import Timeline from '@/components/timeline/Timeline'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
+import MatchingClientsSection from './MatchingClientsSection'
 import { ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -361,6 +362,11 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             </div>
           </div>
         )}
+
+        {/* Matching clients */}
+        <div>
+          <MatchingClientsSection property={property} />
+        </div>
 
         {/* Tasks */}
         <div>
