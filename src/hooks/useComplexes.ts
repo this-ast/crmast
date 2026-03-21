@@ -12,7 +12,11 @@ export function useComplexes() {
         .from('complexes')
         .select('*')
         .order('name')
-      if (error) throw new Error(error.message)
+      if (error) {
+        // 42P01 = таблица не существует — вернуть пустой список
+        if (error.code === '42P01') return []
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return (data ?? []).map(normalizeComplex)
     },
   })
@@ -43,19 +47,27 @@ export function useComplex(id: string) {
 export function useCreateComplex() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (data: ComplexFormData): Promise<Complex> => {
-      const { data: created, error } = await supabase
-        .from('complexes')
-        .insert({
-          ...data,
-          photos: [],
-          documents: [],
-          characteristics: data.characteristics ?? {},
-        })
-        .select()
-        .single()
-      if (error) throw new Error(error.message)
-      return normalizeComplex(created)
+    mutationFn: async (data: ComplexFormData): Promise<void> => {
+      const payload = {
+        name: data.name ?? 'Без названия',
+        developer: data.developer ?? null,
+        completion_date: data.completion_date ?? null,
+        description: data.description ?? null,
+        purchase_conditions: data.purchase_conditions ?? null,
+        characteristics: data.characteristics ?? {},
+        developer_phones: data.developer_phones ?? [],
+        manager_names: data.manager_names ?? [],
+        manager_phones: data.manager_phones ?? [],
+        photos: [],
+        documents: [],
+      }
+      console.log('[useCreateComplex] payload →', payload)
+      const { error } = await supabase.from('complexes').insert(payload)
+      if (error) {
+        console.error('[useCreateComplex] Supabase error →', error)
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
+      console.log('[useCreateComplex] успешно создан')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   })

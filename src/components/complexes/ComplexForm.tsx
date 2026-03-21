@@ -1,7 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Loader2, Plus, Trash2, Upload, X } from 'lucide-react'
 import {
   useCreateComplex,
@@ -15,30 +12,19 @@ import {
 import { useComplexStore } from '@/store/useComplexStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
-import type { ComplexFormData } from '@/types'
 
-const schema = z.object({
-  name: z.string().min(1, 'Укажите название'),
-  developer: z.string().optional(),
-  completion_date: z.string().optional(),
-  description: z.string().optional(),
-  purchase_conditions: z.string().optional(),
-})
+const DOC_TYPE_LABELS = {
+  permit: 'Разрешение на строительство',
+  developer: 'Документы застройщика',
+  other: 'Другое',
+}
 
-type FormValues = z.infer<typeof schema>
-
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <label className="block text-xs font-medium text-slate-600 mb-1.5">
       {children}
-      {required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
   )
-}
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null
-  return <p className="text-xs text-red-500 mt-1">{message}</p>
 }
 
 function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -53,18 +39,11 @@ function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
   )
 }
 
-const DOC_TYPE_LABELS = {
-  permit: 'Разрешение на строительство',
-  developer: 'Документы застройщика',
-  other: 'Другое',
-}
-
 export default function ComplexForm() {
   const { closeForm, editingComplexId } = useComplexStore()
   const { data: editingComplex } = useComplex(editingComplexId ?? '')
   const createComplex = useCreateComplex()
   const updateComplex = useUpdateComplex()
-  const [submitError, setSubmitError] = useState<string | null>(null)
   const uploadPhoto = useUploadComplexPhoto()
   const deletePhoto = useDeleteComplexPhoto()
   const uploadDoc = useUploadComplexDocument()
@@ -73,54 +52,51 @@ export default function ComplexForm() {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const docInputRef = useRef<HTMLInputElement>(null)
 
-  // Characteristics state (key-value pairs)
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: '', developer: '', completion_date: '', description: '', purchase_conditions: '' },
-  })
+  // Form fields as plain state — no React Hook Form
+  const [name, setName] = useState('')
+  const [developer, setDeveloper] = useState('')
+  const [completionDate, setCompletionDate] = useState('')
+  const [description, setDescription] = useState('')
+  const [purchaseConditions, setPurchaseConditions] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Dynamic lists stored outside RHF (simpler for arrays of primitives)
-  const characteristics = watch('description') // placeholder, managed separately below
-  void characteristics // suppress unused warning
-
-  // We'll manage phones/contacts/characteristics in local state via useForm watch
-  // Actually for simplicity, manage as separate form fields
-  const developerPhones = watch('developer' as never) // unused, just typing
-  void developerPhones
-
+  // Populate form when editing
   useEffect(() => {
-    if (editingComplex && editingComplexId) {
-      reset({
-        name: editingComplex.name,
-        developer: editingComplex.developer ?? '',
-        completion_date: editingComplex.completion_date ?? '',
-        description: editingComplex.description ?? '',
-        purchase_conditions: editingComplex.purchase_conditions ?? '',
-      })
+    if (editingComplex) {
+      setName(editingComplex.name ?? '')
+      setDeveloper(editingComplex.developer ?? '')
+      setCompletionDate(editingComplex.completion_date ?? '')
+      setDescription(editingComplex.description ?? '')
+      setPurchaseConditions(editingComplex.purchase_conditions ?? '')
     }
-  }, [editingComplex, editingComplexId, reset])
+  }, [editingComplex])
 
-  const onSubmit = async (values: FormValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSubmitError(null)
-    const data: ComplexFormData = {
-      name: values.name,
-      developer: values.developer || undefined,
-      completion_date: values.completion_date || undefined,
-      description: values.description || undefined,
-      purchase_conditions: values.purchase_conditions || undefined,
+
+    // Блокируем только если абсолютно всё пусто
+    const allEmpty = !name.trim() && !developer.trim() && !completionDate.trim() && !description.trim() && !purchaseConditions.trim()
+    if (allEmpty) {
+      setSubmitError('Заполните хотя бы одно поле')
+      return
+    }
+
+    const data = {
+      name: name.trim() || 'Без названия',
+      developer: developer.trim() || null,
+      completion_date: completionDate.trim() || null,
+      description: description.trim() || null,
+      purchase_conditions: purchaseConditions.trim() || null,
       characteristics: editingComplex?.characteristics ?? {},
       developer_phones: editingComplex?.developer_phones ?? [],
       manager_names: editingComplex?.manager_names ?? [],
       manager_phones: editingComplex?.manager_phones ?? [],
     }
 
+    console.log('[ComplexForm] Отправка данных:', data)
+    setIsLoading(true)
     try {
       if (editingComplexId) {
         await updateComplex.mutateAsync({ id: editingComplexId, data })
@@ -132,8 +108,11 @@ export default function ComplexForm() {
       closeForm()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка при сохранении'
+      console.error('[ComplexForm] Ошибка:', err)
       setSubmitError(msg)
       toast.error(msg)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -165,7 +144,7 @@ export default function ComplexForm() {
     e.target.value = ''
   }
 
-  // Manage characteristics as a simple list of key-value
+  // Characteristics helpers
   const chars = editingComplex?.characteristics ?? {}
   const charEntries = Object.entries(chars)
 
@@ -173,7 +152,7 @@ export default function ComplexForm() {
     if (!editingComplexId) return
     const updated = { ...chars }
     delete updated[oldKey]
-    if (newKey) updated[newKey] = newValue
+    if (newKey.trim()) updated[newKey.trim()] = newValue
     await updateComplex.mutateAsync({ id: editingComplexId, data: { characteristics: updated } as never })
   }
 
@@ -193,8 +172,8 @@ export default function ComplexForm() {
     await updateComplex.mutateAsync({ id: editingComplexId, data: { characteristics: updated } as never })
   }
 
-  // Manage phones
-  const updatePhones = async (field: 'developer_phones' | 'manager_phones' | 'manager_names', arr: string[]) => {
+  // Phone/manager helpers
+  const updateArray = async (field: 'developer_phones' | 'manager_phones' | 'manager_names', arr: string[]) => {
     if (!editingComplexId) return
     await updateComplex.mutateAsync({ id: editingComplexId, data: { [field]: arr } as never })
   }
@@ -204,24 +183,43 @@ export default function ComplexForm() {
   const mgPhones = editingComplex?.manager_phones ?? []
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col" style={{ maxHeight: '80vh' }}>
+      {/* Error at top */}
+      {submitError && (
+        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm font-medium text-red-700 shrink-0">
+          ⚠️ {submitError}
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         {/* Name */}
         <div>
-          <FieldLabel required>Название ЖК</FieldLabel>
-          <Input placeholder="ЖК Солнечный" {...register('name')} />
-          <FieldError message={errors.name?.message} />
+          <FieldLabel>Название ЖК</FieldLabel>
+          <Input
+            placeholder="ЖК Солнечный"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
         </div>
 
         {/* Developer + Completion */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel>Застройщик</FieldLabel>
-            <Input placeholder="ООО Стройград" {...register('developer')} />
+            <Input
+              placeholder="ООО Стройград"
+              value={developer}
+              onChange={(e) => setDeveloper(e.target.value)}
+            />
           </div>
           <div>
             <FieldLabel>Срок сдачи</FieldLabel>
-            <Input placeholder="Q4 2025" {...register('completion_date')} />
+            <Input
+              placeholder="Q4 2025"
+              value={completionDate}
+              onChange={(e) => setCompletionDate(e.target.value)}
+            />
           </div>
         </div>
 
@@ -232,7 +230,8 @@ export default function ComplexForm() {
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             rows={3}
             placeholder="Описание ЖК..."
-            {...register('description')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
@@ -243,11 +242,12 @@ export default function ComplexForm() {
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             rows={2}
             placeholder="Ипотека 0,1%, рассрочка на 24 мес..."
-            {...register('purchase_conditions')}
+            value={purchaseConditions}
+            onChange={(e) => setPurchaseConditions(e.target.value)}
           />
         </div>
 
-        {/* Characteristics — only when editing (need ID for save) */}
+        {/* Characteristics — only when editing */}
         {editingComplexId && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -288,14 +288,14 @@ export default function ComplexForm() {
           </div>
         )}
 
-        {/* Developer phones */}
+        {/* Developer phones — only when editing */}
         {editingComplexId && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <FieldLabel>Телефоны застройщика</FieldLabel>
               <button
                 type="button"
-                onClick={() => updatePhones('developer_phones', [...devPhones, ''])}
+                onClick={() => updateArray('developer_phones', [...devPhones, ''])}
                 className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
                 <Plus size={12} /> Добавить
@@ -309,14 +309,14 @@ export default function ComplexForm() {
                     onBlur={(e) => {
                       const arr = [...devPhones]
                       arr[i] = e.target.value
-                      updatePhones('developer_phones', arr)
+                      updateArray('developer_phones', arr)
                     }}
                     className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="+7 900 000-00-00"
                   />
                   <button
                     type="button"
-                    onClick={() => updatePhones('developer_phones', devPhones.filter((_, j) => j !== i))}
+                    onClick={() => updateArray('developer_phones', devPhones.filter((_, j) => j !== i))}
                     className="text-red-400 hover:text-red-600"
                   >
                     <Trash2 size={14} />
@@ -327,7 +327,7 @@ export default function ComplexForm() {
           </div>
         )}
 
-        {/* Managers */}
+        {/* Managers — only when editing */}
         {editingComplexId && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -335,8 +335,8 @@ export default function ComplexForm() {
               <button
                 type="button"
                 onClick={() => {
-                  updatePhones('manager_names', [...mgNames, ''])
-                  updatePhones('manager_phones', [...mgPhones, ''])
+                  updateArray('manager_names', [...mgNames, ''])
+                  updateArray('manager_phones', [...mgPhones, ''])
                 }}
                 className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
@@ -344,13 +344,13 @@ export default function ComplexForm() {
               </button>
             </div>
             <div className="space-y-2">
-              {mgNames.map((name, i) => (
+              {mgNames.map((mgName, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
-                    defaultValue={name}
+                    defaultValue={mgName}
                     onBlur={(e) => {
                       const arr = [...mgNames]; arr[i] = e.target.value
-                      updatePhones('manager_names', arr)
+                      updateArray('manager_names', arr)
                     }}
                     className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Имя менеджера"
@@ -359,7 +359,7 @@ export default function ComplexForm() {
                     defaultValue={mgPhones[i] ?? ''}
                     onBlur={(e) => {
                       const arr = [...mgPhones]; arr[i] = e.target.value
-                      updatePhones('manager_phones', arr)
+                      updateArray('manager_phones', arr)
                     }}
                     className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="+7 900 000-00-00"
@@ -367,8 +367,8 @@ export default function ComplexForm() {
                   <button
                     type="button"
                     onClick={() => {
-                      updatePhones('manager_names', mgNames.filter((_, j) => j !== i))
-                      updatePhones('manager_phones', mgPhones.filter((_, j) => j !== i))
+                      updateArray('manager_names', mgNames.filter((_, j) => j !== i))
+                      updateArray('manager_phones', mgPhones.filter((_, j) => j !== i))
                     }}
                     className="text-red-400 hover:text-red-600"
                   >
@@ -426,7 +426,7 @@ export default function ComplexForm() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <FieldLabel>Документы</FieldLabel>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {(['permit', 'developer', 'other'] as const).map((type) => (
                   <button
                     key={type}
@@ -453,10 +453,7 @@ export default function ComplexForm() {
             </div>
             <div className="space-y-2">
               {(editingComplex?.documents ?? []).map((doc) => (
-                <div
-                  key={doc.url}
-                  className="flex items-center justify-between p-2 bg-slate-50 rounded-lg"
-                >
+                <div key={doc.url} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs font-medium text-slate-500 shrink-0 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">
                       {DOC_TYPE_LABELS[doc.type]}
@@ -488,31 +485,27 @@ export default function ComplexForm() {
 
         {!editingComplexId && (
           <p className="text-xs text-slate-400 bg-blue-50 rounded-lg p-3">
-            💡 После сохранения вы сможете добавить фото, документы, характеристики и контакты.
+            После сохранения можно добавить фото, документы, характеристики и контакты.
           </p>
         )}
       </div>
 
       {/* Footer */}
-      {submitError && (
-        <div className="mx-6 mb-0 mt-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-          {submitError}
-        </div>
-      )}
-      <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
+      <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
         <button
           type="button"
           onClick={closeForm}
-          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+          disabled={isLoading}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
           Отмена
         </button>
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isLoading}
           className="flex-1 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
         >
-          {isSubmitting && <Loader2 size={15} className="animate-spin" />}
+          {isLoading && <Loader2 size={15} className="animate-spin" />}
           {editingComplexId ? 'Сохранить' : 'Создать ЖК'}
         </button>
       </div>

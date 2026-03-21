@@ -7,14 +7,201 @@ import {
   CalendarDays, FileText, TrendingUp,
 } from 'lucide-react'
 import { useDeals, useCreateDeal, useUpdateDeal, useDeleteDeal } from '@/hooks/useDeals'
-import { useClients } from '@/hooks/useClients'
+import { useClients, useCreateClient } from '@/hooks/useClients'
 import { useProperties } from '@/hooks/useProperties'
-import type { Deal, DealFormData } from '@/types'
+import type { Deal, DealFormData, Client } from '@/types'
 import { DEAL_STATUSES, PAYMENT_METHODS, PROPERTY_TYPE_LABELS } from '@/types'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import Modal from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
+
+// ─── Client Selector ──────────────────────────────────────────────────────────
+
+function ClientSelector({
+  label,
+  clients,
+  value,
+  onChange,
+}: {
+  label: string
+  clients: Client[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newPhone, setNewPhone] = useState('')
+  const [creating, setCreating] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const createClient = useCreateClient()
+
+  const selected = clients.find((c) => c.id === value)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const list = q
+      ? clients.filter(
+          (c) => c.name.toLowerCase().includes(q) || String(c.client_number).includes(q)
+        )
+      : clients
+    return list.slice(0, 40)
+  }, [clients, search])
+
+  // Закрыть при клике снаружи
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+        setShowCreate(false)
+        setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    setCreating(true)
+    try {
+      const client = await createClient.mutateAsync({
+        name: newName.trim(),
+        phone: newPhone.trim() || undefined,
+        status: 'active',
+      } as never)
+      onChange(client.id)
+      setIsOpen(false)
+      setShowCreate(false)
+      setSearch('')
+      setNewName('')
+      setNewPhone('')
+      toast.success(`Клиент #${client.client_number} ${client.name} создан`)
+    } catch {
+      toast.error('Ошибка создания клиента')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setIsOpen((v) => !v); setSearch('') }}
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-left flex items-center justify-between gap-2 bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+      >
+        <span className={selected ? 'text-slate-900' : 'text-slate-400'}>
+          {selected ? `#${selected.client_number} ${selected.name}` : '— не выбран —'}
+        </span>
+        <ChevronDown size={14} className="text-slate-400 shrink-0" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+          {/* Поиск */}
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Поиск по имени или номеру..."
+                className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Список */}
+          <div className="max-h-52 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => { onChange(''); setIsOpen(false); setSearch('') }}
+              className="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 transition-colors italic"
+            >
+              — не выбран —
+            </button>
+            {filtered.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => { onChange(c.id); setIsOpen(false); setSearch('') }}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors flex items-center gap-2',
+                  c.id === value ? 'bg-blue-50' : ''
+                )}
+              >
+                <span className="font-mono text-slate-400 shrink-0 w-8 text-right">#{c.client_number}</span>
+                <span className={cn('font-medium truncate', c.id === value ? 'text-blue-700' : 'text-slate-800')}>
+                  {c.name}
+                </span>
+                {c.phone && (
+                  <span className="text-slate-400 ml-auto shrink-0 text-[11px] hidden sm:block">{c.phone}</span>
+                )}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-4 text-xs text-slate-400 text-center">Клиенты не найдены</p>
+            )}
+          </div>
+
+          {/* Создать нового */}
+          {!showCreate ? (
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-blue-600 hover:bg-blue-50 border-t border-slate-100 transition-colors"
+            >
+              <Plus size={13} />
+              Создать нового клиента
+            </button>
+          ) : (
+            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-700">Новый клиент</p>
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                placeholder="Имя *"
+                className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                placeholder="Телефон"
+                className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreate(false); setNewName(''); setNewPhone('') }}
+                  className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-100"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={creating || !newName.trim()}
+                  className="flex-1 py-1.5 rounded-lg bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  {creating && <Loader2 size={11} className="animate-spin" />}
+                  Создать
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Deal Form ────────────────────────────────────────────────────────────────
 
@@ -31,9 +218,12 @@ function DealForm({
 }) {
   const { data: clients = [] } = useClients()
   const { data: properties = [] } = useProperties()
-  const { register, handleSubmit, control, formState: { errors } } = useForm<DealFormData>({
+  const { register, handleSubmit, watch, setValue } = useForm<DealFormData>({
     defaultValues: { status: 'active', ...initial },
   })
+  const watchedPropertyId = watch('property_id')
+  const watchedBuyerId = watch('buyer_id') ?? ''
+  const watchedSellerId = watch('seller_id') ?? ''
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="flex flex-col max-h-[90vh]">
@@ -73,31 +263,19 @@ function DealForm({
         </div>
 
         {/* Покупатель + Продавец */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">🛒 Покупатель</label>
-            <select
-              {...register('buyer_id')}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— не выбран —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>#{c.client_number} {c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">🏠 Продавец</label>
-            <select
-              {...register('seller_id')}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— не выбран —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>#{c.client_number} {c.name}</option>
-              ))}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ClientSelector
+            label="🛒 Покупатель / Арендатор"
+            clients={clients}
+            value={watchedBuyerId}
+            onChange={(id) => setValue('buyer_id', id || undefined)}
+          />
+          <ClientSelector
+            label="🏠 Продавец / Арендодатель"
+            clients={clients}
+            value={watchedSellerId}
+            onChange={(id) => setValue('seller_id', id || undefined)}
+          />
         </div>
 
         {/* Объект */}
@@ -107,7 +285,7 @@ function DealForm({
             {...register('property_id')}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">— не выбран —</option>
+            <option value="">— не выбран (внешний объект) —</option>
             {properties.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.article} · {PROPERTY_TYPE_LABELS[p.type]}{p.address ? ` · ${p.address}` : ''} · {formatPrice(p.price)}
@@ -115,6 +293,18 @@ function DealForm({
             ))}
           </select>
         </div>
+
+        {/* External property description (when no property card selected) */}
+        {!watchedPropertyId && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">📍 Описание объекта</label>
+            <input
+              {...register('property_notes')}
+              placeholder="Адрес, тип, площадь, иные детали объекта..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
 
         {/* Форма оплаты */}
         <div>
@@ -200,11 +390,13 @@ function DealForm({
 
 function DealCard({
   deal,
+  index,
   defaultExpanded = false,
   onEdit,
   onDelete,
 }: {
   deal: Deal
+  index: number
   defaultExpanded?: boolean
   onEdit: (d: Deal) => void
   onDelete: (d: Deal) => void
@@ -239,7 +431,7 @@ function DealCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono text-slate-400">#{deal.deal_number}</span>
+            <span className="text-xs font-mono text-slate-400">#{deal.deal_number ?? (index + 1)}</span>
             <span className="text-sm font-semibold text-slate-900 truncate">
               {deal.title || (deal.property ? `${PROPERTY_TYPE_LABELS[deal.property.type as keyof typeof PROPERTY_TYPE_LABELS]} · ${deal.property.address}` : 'Сделка')}
             </span>
@@ -308,6 +500,19 @@ function DealCard({
               </button>
             )}
           </div>
+
+          {/* External property notes (when no property card) */}
+          {!deal.property && deal.property_notes && (
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-50 rounded-xl">
+              <div className="w-7 h-7 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                <Building2 size={13} className="text-slate-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-400 font-medium">Объект (внешний)</p>
+                <p className="text-xs font-semibold text-slate-800">{deal.property_notes}</p>
+              </div>
+            </div>
+          )}
 
           {/* Property */}
           {deal.property && (
@@ -620,8 +825,8 @@ export default function DealsPage() {
       {/* List */}
       {!isLoading && filtered.length > 0 && (
         <div className="space-y-2">
-          {filtered.map((deal) => (
-            <DealCard key={deal.id} deal={deal} defaultExpanded={deal.id === expandedId} onEdit={openEdit} onDelete={setDeletingDeal} />
+          {filtered.map((deal, i) => (
+            <DealCard key={deal.id} deal={deal} index={i} defaultExpanded={deal.id === expandedId} onEdit={openEdit} onDelete={setDeletingDeal} />
           ))}
         </div>
       )}
@@ -662,7 +867,9 @@ export default function DealsPage() {
       >
         <div className="p-6">
           <p className="text-sm text-slate-600 mb-5">
-            Сделка <span className="font-semibold text-slate-900">#{deletingDeal?.deal_number}</span> будет удалена безвозвратно.
+            Сделка <span className="font-semibold text-slate-900">
+              {deletingDeal?.title || `#${deletingDeal?.deal_number ?? '?'}`}
+            </span> будет удалена безвозвратно.
           </p>
           <div className="flex gap-3">
             <button

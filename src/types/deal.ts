@@ -2,12 +2,13 @@ export type DealStatus = 'active' | 'completed' | 'cancelled'
 
 export interface Deal {
   id: string
-  deal_number: number
+  deal_number?: number
   title?: string
   deal_date?: string
   buyer_id?: string
   seller_id?: string
   property_id?: string
+  property_notes?: string
   payment_method?: string
   deal_price?: number
   commission?: number
@@ -28,6 +29,7 @@ export interface DealFormData {
   buyer_id?: string
   seller_id?: string
   property_id?: string
+  property_notes?: string
   payment_method?: string
   deal_price?: number
   commission?: number

@@ -11,7 +11,7 @@ export function useDeals() {
       const { data, error } = await supabase
         .from('deals')
         .select('*')
-        .order('deal_number', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) {
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
@@ -30,7 +30,7 @@ export function useDealsByProperty(propertyId: string | undefined) {
         .from('deals')
         .select('*')
         .eq('property_id', propertyId!)
-        .order('deal_number', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) {
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
@@ -49,7 +49,7 @@ export function useDealsByClient(clientId: string | undefined) {
         .from('deals')
         .select('*')
         .or(`buyer_id.eq.${clientId},seller_id.eq.${clientId}`)
-        .order('deal_number', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) {
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
