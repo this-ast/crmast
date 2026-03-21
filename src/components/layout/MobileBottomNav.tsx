@@ -1,27 +1,29 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, Users, HeartHandshake,
-  Landmark, MessageSquare, Settings,
+  Landmark, MessageSquare, Settings, BookMarked,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useUISettings } from '@/store/useUISettings'
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
-  dashboard:  LayoutDashboard,
-  properties: Building2,
-  complexes:  Landmark,
-  clients:    Users,
-  deals:      HeartHandshake,
-  templates:  MessageSquare,
+  dashboard:   LayoutDashboard,
+  properties:  Building2,
+  complexes:   Landmark,
+  clients:     Users,
+  deals:       HeartHandshake,
+  collections: BookMarked,
+  templates:   MessageSquare,
 }
 
 const SECTION_ROUTES: Record<string, string> = {
-  dashboard:  '/dashboard',
-  properties: '/properties',
-  complexes:  '/complexes',
-  clients:    '/clients',
-  deals:      '/deals',
-  templates:  '/templates',
+  dashboard:   '/dashboard',
+  properties:  '/properties',
+  complexes:   '/complexes',
+  clients:     '/clients',
+  deals:       '/deals',
+  collections: '/collections',
+  templates:   '/templates',
 }
 
 export default function MobileBottomNav() {

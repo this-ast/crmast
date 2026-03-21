@@ -8,12 +8,13 @@ export interface NavSection {
 }
 
 const DEFAULT_SECTIONS: NavSection[] = [
-  { id: 'dashboard',  label: 'Дашборд',   hidden: false },
-  { id: 'properties', label: 'Объекты',   hidden: false },
-  { id: 'complexes',  label: 'ЖК',        hidden: false },
-  { id: 'clients',    label: 'Клиенты',   hidden: false },
-  { id: 'deals',      label: 'Сделки',    hidden: false },
-  { id: 'templates',  label: 'Шаблоны',   hidden: false },
+  { id: 'dashboard',   label: 'Дашборд',   hidden: false },
+  { id: 'properties',  label: 'Объекты',   hidden: false },
+  { id: 'complexes',   label: 'ЖК',        hidden: false },
+  { id: 'clients',     label: 'Клиенты',   hidden: false },
+  { id: 'deals',       label: 'Сделки',    hidden: false },
+  { id: 'collections', label: 'Подборки',  hidden: false },
+  { id: 'templates',   label: 'Шаблоны',   hidden: false },
 ]
 
 interface UISettingsState {
