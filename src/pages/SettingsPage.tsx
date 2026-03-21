@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form'
 import {
   Database, Globe, Shield, Info, CheckCircle2, User, Palette,
   Tags, Filter, ChevronUp, ChevronDown, Eye, EyeOff, Pencil,
-  Trash2, Plus, X, Loader2, RotateCcw, Save,
+  Trash2, Plus, X, Loader2, RotateCcw, Save, Sparkles, Moon,
+  Sun, Monitor, Type, Zap, Layers,
 } from 'lucide-react'
 import { useAgentSettings, useUpsertAgentSettings } from '@/hooks/useAgentSettings'
 import {
@@ -11,16 +12,21 @@ import {
 } from '@/hooks/useCustomStatuses'
 import { useSavedFilters, useDeleteSavedFilter } from '@/hooks/useSavedFilters'
 import { useUISettings } from '@/store/useUISettings'
+import {
+  useThemeStore,
+  BUILT_IN_PRESETS, PRIMARY_COLORS, FONT_FAMILIES,
+} from '@/store/useThemeStore'
 import type { AgentSettings } from '@/types'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 
 const TABS = [
-  { id: 'profile',   label: 'Профиль агента', icon: User },
-  { id: 'interface', label: 'Интерфейс',      icon: Palette },
-  { id: 'statuses',  label: 'Статусы',        icon: Tags },
-  { id: 'filters',   label: 'Фильтры',        icon: Filter },
-  { id: 'system',    label: 'Система',        icon: Database },
+  { id: 'profile',    label: 'Профиль агента', icon: User },
+  { id: 'appearance', label: 'Внешний вид',    icon: Sparkles },
+  { id: 'interface',  label: 'Интерфейс',      icon: Palette },
+  { id: 'statuses',   label: 'Статусы',        icon: Tags },
+  { id: 'filters',    label: 'Фильтры',        icon: Filter },
+  { id: 'system',     label: 'Система',        icon: Database },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -78,6 +84,312 @@ function ProfileTab() {
         Сохранить профиль
       </button>
     </form>
+  )
+}
+
+// ─── Appearance Tab ───────────────────────────────────────────────────────────
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function AppearanceTab() {
+  const theme = useThemeStore()
+  const [presetName, setPresetName] = useState('')
+  const [showSaveInput, setShowSaveInput] = useState(false)
+
+  const allPresets = [...BUILT_IN_PRESETS, ...theme.customPresets]
+
+  const handleSave = () => {
+    const name = presetName.trim()
+    if (!name) return
+    theme.savePreset(name)
+    setPresetName('')
+    setShowSaveInput(false)
+    toast.success(`Тема «${name}» сохранена`)
+  }
+
+  return (
+    <div className="max-w-2xl space-y-7">
+
+      {/* ── Presets ─────────────────────────────────────────────────────────── */}
+      <Section title="Готовые пресеты">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {allPresets.map((p) => {
+            const primaryHex = PRIMARY_COLORS[p.primary]?.hex ?? '#3b82f6'
+            const isDarkPreset = p.colorMode === 'dark'
+            const isActive =
+              theme.colorMode === p.colorMode &&
+              theme.primary === p.primary &&
+              theme.style === p.style &&
+              theme.density === p.density
+            return (
+              <div key={p.id} className="relative group">
+                <button
+                  onClick={() => { theme.applyPreset(p); toast.success(`Применён пресет «${p.name}»`) }}
+                  className={cn(
+                    'w-full rounded-xl border-2 p-3 text-left transition-all',
+                    isActive ? 'border-blue-500 shadow-sm' : 'border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  {/* Mini preview */}
+                  <div className={cn('rounded-lg h-12 mb-2.5 overflow-hidden flex',
+                    isDarkPreset ? 'bg-slate-900' : 'bg-slate-100'
+                  )}>
+                    <div className={cn('w-8 h-full', isDarkPreset ? 'bg-slate-800' : 'bg-slate-200')} />
+                    <div className="flex-1 p-1.5 space-y-1">
+                      <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: primaryHex }} />
+                      <div className={cn('h-1.5 rounded-full w-3/4', isDarkPreset ? 'bg-slate-600' : 'bg-slate-300')} />
+                      <div className={cn('h-1.5 rounded-full w-1/2', isDarkPreset ? 'bg-slate-600' : 'bg-slate-300')} />
+                    </div>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-800">{p.name}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {isDarkPreset ? '🌙' : '☀️'} {PRIMARY_COLORS[p.primary]?.label}
+                  </p>
+                  {isActive && (
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <CheckCircle2 size={10} className="text-white" />
+                    </div>
+                  )}
+                </button>
+                {!p.isBuiltIn && (
+                  <button
+                    onClick={() => theme.deletePreset(p.id)}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-5 h-5 bg-red-500 rounded-full items-center justify-center"
+                  >
+                    <X size={10} className="text-white" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Save current */}
+        <div className="mt-3">
+          {showSaveInput ? (
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setShowSaveInput(false) }}
+                placeholder="Название темы..."
+                className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button onClick={handleSave} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium">Сохранить</button>
+              <button onClick={() => setShowSaveInput(false)} className="px-2 py-1.5 text-slate-400 hover:text-slate-600"><X size={14} /></button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSaveInput(true)}
+              className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-medium"
+            >
+              <Plus size={12} /> Сохранить текущую тему
+            </button>
+          )}
+        </div>
+      </Section>
+
+      {/* ── Color mode ──────────────────────────────────────────────────────── */}
+      <Section title="Режим отображения">
+        <div className="flex gap-2">
+          {([
+            { value: 'light', label: 'Светлый',  icon: Sun },
+            { value: 'dark',  label: 'Тёмный',   icon: Moon },
+            { value: 'auto',  label: 'Авто',      icon: Monitor },
+          ] as const).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => theme.setColorMode(value)}
+              className={cn(
+                'flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 text-xs font-medium transition-all',
+                theme.colorMode === value
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-slate-200 text-slate-500 hover:border-slate-300'
+              )}
+            >
+              <Icon size={18} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Primary color ───────────────────────────────────────────────────── */}
+      <Section title="Основной цвет">
+        <div className="flex flex-wrap gap-2">
+          {(Object.entries(PRIMARY_COLORS) as [string, { label: string; hex: string }][]).map(([key, { label, hex }]) => (
+            <button
+              key={key}
+              title={label}
+              onClick={() => theme.setPrimary(key as any)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all',
+                theme.primary === key
+                  ? 'border-blue-500 shadow-sm scale-105'
+                  : 'border-slate-200 hover:border-slate-300'
+              )}
+            >
+              <span className="w-4 h-4 rounded-full shrink-0 ring-2 ring-white shadow-sm" style={{ backgroundColor: hex }} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Design style ────────────────────────────────────────────────────── */}
+      <Section title="Стиль интерфейса">
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { value: 'minimal',   label: 'Минимализм',   sub: 'Плоский, без лишнего', icon: '▭' },
+            { value: 'corporate', label: 'Корпоративный', sub: 'Строгий, нейтральный', icon: '▢' },
+            { value: 'dynamic',   label: 'Динамичный',   sub: 'Яркие углы, акценты',  icon: '◉' },
+          ] as const).map(({ value, label, sub, icon }) => (
+            <button
+              key={value}
+              onClick={() => theme.setStyle(value)}
+              className={cn(
+                'flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 text-center transition-all',
+                theme.style === value
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:border-slate-300'
+              )}
+            >
+              <span className="text-2xl">{icon}</span>
+              <div>
+                <p className={cn('text-xs font-semibold', theme.style === value ? 'text-blue-700' : 'text-slate-700')}>{label}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Density ─────────────────────────────────────────────────────────── */}
+      <Section title="Плотность интерфейса">
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { value: 'compact',     label: 'Компактный',  sub: 'Больше данных',    rows: 3 },
+            { value: 'default',     label: 'Стандартный', sub: 'Баланс',           rows: 2 },
+            { value: 'comfortable', label: 'Просторный',  sub: 'Больше воздуха',   rows: 1 },
+          ] as const).map(({ value, label, sub, rows }) => (
+            <button
+              key={value}
+              onClick={() => theme.setDensity(value)}
+              className={cn(
+                'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all',
+                theme.density === value
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:border-slate-300'
+              )}
+            >
+              {/* Visual density preview */}
+              <div className="w-full space-y-1 px-1">
+                {Array.from({ length: rows + 1 }).map((_, i) => (
+                  <div key={i} className={cn('h-1.5 rounded-full bg-slate-200 w-full', i === 0 && 'bg-slate-400')} />
+                ))}
+              </div>
+              <div className="text-center">
+                <p className={cn('text-xs font-semibold', theme.density === value ? 'text-blue-700' : 'text-slate-700')}>{label}</p>
+                <p className="text-[10px] text-slate-400">{sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Font ────────────────────────────────────────────────────────────── */}
+      <Section title="Шрифт">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {(Object.entries(FONT_FAMILIES) as [string, { label: string; value: string }][]).map(([key, { label, value }]) => (
+            <button
+              key={key}
+              onClick={() => theme.setFont(key as any)}
+              className={cn(
+                'py-3 px-3 rounded-xl border-2 text-center transition-all',
+                theme.font === key
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:border-slate-300'
+              )}
+            >
+              <p className="text-base font-semibold text-slate-800" style={{ fontFamily: value }}>Aa</p>
+              <p className={cn('text-xs mt-1', theme.font === key ? 'text-blue-600 font-medium' : 'text-slate-500')}>{label}</p>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Font size + Animations ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <Section title="Размер текста">
+          <div className="flex gap-2">
+            {([
+              { value: 'sm', label: 'S', sub: '13px' },
+              { value: 'md', label: 'M', sub: '14px' },
+              { value: 'lg', label: 'L', sub: '16px' },
+            ] as const).map(({ value, label, sub }) => (
+              <button
+                key={value}
+                onClick={() => theme.setFontSize(value)}
+                className={cn(
+                  'flex-1 py-3 rounded-xl border-2 text-center transition-all',
+                  theme.fontSize === value
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                )}
+              >
+                <p className={cn('font-bold', value === 'sm' ? 'text-sm' : value === 'lg' ? 'text-lg' : 'text-base',
+                  theme.fontSize === value ? 'text-blue-700' : 'text-slate-700'
+                )}>{label}</p>
+                <p className="text-[10px] text-slate-400">{sub}</p>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Анимации">
+          <div className="flex gap-2">
+            {([
+              { value: 'none',     label: 'Выкл',       icon: '—' },
+              { value: 'minimal',  label: 'Минимум',    icon: '~' },
+              { value: 'standard', label: 'Стандарт',   icon: '≈' },
+            ] as const).map(({ value, label, icon }) => (
+              <button
+                key={value}
+                onClick={() => theme.setAnimations(value)}
+                className={cn(
+                  'flex-1 py-3 rounded-xl border-2 text-center transition-all',
+                  theme.animations === value
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                )}
+              >
+                <p className={cn('font-mono font-bold text-base', theme.animations === value ? 'text-blue-700' : 'text-slate-600')}>{icon}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
+              </button>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      {/* ── Reset ───────────────────────────────────────────────────────────── */}
+      <div className="pt-2 border-t border-slate-100">
+        <button
+          onClick={() => { theme.reset(); toast.success('Тема сброшена') }}
+          className="flex items-center gap-2 text-sm text-slate-500 hover:text-red-600 transition-colors"
+        >
+          <RotateCcw size={14} />
+          Сбросить все настройки оформления
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -446,10 +758,11 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {activeTab === 'profile'   && <ProfileTab />}
-      {activeTab === 'interface' && <InterfaceTab />}
-      {activeTab === 'statuses'  && <StatusesTab />}
-      {activeTab === 'filters'   && <FiltersTab />}
+      {activeTab === 'profile'    && <ProfileTab />}
+      {activeTab === 'appearance' && <AppearanceTab />}
+      {activeTab === 'interface'  && <InterfaceTab />}
+      {activeTab === 'statuses'   && <StatusesTab />}
+      {activeTab === 'filters'    && <FiltersTab />}
       {activeTab === 'system'    && <SystemTab />}
     </div>
   )

@@ -1,28 +1,122 @@
 @import "tailwindcss";
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
     background-color: #f1f5f9;
     color: #1e293b;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #f1f5f9;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 }
+
+/* ── Scrollbar hide utility ─────────────────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DARK MODE  —  Activated by  html[data-theme="dark"]
+   Strategy: target Tailwind utility classes directly (no variable collision)
+   Sidebar/BottomNav use bg-slate-900 which is NOT overridden → they stay dark ✓
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Backgrounds */
+html[data-theme="dark"] .bg-white          { background-color: #1e293b; }
+html[data-theme="dark"] .bg-slate-50       { background-color: #0f172a; }
+html[data-theme="dark"] .bg-slate-100      { background-color: #1e293b; }
+html[data-theme="dark"] .bg-slate-200      { background-color: #334155; }
+
+/* Hover background overrides */
+html[data-theme="dark"] .hover\:bg-slate-50:hover  { background-color: #334155; }
+html[data-theme="dark"] .hover\:bg-slate-100:hover { background-color: #334155; }
+
+/* Borders */
+html[data-theme="dark"] .border-slate-50  { border-color: #1e293b; }
+html[data-theme="dark"] .border-slate-100 { border-color: #334155; }
+html[data-theme="dark"] .border-slate-200 { border-color: #475569; }
+html[data-theme="dark"] .border-t         { border-top-color: #334155; }
+html[data-theme="dark"] .border-b         { border-bottom-color: #334155; }
+
+/* Text — invert dark slate to near-white */
+html[data-theme="dark"] .text-slate-900   { color: #f8fafc; }
+html[data-theme="dark"] .text-slate-800   { color: #f1f5f9; }
+html[data-theme="dark"] .text-slate-700   { color: #e2e8f0; }
+html[data-theme="dark"] .text-slate-600   { color: #cbd5e1; }
+html[data-theme="dark"] .text-slate-500   { color: #94a3b8; }
+html[data-theme="dark"] .text-slate-400   { color: #64748b; }
+
+/* Form inputs */
+html[data-theme="dark"] input:not([type="color"]),
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+  color-scheme: dark;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #64748b; }
+
+/* Scrollbars */
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #1e293b; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #475569; }
+
+/* Dividers */
+html[data-theme="dark"] .divide-slate-100 > * + * { border-color: #334155; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DENSITY  —  Activated by  html[data-density="compact|comfortable"]
+   Overrides Tailwind's --spacing base unit (affects all rem-based utilities)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Compact: slightly reduce card padding so more fits on screen */
+html[data-density="compact"] .p-4  { padding: 0.625rem; }
+html[data-density="compact"] .p-5  { padding: 0.875rem; }
+html[data-density="compact"] .p-6  { padding: 1rem; }
+html[data-density="compact"] .px-4 { padding-left: 0.625rem; padding-right: 0.625rem; }
+html[data-density="compact"] .py-3 { padding-top: 0.5rem;  padding-bottom: 0.5rem; }
+html[data-density="compact"] .py-4 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+html[data-density="compact"] .gap-4 { gap: 0.625rem; }
+html[data-density="compact"] .gap-6 { gap: 1rem; }
+html[data-density="compact"] .mb-4 { margin-bottom: 0.75rem; }
+html[data-density="compact"] .mb-6 { margin-bottom: 1rem; }
+html[data-density="compact"] .space-y-4 > * + * { margin-top: 0.625rem; }
+
+/* Comfortable: add breathing room */
+html[data-density="comfortable"] .p-4  { padding: 1.25rem; }
+html[data-density="comfortable"] .p-5  { padding: 1.5rem; }
+html[data-density="comfortable"] .p-6  { padding: 1.75rem; }
+html[data-density="comfortable"] .px-4 { padding-left: 1.25rem; padding-right: 1.25rem; }
+html[data-density="comfortable"] .py-3 { padding-top: 1rem;   padding-bottom: 1rem; }
+html[data-density="comfortable"] .gap-4 { gap: 1.25rem; }
+html[data-density="comfortable"] .gap-6 { gap: 1.75rem; }
+html[data-density="comfortable"] .mb-4 { margin-bottom: 1.25rem; }
+html[data-density="comfortable"] .mb-6 { margin-bottom: 1.75rem; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DESIGN STYLE  —  Activated by  html[data-style="minimal|dynamic"]
+   Affects visual weight: shadows, rounded corners, borders
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Minimal: flat, sharp, no shadows */
+html[data-style="minimal"] .shadow,
+html[data-style="minimal"] .shadow-sm,
+html[data-style="minimal"] .shadow-md { box-shadow: none; }
+html[data-style="minimal"] .border    { border-width: 1px; }
+
+/* Dynamic: more pronounced shadows and rounding */
+html[data-style="dynamic"] .rounded-xl  { border-radius: 1rem; }
+html[data-style="dynamic"] .rounded-2xl { border-radius: 1.5rem; }
+html[data-style="dynamic"] .shadow-sm   { box-shadow: 0 2px 8px rgb(0 0 0 / 0.1); }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS  —  Activated by  html[data-anim="none|minimal"]
+   (Standard animations use Tailwind defaults; none/minimal reduce them)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+/* Handled in ThemeProvider injected CSS for performance */
