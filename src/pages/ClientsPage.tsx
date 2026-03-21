@@ -11,6 +11,8 @@ import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
 import Timeline from '@/components/timeline/Timeline'
 import SalesFunnel from '@/components/clients/SalesFunnel'
+import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
+import { ClipboardList } from 'lucide-react'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
@@ -509,6 +511,15 @@ function ClientRow({
 
           {/* Deals */}
           <ClientDealsSection clientId={client.id} />
+
+          {/* Tasks */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardList size={13} className="text-slate-400" />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Задачи</p>
+            </div>
+            <LinkedTasksSection linkedType="client" linkedId={client.id} />
+          </div>
 
           {/* Timeline */}
           <div className="border-t border-slate-50 pt-3">

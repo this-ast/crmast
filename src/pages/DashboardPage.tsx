@@ -184,12 +184,14 @@ function TaskRow({
   onEdit,
   onDelete,
   linkedLabel,
+  onLinkedClick,
 }: {
   task: Task
   onToggle: (t: Task) => void
   onEdit: (t: Task) => void
   onDelete: (id: string) => void
   linkedLabel?: string
+  onLinkedClick?: () => void
 }) {
   const done = task.status === 'done'
   const overdue = !done && isOverdue(task.deadline)
@@ -219,9 +221,12 @@ function TaskRow({
             {TASK_PRIORITY_LABELS[task.priority]}
           </span>
           {linkedLabel && (
-            <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+            <button
+              onClick={onLinkedClick}
+              className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded-full transition-colors"
+            >
               <Link2 size={9} /> {linkedLabel}
-            </span>
+            </button>
           )}
         </div>
         {task.description && (
@@ -270,6 +275,7 @@ function TasksWidget({
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
 }) {
+  const navigate = useNavigate()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
@@ -328,6 +334,13 @@ function TasksWidget({
       const d = (deals as any[]).find(d => d.id === task.linked_id)
       return d ? `#${d.deal_number}` : undefined
     }
+  }
+
+  const linkedNavigate = (task: Task) => {
+    if (!task.linked_type || !task.linked_id) return undefined
+    if (task.linked_type === 'client') return () => navigate(`/clients?highlight=${task.linked_id}`)
+    if (task.linked_type === 'property') return () => navigate(`/properties?open=${task.linked_id}`)
+    if (task.linked_type === 'deal') return () => navigate(`/deals?open=${task.linked_id}`)
   }
 
   const handleSave = async (data: TaskFormData) => {
@@ -480,6 +493,7 @@ function TasksWidget({
               onEdit={(t) => { setEditingTask(t); setFormOpen(true) }}
               onDelete={handleDelete}
               linkedLabel={linkedLabel(task)}
+              onLinkedClick={linkedNavigate(task)}
             />
           ))
         )}

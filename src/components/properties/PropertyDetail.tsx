@@ -23,6 +23,8 @@ import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { useDealsByProperty } from '@/hooks/useDeals'
 import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
 import Timeline from '@/components/timeline/Timeline'
+import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
+import { ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface PropertyDetailProps {
@@ -359,6 +361,15 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             </div>
           </div>
         )}
+
+        {/* Tasks */}
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ClipboardList size={13} />
+            Задачи
+          </h3>
+          <LinkedTasksSection linkedType="property" linkedId={id} />
+        </div>
 
         {/* Timeline */}
         <div>

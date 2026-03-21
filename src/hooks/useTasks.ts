@@ -53,6 +53,26 @@ export function useUpdateTask() {
   })
 }
 
+export function useTasksByLinked(linkedType: 'client' | 'property' | 'deal', linkedId: string | undefined) {
+  return useQuery({
+    queryKey: [Q, 'linked', linkedType, linkedId],
+    enabled: !!linkedId,
+    queryFn: async (): Promise<Task[]> => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('linked_type', linkedType)
+        .eq('linked_id', linkedId!)
+        .order('created_at', { ascending: false })
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message)
+      }
+      return (data ?? []) as Task[]
+    },
+  })
+}
+
 export function useDeleteTask() {
   const qc = useQueryClient()
   return useMutation({
