@@ -30,6 +30,7 @@ export const useUISettings = create<UISettingsState>()(
     (set) => ({
       sections: DEFAULT_SECTIONS,
 
+
       toggleSection: (id) =>
         set((s) => ({
           sections: s.sections.map((sec) =>
@@ -58,7 +59,21 @@ export const useUISettings = create<UISettingsState>()(
 
       resetSections: () => set({ sections: DEFAULT_SECTIONS }),
     }),
-    { name: 'crm_ui_settings' }
+    {
+      name: 'crm_ui_settings',
+      // При загрузке из localStorage добавляем новые разделы, которых ещё нет в сохранённых
+      merge: (persisted: unknown, current: UISettingsState): UISettingsState => {
+        const saved = persisted as UISettingsState | undefined
+        if (!saved?.sections) return current
+        const savedIds = new Set(saved.sections.map((s) => s.id))
+        const newSections = DEFAULT_SECTIONS.filter((s) => !savedIds.has(s.id))
+        return {
+          ...current,
+          ...saved,
+          sections: [...saved.sections, ...newSections],
+        }
+      },
+    }
   )
 )
 
