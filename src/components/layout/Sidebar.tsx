@@ -1,17 +1,33 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Building2, Users, HeartHandshake, Settings, Landmark, MessageSquare } from 'lucide-react'
+import {
+  LayoutDashboard, Building2, Users, HeartHandshake,
+  Settings, Landmark, MessageSquare,
+} from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { useUISettings } from '@/store/useUISettings'
 
-const nav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Дашборд' },
-  { to: '/properties', icon: Building2, label: 'Объекты' },
-  { to: '/complexes', icon: Landmark, label: 'ЖК' },
-  { to: '/clients', icon: Users, label: 'Клиенты' },
-  { to: '/deals', icon: HeartHandshake, label: 'Сделки' },
-  { to: '/templates', icon: MessageSquare, label: 'Шаблоны' },
-]
+const SECTION_ICONS: Record<string, React.ElementType> = {
+  dashboard:  LayoutDashboard,
+  properties: Building2,
+  complexes:  Landmark,
+  clients:    Users,
+  deals:      HeartHandshake,
+  templates:  MessageSquare,
+}
+
+const SECTION_ROUTES: Record<string, string> = {
+  dashboard:  '/dashboard',
+  properties: '/properties',
+  complexes:  '/complexes',
+  clients:    '/clients',
+  deals:      '/deals',
+  templates:  '/templates',
+}
 
 export default function Sidebar() {
+  const { sections } = useUISettings()
+  const visibleSections = sections.filter((s) => !s.hidden)
+
   return (
     <aside className="w-56 bg-slate-900 flex flex-col h-full shrink-0">
       {/* Logo */}
@@ -26,26 +42,30 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {nav.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              )
-            }
-          >
-            <Icon size={18} />
-            {label}
-          </NavLink>
-        ))}
+        {visibleSections.map(({ id, label }) => {
+          const Icon = SECTION_ICONS[id] ?? LayoutDashboard
+          const to = SECTION_ROUTES[id] ?? `/${id}`
+          return (
+            <NavLink
+              key={id}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                )
+              }
+            >
+              <Icon size={18} />
+              {label}
+            </NavLink>
+          )
+        })}
       </nav>
 
-      {/* Settings */}
+      {/* Settings always visible */}
       <div className="px-2 pb-4">
         <NavLink
           to="/settings"

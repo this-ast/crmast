@@ -9,10 +9,12 @@ import {
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
+import { useCustomStatuses } from '@/hooks/useCustomStatuses'
+import { useSavedFilters, useCreateSavedFilter } from '@/hooks/useSavedFilters'
 import Timeline from '@/components/timeline/Timeline'
 import SalesFunnel from '@/components/clients/SalesFunnel'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, Bookmark } from 'lucide-react'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
@@ -566,6 +568,9 @@ export default function ClientsPage() {
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
+  const { data: customStatuses = [] } = useCustomStatuses()
+  const { data: savedFilters = [] } = useSavedFilters('client')
+  const createSavedFilter = useCreateSavedFilter()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightId = searchParams.get('highlight') ?? ''
@@ -775,7 +780,9 @@ export default function ClientsPage() {
           className="py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Все статусы</option>
-          {uniqueStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
+          {(customStatuses.length > 0 ? customStatuses.map(s => s.name) : uniqueStatuses).map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </select>
 
         {/* Sort controls */}
@@ -812,7 +819,57 @@ export default function ClientsPage() {
             </button>
           ))}
         </div>
+
+        {/* Save filter button */}
+        {(search || typeFilter || statusFilter) && (
+          <button
+            onClick={async () => {
+              const name = window.prompt('Название фильтра:')
+              if (!name?.trim()) return
+              try {
+                await createSavedFilter.mutateAsync({
+                  name: name.trim(),
+                  entity_type: 'client',
+                  filter_data: { search, typeFilter, statusFilter },
+                  sort_order: savedFilters.length,
+                })
+                toast.success('Фильтр сохранён')
+              } catch { toast.error('Ошибка') }
+            }}
+            className="flex items-center gap-1.5 py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors"
+          >
+            <Bookmark size={13} /> Сохранить фильтр
+          </button>
+        )}
       </div>
+
+      {/* Saved filters quick bar */}
+      {savedFilters.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {savedFilters.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => {
+                setSearch(f.filter_data.search ?? '')
+                setTypeFilter(f.filter_data.typeFilter ?? '')
+                setStatusFilter(f.filter_data.statusFilter ?? '')
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+            >
+              <Bookmark size={11} className="text-blue-400" />
+              {f.name}
+            </button>
+          ))}
+          {(search || typeFilter || statusFilter) && (
+            <button
+              onClick={() => { setSearch(''); setTypeFilter(''); setStatusFilter('') }}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={11} /> Сбросить
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Loading */}
       {isLoading && (
