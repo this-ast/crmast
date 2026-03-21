@@ -85,10 +85,10 @@ export default function ComplexForm() {
 
     const data = {
       name: name.trim() || 'Без названия',
-      developer: developer.trim() || null,
-      completion_date: completionDate.trim() || null,
-      description: description.trim() || null,
-      purchase_conditions: purchaseConditions.trim() || null,
+      developer: developer.trim() || undefined,
+      completion_date: completionDate.trim() || undefined,
+      description: description.trim() || undefined,
+      purchase_conditions: purchaseConditions.trim() || undefined,
       characteristics: editingComplex?.characteristics ?? {},
       developer_phones: editingComplex?.developer_phones ?? [],
       manager_names: editingComplex?.manager_names ?? [],

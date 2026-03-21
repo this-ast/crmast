@@ -50,10 +50,10 @@ export function useCreateComplex() {
     mutationFn: async (data: ComplexFormData): Promise<void> => {
       const payload = {
         name: data.name ?? 'Без названия',
-        developer: data.developer ?? null,
-        completion_date: data.completion_date ?? null,
-        description: data.description ?? null,
-        purchase_conditions: data.purchase_conditions ?? null,
+        developer: data.developer ?? undefined,
+        completion_date: data.completion_date ?? undefined,
+        description: data.description ?? undefined,
+        purchase_conditions: data.purchase_conditions ?? undefined,
         characteristics: data.characteristics ?? {},
         developer_phones: data.developer_phones ?? [],
         manager_names: data.manager_names ?? [],
