@@ -1,3 +1,5 @@
+export type FunnelStage = 'new' | 'needs' | 'selection' | 'showings' | 'thinking' | 'bargain' | 'deal'
+
 export interface Client {
   id: string
   client_number: number
@@ -14,6 +16,7 @@ export interface Client {
   last_contact?: string
   next_contact?: string
   next_step?: string
+  funnel_stage?: FunnelStage
   created_at: string
   updated_at: string
 }
@@ -32,7 +35,18 @@ export interface ClientFormData {
   last_contact?: string
   next_contact?: string
   next_step?: string
+  funnel_stage?: FunnelStage
 }
+
+export const FUNNEL_STAGES: { value: FunnelStage; label: string; color: string; bg: string; border: string }[] = [
+  { value: 'new',       label: 'Новый клиент',          color: 'text-slate-700',   bg: 'bg-slate-50',   border: 'border-slate-200' },
+  { value: 'needs',     label: 'Выявление потребностей', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'  },
+  { value: 'selection', label: 'Подбор объектов',        color: 'text-violet-700',  bg: 'bg-violet-50',  border: 'border-violet-200'},
+  { value: 'showings',  label: 'Просмотры',              color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200' },
+  { value: 'thinking',  label: 'Думает',                 color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200'},
+  { value: 'bargain',   label: 'Торг',                   color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'  },
+  { value: 'deal',      label: 'Сделка',                 color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
+]
 
 export const CLIENT_TYPES = [
   'Покупатель',

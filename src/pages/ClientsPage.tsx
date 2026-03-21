@@ -4,18 +4,19 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, List, GitMerge,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
 import Timeline from '@/components/timeline/Timeline'
+import SalesFunnel from '@/components/clients/SalesFunnel'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
   CLIENT_TYPES, CLIENT_TYPE_ICONS, CLIENT_TYPE_COLORS,
   PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS,
-  DEAL_STATUSES,
+  DEAL_STATUSES, FUNNEL_STAGES,
 } from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -206,6 +207,19 @@ function ClientForm({
             placeholder="Скинуть подборку, дожать..."
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Этап воронки</label>
+          <select
+            {...register('funnel_stage')}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— не указан —</option>
+            {FUNNEL_STAGES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -550,6 +564,7 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('client_number')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [view, setView] = useState<'list' | 'funnel'>('list')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
@@ -656,13 +671,38 @@ export default function ClientsPage() {
             {filtered.length} из {clients.length}
           </p>
         </div>
-        <button
-          onClick={() => { setEditingClient(null); setIsFormOpen(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          Добавить клиента
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center bg-slate-100 rounded-xl p-1">
+            <button
+              onClick={() => setView('list')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                view === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              )}
+            >
+              <List size={13} />
+              Список
+            </button>
+            <button
+              onClick={() => setView('funnel')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                view === 'funnel' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              )}
+            >
+              <GitMerge size={13} />
+              Воронка
+            </button>
+          </div>
+          <button
+            onClick={() => { setEditingClient(null); setIsFormOpen(true) }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={16} />
+            Добавить клиента
+          </button>
+        </div>
       </div>
 
       {/* Overdue notifications */}
@@ -789,8 +829,13 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* List */}
-      {!isLoading && filtered.length > 0 && (
+      {/* Funnel view */}
+      {!isLoading && view === 'funnel' && (
+        <SalesFunnel clients={filtered} />
+      )}
+
+      {/* List view */}
+      {!isLoading && view === 'list' && filtered.length > 0 && (
         <div className="space-y-2">
           {filtered.map((client) => (
             <ClientRow
