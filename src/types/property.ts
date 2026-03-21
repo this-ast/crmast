@@ -39,8 +39,8 @@ export interface Property {
   photos: string[]
   videos: string[]
 
-  // Owner reference
-  owner_id: string
+  // Owner reference (nullable — can be saved without owner)
+  owner_id: string | null
 
   // Complex reference
   complex_id?: string
@@ -89,7 +89,7 @@ export interface PropertyFormData {
   address: string
   complex_name?: string
   description?: string
-  owner_id: string
+  owner_id?: string | null
   // Complex
   complex_id?: string
   // Land

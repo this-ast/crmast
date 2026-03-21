@@ -1,50 +1,33 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Search, Plus, X, UserX, Check, ChevronDown } from 'lucide-react'
 import type { PropertyFormData, PropertyType } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
 import { useCreateProperty, useUpdateProperty, useProperty } from '@/hooks/useProperties'
-import { useClients } from '@/hooks/useClients'
+import { useClients, useCreateClient } from '@/hooks/useClients'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 
-const schema = z.object({
-  type: z.enum(['apartment', 'house', 'land', 'commercial']),
-  status: z.enum(['active', 'sold', 'reserved', 'withdrawn']),
-  market_type: z.enum(['secondary', 'new_build']).optional(),
-  deal_type: z.enum(['sale', 'rent']),
-  has_mortgage: z.boolean(),
-  has_installment: z.boolean(),
-  has_trade_in: z.boolean(),
-  has_maternal_cap: z.boolean(),
-  has_military_mort: z.boolean(),
-  price: z.coerce.number().min(1, 'Укажите цену'),
-  area: z.coerce.number().min(1, 'Укажите площадь'),
-  rooms: z.coerce.number().optional(),
-  floor: z.coerce.number().optional(),
-  total_floors: z.coerce.number().optional(),
-  view: z.string().optional(),
-  address: z.string().min(1, 'Укажите адрес'),
-  complex_name: z.string().optional(),
-  description: z.string().optional(),
-  owner_id: z.string().min(1, 'Выберите собственника'),
-  area_sotki: z.coerce.number().optional(),
-  communications: z.array(z.string()).optional(),
-  cadastral_number: z.string().optional(),
-  is_active_business: z.boolean().optional(),
-  has_wet_points: z.boolean().optional(),
-  has_parking: z.boolean().optional(),
-  entrance_groups: z.coerce.number().optional(),
-})
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function parseFlexibleNumber(raw: string): number | null {
+  // Accept: "5500000", "5 500 000", "5,500,000", "5.500.000", "65,5", "65.5"
+  const clean = raw.trim()
+    .replace(/\s/g, '')           // remove spaces
+    .replace(/,(?=\d{3}(?:[^\d]|$))/g, '') // remove thousands-separator commas
+    .replace(/\.(?=\d{3}(?:[^\d]|$))/g, '') // remove thousands-separator dots
+    .replace(',', '.')            // treat remaining comma as decimal
+  const n = parseFloat(clean)
+  return isNaN(n) ? null : n
+}
+
+// ─── Field wrappers ────────────────────────────────────────────────────────────
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-xs font-medium text-slate-600 mb-1.5">
-      {children}
-      {required && <span className="text-red-500 ml-0.5">*</span>}
+      {children}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
   )
 }
@@ -54,124 +37,363 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-red-500 mt-1">{message}</p>
 }
 
-function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const selectCls = inputCls
+
+// ─── Owner Selector ────────────────────────────────────────────────────────────
+
+function OwnerSelector({
+  value,
+  onChange,
+  error,
+}: {
+  value: string
+  onChange: (id: string) => void
+  error?: string
+}) {
+  const { data: clients = [] } = useClients()
+  const createClient = useCreateClient()
+
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newPhone, setNewPhone] = useState('')
+  const [creating, setCreating] = useState(false)
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  const selected = clients.find((c) => c.id === value)
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setShowCreate(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = clients
+    .filter((c) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return c.name.toLowerCase().includes(q) || String(c.client_number).includes(q)
+    })
+    .slice(0, 30)
+
+  const handleSelect = (id: string) => {
+    onChange(id)
+    setOpen(false)
+    setSearch('')
+  }
+
+  const handleNoOwner = () => {
+    onChange('')
+    setOpen(false)
+  }
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    setCreating(true)
+    try {
+      const created = await createClient.mutateAsync({
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        status: 'Новый',
+      })
+      onChange(created.id)
+      setShowCreate(false)
+      setNewName('')
+      setNewPhone('')
+      setOpen(false)
+      toast.success(`Клиент #${created.client_number} создан и выбран как собственник`)
+    } catch (err) {
+      toast.error(`Ошибка создания клиента: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
-    <input
-      className={cn(
-        'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-        className
+    <div ref={dropRef} className="relative">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setShowCreate(false) }}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 bg-white border rounded-lg text-sm text-left transition-all',
+          open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-200 hover:border-slate-300',
+          error ? 'border-red-400' : ''
+        )}
+      >
+        {selected ? (
+          <span className="text-slate-900 flex items-center gap-2">
+            <span className="text-xs font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">#{selected.client_number}</span>
+            {selected.name}
+          </span>
+        ) : (
+          <span className="text-slate-400">Выберите или создайте клиента</span>
+        )}
+        <ChevronDown size={14} className={cn('text-slate-400 shrink-0 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {/* No owner option shown below trigger */}
+      {!selected && !open && (
+        <p className="text-xs text-slate-400 mt-1">
+          Или{' '}
+          <button type="button" onClick={handleNoOwner} className="text-blue-500 hover:underline">
+            оставить без собственника
+          </button>
+        </p>
       )}
-      {...props}
-    />
+      {selected && (
+        <button
+          type="button"
+          onClick={handleNoOwner}
+          className="text-xs text-slate-400 hover:text-red-500 mt-1 flex items-center gap-1"
+        >
+          <X size={11} /> Убрать собственника
+        </button>
+      )}
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          {/* Search */}
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Поиск по имени или номеру..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Create mini-form */}
+          {showCreate ? (
+            <div className="p-3 border-b border-slate-100 space-y-2 bg-blue-50/50">
+              <p className="text-xs font-semibold text-blue-700">Новый клиент</p>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Имя *"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="text"
+                placeholder="Телефон"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                className="w-full px-2.5 py-1.5 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={!newName.trim() || creating}
+                  className="flex-1 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-60 flex items-center justify-center gap-1"
+                >
+                  {creating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  Создать и выбрать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(false)}
+                  className="px-3 py-1.5 text-slate-500 hover:text-slate-700 text-xs"
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-blue-600 hover:bg-blue-50 border-b border-slate-100 transition-colors"
+            >
+              <Plus size={13} /> Создать нового клиента
+            </button>
+          )}
+
+          {/* No owner option */}
+          <button
+            type="button"
+            onClick={handleNoOwner}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 border-b border-slate-100 transition-colors"
+          >
+            <UserX size={13} /> Указать собственника позже
+          </button>
+
+          {/* Client list */}
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">
+                {search ? 'Клиент не найден' : 'Нет клиентов'}
+              </p>
+            ) : (
+              filtered.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleSelect(c.id)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
+                    c.id === value && 'bg-blue-50 text-blue-700'
+                  )}
+                >
+                  <span className="text-[10px] font-mono shrink-0 bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                    #{c.client_number}
+                  </span>
+                  <span className="flex-1 truncate">{c.name}</span>
+                  {c.id === value && <Check size={12} className="text-blue-600 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
-function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      className={cn(
-        'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-        className
-      )}
-      {...props}
-    />
-  )
-}
+// ─── Communications ────────────────────────────────────────────────────────────
 
-const COMMUNICATIONS_OPTIONS = [
-  'Электричество', 'Газ', 'Водоснабжение', 'Канализация', 'Отопление', 'Интернет',
-]
+const COMM_OPTIONS = ['Электричество', 'Газ', 'Водоснабжение', 'Канализация', 'Отопление', 'Интернет']
+
+// ─── Main Form ─────────────────────────────────────────────────────────────────
 
 export default function PropertyForm() {
   const { closeForm, editingPropertyId } = usePropertyStore()
-  const { data: clients = [] } = useClients()
   const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
 
+  // Local state for button-group fields (avoids setValue/register conflicts)
+  const [propType,    setPropType]    = useState<PropertyType>('apartment')
+  const [dealType,    setDealType]    = useState<'sale' | 'rent'>('sale')
+  const [marketType,  setMarketType]  = useState<'secondary' | 'new_build' | undefined>(undefined)
+  const [ownerId,     setOwnerId]     = useState('')
+  const [communications, setComms]   = useState<string[]>([])
+
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<PropertyFormData>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      type: 'apartment',
-      status: 'active',
-      deal_type: 'sale',
-      has_mortgage: false,
-      has_installment: false,
-      has_trade_in: false,
-      has_maternal_cap: false,
-      has_military_mort: false,
-    } as PropertyFormData,
-  })
+    setError,
+    clearErrors,
+  } = useForm<any>()
 
+  // Load editing data
   useEffect(() => {
     if (editingProperty && editingPropertyId) {
+      setPropType(editingProperty.type ?? 'apartment')
+      setDealType(editingProperty.deal_type ?? 'sale')
+      setMarketType(editingProperty.market_type ?? undefined)
+      setOwnerId(editingProperty.owner_id ?? '')
+      setComms(editingProperty.communications ?? [])
       reset({
-        type: editingProperty.type,
-        status: editingProperty.status,
-        market_type: editingProperty.market_type ?? undefined,
-        deal_type: editingProperty.deal_type ?? 'sale',
-        has_mortgage: editingProperty.has_mortgage ?? false,
-        has_installment: editingProperty.has_installment ?? false,
-        has_trade_in: editingProperty.has_trade_in ?? false,
+        status:          editingProperty.status,
+        price:           editingProperty.price != null ? String(editingProperty.price) : '',
+        area:            editingProperty.area  != null ? String(editingProperty.area)  : '',
+        rooms:           editingProperty.rooms ?? '',
+        floor:           editingProperty.floor ?? '',
+        total_floors:    editingProperty.total_floors ?? '',
+        view:            editingProperty.view ?? '',
+        address:         editingProperty.address ?? '',
+        complex_name:    editingProperty.complex_name ?? '',
+        description:     editingProperty.description ?? '',
+        cadastral_number: editingProperty.cadastral_number ?? '',
+        area_sotki:      editingProperty.area_sotki != null ? String(editingProperty.area_sotki) : '',
+        entrance_groups: editingProperty.entrance_groups ?? '',
+        has_mortgage:     editingProperty.has_mortgage ?? false,
+        has_installment:  editingProperty.has_installment ?? false,
+        has_trade_in:     editingProperty.has_trade_in ?? false,
         has_maternal_cap: editingProperty.has_maternal_cap ?? false,
         has_military_mort: editingProperty.has_military_mort ?? false,
-        price: editingProperty.price,
-        area: editingProperty.area,
-        rooms: editingProperty.rooms ?? undefined,
-        floor: editingProperty.floor ?? undefined,
-        total_floors: editingProperty.total_floors ?? undefined,
-        view: editingProperty.view ?? undefined,
-        address: editingProperty.address,
-        complex_name: editingProperty.complex_name ?? undefined,
-        description: editingProperty.description ?? undefined,
-        owner_id: editingProperty.owner_id ?? '',
-        area_sotki: editingProperty.area_sotki ?? undefined,
-        communications: editingProperty.communications ?? undefined,
-        cadastral_number: editingProperty.cadastral_number ?? undefined,
-        is_active_business: editingProperty.is_active_business ?? undefined,
-        has_wet_points: editingProperty.has_wet_points ?? undefined,
-        has_parking: editingProperty.has_parking ?? undefined,
-        entrance_groups: editingProperty.entrance_groups ?? undefined,
+        is_active_business: editingProperty.is_active_business ?? false,
+        has_wet_points:   editingProperty.has_wet_points ?? false,
+        has_parking:      editingProperty.has_parking ?? false,
       })
     }
   }, [editingProperty, editingPropertyId, reset])
 
-  const type = watch('type') as PropertyType
-  const dealType = watch('deal_type')
-  const marketType = watch('market_type')
-  const communications = watch('communications') ?? []
+  const toggleComm = (v: string) =>
+    setComms((prev) => prev.includes(v) ? prev.filter((c) => c !== v) : [...prev, v])
 
-  const toggleCommunication = (value: string) => {
-    const current = communications ?? []
-    if (current.includes(value)) {
-      setValue('communications', current.filter((c) => c !== value))
-    } else {
-      setValue('communications', [...current, value])
+  const onSubmit = async (raw: any) => {
+    // ── Validate & parse price ─────────────────────────────────────────────
+    const priceNum = parseFlexibleNumber(String(raw.price ?? ''))
+    if (priceNum === null) {
+      setError('price', { message: 'Укажите цену числом (например: 5500000)' })
+      return
     }
-  }
 
-  const onSubmit = async (raw: PropertyFormData) => {
-    // Clean optional numeric fields: coerce.number() converts "" → 0,
-    // but 0 is meaningless for rooms/floor etc. — send undefined instead.
+    // ── Validate & parse area ──────────────────────────────────────────────
+    const areaNum = parseFlexibleNumber(String(raw.area ?? ''))
+    if (areaNum === null || areaNum <= 0) {
+      setError('area', { message: 'Укажите площадь числом (например: 65)' })
+      return
+    }
+
+    // ── Require address ────────────────────────────────────────────────────
+    if (!raw.address?.trim()) {
+      setError('address', { message: 'Укажите адрес объекта' })
+      return
+    }
+
+    clearErrors()
+
+    const intOrUndef = (v: any) => {
+      const n = parseInt(v)
+      return isNaN(n) || n === 0 ? undefined : n
+    }
+    const floatOrUndef = (v: any) => {
+      const n = parseFlexibleNumber(String(v ?? ''))
+      return n === null || n === 0 ? undefined : n
+    }
+    const strOrUndef = (v: any) => (v?.trim() ? v.trim() : undefined)
+
     const data: PropertyFormData = {
-      ...raw,
-      rooms:          raw.rooms          || undefined,
-      floor:          raw.floor          || undefined,
-      total_floors:   raw.total_floors   || undefined,
-      area_sotki:     raw.area_sotki     || undefined,
-      entrance_groups: raw.entrance_groups || undefined,
-      // Clean empty strings from optional text fields
-      view:             raw.view             || undefined,
-      complex_name:     raw.complex_name     || undefined,
-      description:      raw.description      || undefined,
-      cadastral_number: raw.cadastral_number || undefined,
+      type:          propType,
+      status:        raw.status ?? 'active',
+      deal_type:     dealType,
+      market_type:   marketType,
+      has_mortgage:  !!raw.has_mortgage,
+      has_installment: !!raw.has_installment,
+      has_trade_in:  !!raw.has_trade_in,
+      has_maternal_cap: !!raw.has_maternal_cap,
+      has_military_mort: !!raw.has_military_mort,
+      price:         priceNum,
+      area:          areaNum,
+      rooms:         intOrUndef(raw.rooms),
+      floor:         intOrUndef(raw.floor),
+      total_floors:  intOrUndef(raw.total_floors),
+      view:          strOrUndef(raw.view),
+      address:       raw.address.trim(),
+      complex_name:  strOrUndef(raw.complex_name),
+      description:   strOrUndef(raw.description),
+      owner_id:      ownerId || (null as any), // DB allows NULL
+      // Land
+      area_sotki:    floatOrUndef(raw.area_sotki),
+      communications: communications.length > 0 ? communications : undefined,
+      cadastral_number: strOrUndef(raw.cadastral_number),
+      // Commercial
+      is_active_business: !!raw.is_active_business || undefined,
+      has_wet_points: !!raw.has_wet_points || undefined,
+      has_parking:   !!raw.has_parking || undefined,
+      entrance_groups: intOrUndef(raw.entrance_groups),
     }
 
     try {
@@ -186,28 +408,26 @@ export default function PropertyForm() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       toast.error(`Ошибка: ${msg}`, { duration: 8000 })
-      console.error('[PropertyForm] save error:', err)
     }
   }
 
-  const showMarketType = type === 'apartment' || type === 'house'
-  const showConditions = type !== 'land'
+  const showMarketType  = propType === 'apartment' || propType === 'house'
+  const showConditions  = propType !== 'land'
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90dvh]">
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Type */}
+
+        {/* ── Property type ────────────────────────────────────────────── */}
         <div>
           <FieldLabel required>Тип объекта</FieldLabel>
           <div className="grid grid-cols-4 gap-2">
             {(['apartment', 'house', 'land', 'commercial'] as PropertyType[]).map((t) => (
               <button
-                key={t}
-                type="button"
-                onClick={() => setValue('type', t)}
+                key={t} type="button" onClick={() => setPropType(t)}
                 className={cn(
                   'flex flex-col items-center gap-1 p-2.5 rounded-xl border text-xs font-medium transition-all',
-                  type === t
+                  propType === t
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-slate-200 text-slate-600 hover:border-slate-300'
                 )}
@@ -219,17 +439,13 @@ export default function PropertyForm() {
           </div>
         </div>
 
-        {/* Deal type + Market type */}
+        {/* ── Deal type + Market type ──────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Deal type: Продажа / Аренда */}
           <div>
             <FieldLabel>Тип сделки</FieldLabel>
             <div className="flex gap-2">
               {(['sale', 'rent'] as const).map((dt) => (
-                <button
-                  key={dt}
-                  type="button"
-                  onClick={() => setValue('deal_type', dt)}
+                <button key={dt} type="button" onClick={() => setDealType(dt)}
                   className={cn(
                     'flex-1 py-2 rounded-lg text-xs font-medium border transition-all',
                     dealType === dt
@@ -243,16 +459,12 @@ export default function PropertyForm() {
             </div>
           </div>
 
-          {/* Market type: Вторичка / Новострой (only for apt/house) */}
           {showMarketType && (
             <div>
               <FieldLabel>Рынок</FieldLabel>
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 {([undefined, 'secondary', 'new_build'] as const).map((mt) => (
-                  <button
-                    key={mt ?? 'none'}
-                    type="button"
-                    onClick={() => setValue('market_type', mt)}
+                  <button key={mt ?? 'none'} type="button" onClick={() => setMarketType(mt)}
                     className={cn(
                       'flex-1 py-2 rounded-lg text-xs font-medium border transition-all',
                       marketType === mt
@@ -268,222 +480,234 @@ export default function PropertyForm() {
           )}
         </div>
 
-        {/* Status */}
+        {/* ── Status ──────────────────────────────────────────────────── */}
         <div>
           <FieldLabel required>Статус</FieldLabel>
-          <Select {...register('status')}>
+          <select className={selectCls} {...register('status', { value: 'active' })}>
             <option value="active">Активный</option>
             <option value="reserved">Резерв</option>
             <option value="sold">{dealType === 'rent' ? 'Сдан' : 'Продан'}</option>
             <option value="withdrawn">Снят</option>
-          </Select>
+          </select>
         </div>
 
-        {/* Price & Area */}
+        {/* ── Price & Area (free text) ─────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel required>{dealType === 'rent' ? 'Аренда/мес (₽)' : 'Цена (₽)'}</FieldLabel>
-            <Input type="number" placeholder="5500000" {...register('price')} />
-            <FieldError message={errors.price?.message} />
+            <input
+              className={cn(inputCls, errors.price && 'border-red-400 focus:ring-red-400')}
+              placeholder="5 500 000"
+              inputMode="decimal"
+              {...register('price')}
+              onChange={(e) => { register('price').onChange(e); clearErrors('price') }}
+            />
+            <FieldError message={errors.price?.message as string} />
           </div>
           <div>
             <FieldLabel required>Площадь (м²)</FieldLabel>
-            <Input type="number" placeholder="65" {...register('area')} />
-            <FieldError message={errors.area?.message} />
+            <input
+              className={cn(inputCls, errors.area && 'border-red-400 focus:ring-red-400')}
+              placeholder="65"
+              inputMode="decimal"
+              {...register('area')}
+              onChange={(e) => { register('area').onChange(e); clearErrors('area') }}
+            />
+            <FieldError message={errors.area?.message as string} />
           </div>
         </div>
 
-        {/* Conditions */}
+        {/* ── Conditions ──────────────────────────────────────────────── */}
         {showConditions && (
           <div>
             <FieldLabel>Условия сделки</FieldLabel>
             <div className="flex flex-wrap gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-violet-600 accent-violet-600" {...register('has_mortgage')} />
-                <span className="text-sm text-slate-700">🏦 Ипотека</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 accent-emerald-600" {...register('has_installment')} />
-                <span className="text-sm text-slate-700">📅 Рассрочка</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-orange-500 accent-orange-500" {...register('has_trade_in')} />
-                <span className="text-sm text-slate-700">🔄 Трейд-ин</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded text-pink-500 accent-pink-500" {...register('has_maternal_cap')} />
-                <span className="text-sm text-slate-700">👶 Маткапитал</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded accent-slate-700" {...register('has_military_mort')} />
-                <span className="text-sm text-slate-700">🎖 Военная ипотека</span>
-              </label>
+              {[
+                { field: 'has_mortgage',     label: '🏦 Ипотека',          accent: 'violet' },
+                { field: 'has_installment',  label: '📅 Рассрочка',        accent: 'emerald' },
+                { field: 'has_trade_in',     label: '🔄 Трейд-ин',         accent: 'orange' },
+                { field: 'has_maternal_cap', label: '👶 Маткапитал',       accent: 'pink' },
+                { field: 'has_military_mort',label: '🎖 Военная ипотека',  accent: 'slate' },
+              ].map(({ field, label }) => (
+                <label key={field} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded" {...register(field)} />
+                  <span className="text-sm text-slate-700">{label}</span>
+                </label>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Apartment specific */}
-        {type === 'apartment' && (
+        {/* ── Apartment specifics ──────────────────────────────────────── */}
+        {propType === 'apartment' && (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <FieldLabel>Комнат</FieldLabel>
-                <Select {...register('rooms')}>
+                <select className={selectCls} {...register('rooms')}>
                   <option value="">—</option>
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
-                </Select>
+                </select>
               </div>
               <div>
                 <FieldLabel>Этаж</FieldLabel>
-                <Input type="number" placeholder="5" {...register('floor')} />
+                <input className={inputCls} placeholder="5" inputMode="numeric" {...register('floor')} />
               </div>
               <div>
-                <FieldLabel>Всего этажей</FieldLabel>
-                <Input type="number" placeholder="16" {...register('total_floors')} />
+                <FieldLabel>Этажей в доме</FieldLabel>
+                <input className={inputCls} placeholder="16" inputMode="numeric" {...register('total_floors')} />
               </div>
             </div>
             <div>
               <FieldLabel>Вид из окон</FieldLabel>
-              <Input placeholder="Двор, улица, парк..." {...register('view')} />
+              <input className={inputCls} placeholder="Двор, улица, парк, лес..." {...register('view')} />
             </div>
           </div>
         )}
 
-        {/* Land specific */}
-        {type === 'land' && (
-          <div className="space-y-3">
+        {/* ── House specifics ──────────────────────────────────────────── */}
+        {propType === 'house' && (
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel>Площадь (соток)</FieldLabel>
-              <Input type="number" placeholder="15" {...register('area_sotki')} />
+              <FieldLabel>Этаж</FieldLabel>
+              <input className={inputCls} placeholder="2" inputMode="numeric" {...register('floor')} />
             </div>
             <div>
-              <FieldLabel>Кадастровый номер</FieldLabel>
-              <Input placeholder="50:01:0000000:123" {...register('cadastral_number')} />
-            </div>
-            <div>
-              <FieldLabel>Коммуникации</FieldLabel>
-              <div className="flex flex-wrap gap-2">
-                {COMMUNICATIONS_OPTIONS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => toggleCommunication(c)}
-                    className={cn(
-                      'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
-                      communications?.includes(c)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    )}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
+              <FieldLabel>Всего этажей</FieldLabel>
+              <input className={inputCls} placeholder="2" inputMode="numeric" {...register('total_floors')} />
             </div>
           </div>
         )}
 
-        {/* Commercial specific */}
-        {type === 'commercial' && (
+        {/* ── Land specifics ──────────────────────────────────────────── */}
+        {propType === 'land' && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded" {...register('is_active_business')} />
-                <span className="text-sm text-slate-700">Действующий бизнес</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded" {...register('has_wet_points')} />
-                <span className="text-sm text-slate-700">Мокрые точки</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded" {...register('has_parking')} />
-                <span className="text-sm text-slate-700">Парковка</span>
-              </label>
               <div>
-                <FieldLabel>Входных групп</FieldLabel>
-                <Input type="number" placeholder="1" {...register('entrance_groups')} />
+                <FieldLabel>Площадь (соток)</FieldLabel>
+                <input className={inputCls} placeholder="15" inputMode="decimal" {...register('area_sotki')} />
+              </div>
+              <div>
+                <FieldLabel>Кадастровый номер</FieldLabel>
+                <input className={inputCls} placeholder="50:01:0000000:123" {...register('cadastral_number')} />
               </div>
             </div>
             <div>
               <FieldLabel>Коммуникации</FieldLabel>
               <div className="flex flex-wrap gap-2">
-                {COMMUNICATIONS_OPTIONS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => toggleCommunication(c)}
+                {COMM_OPTIONS.map((c) => (
+                  <button key={c} type="button" onClick={() => toggleComm(c)}
                     className={cn(
                       'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
-                      communications?.includes(c)
+                      communications.includes(c)
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                     )}
-                  >
-                    {c}
-                  </button>
+                  >{c}</button>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* Location */}
+        {/* ── Commercial specifics ────────────────────────────────────── */}
+        {propType === 'commercial' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { field: 'is_active_business', label: 'Действующий бизнес' },
+                { field: 'has_wet_points',     label: 'Мокрые точки' },
+                { field: 'has_parking',        label: 'Парковка' },
+              ].map(({ field, label }) => (
+                <label key={field} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded" {...register(field)} />
+                  <span className="text-sm text-slate-700">{label}</span>
+                </label>
+              ))}
+              <div>
+                <FieldLabel>Входных групп</FieldLabel>
+                <input className={inputCls} placeholder="1" inputMode="numeric" {...register('entrance_groups')} />
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Коммуникации</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                {COMM_OPTIONS.map((c) => (
+                  <button key={c} type="button" onClick={() => toggleComm(c)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
+                      communications.includes(c)
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    )}
+                  >{c}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Location ────────────────────────────────────────────────── */}
         <div className="space-y-3">
           <div>
-            <FieldLabel>Название ЖК</FieldLabel>
-            <Input placeholder="Москва Сити, Новые Черёмушки..." {...register('complex_name')} />
+            <FieldLabel>Название ЖК / Комплекса</FieldLabel>
+            <input className={inputCls} placeholder="Москва Сити, Новые Черёмушки..." {...register('complex_name')} />
           </div>
           <div>
             <FieldLabel required>Адрес</FieldLabel>
-            <Input placeholder="ул. Ленина, д. 5, кв. 12" {...register('address')} />
-            <FieldError message={errors.address?.message} />
+            <input
+              className={cn(inputCls, errors.address && 'border-red-400 focus:ring-red-400')}
+              placeholder="ул. Ленина, д. 5, кв. 12"
+              {...register('address')}
+              onChange={(e) => { register('address').onChange(e); clearErrors('address') }}
+            />
+            <FieldError message={errors.address?.message as string} />
           </div>
         </div>
 
-        {/* Description */}
+        {/* ── Description ─────────────────────────────────────────────── */}
         <div>
           <FieldLabel>Описание</FieldLabel>
           <textarea
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className={cn(inputCls, 'resize-none')}
             rows={3}
-            placeholder="Описание объекта..."
+            placeholder="Описание объекта в свободной форме..."
             {...register('description')}
           />
         </div>
 
-        {/* Owner */}
+        {/* ── Owner ───────────────────────────────────────────────────── */}
         <div>
-          <FieldLabel required>Собственник</FieldLabel>
-          <Select {...register('owner_id')}>
-            <option value="">Выберите клиента</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} (#{c.client_number})
-              </option>
-            ))}
-          </Select>
-          <FieldError message={errors.owner_id?.message} />
+          <FieldLabel>Собственник</FieldLabel>
+          <OwnerSelector
+            value={ownerId}
+            onChange={setOwnerId}
+            error={errors.owner_id?.message as string}
+          />
+          {!ownerId && (
+            <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+              <span>⚠</span> Собственник не указан — карточка будет сохранена без него
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
         <button
-          type="button"
-          onClick={closeForm}
+          type="button" onClick={closeForm}
           className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
         >
           Отмена
         </button>
         <button
-          type="submit"
-          disabled={isSubmitting}
+          type="submit" disabled={isSubmitting}
           className="flex-1 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
         >
           {isSubmitting && <Loader2 size={15} className="animate-spin" />}
-          {editingPropertyId ? 'Сохранить' : 'Добавить объект'}
+          {editingPropertyId ? 'Сохранить изменения' : 'Добавить объект'}
         </button>
       </div>
     </form>
