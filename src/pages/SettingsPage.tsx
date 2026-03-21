@@ -43,7 +43,7 @@ function ProfileTab() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-lg">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {([
           { field: 'name' as const,        label: 'Имя агента',  ph: 'Иван Петров' },
           { field: 'phone' as const,       label: 'Телефон',     ph: '+7 900 000 00 00' },
@@ -59,7 +59,7 @@ function ProfileTab() {
 
       <div className="border-t border-slate-100 pt-4">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Соцсети</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([
             { field: 'instagram' as const, label: 'Instagram', ph: '@username' },
             { field: 'telegram'  as const, label: 'Telegram',  ph: '@username' },
@@ -429,16 +429,16 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('profile')
 
   return (
-    <div className="p-6 max-w-screen-lg mx-auto">
+    <div className="p-4 sm:p-6 max-w-screen-lg mx-auto">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-slate-900">Настройки</h1>
         <p className="text-sm text-slate-500 mt-0.5">Персонализация CRM под ваши задачи</p>
       </div>
 
-      <div className="flex flex-wrap gap-1 bg-white border border-slate-200 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 mb-6 overflow-x-auto scrollbar-hide">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveTab(id)} className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap shrink-0',
             activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           )}>
             <Icon size={15} />{label}

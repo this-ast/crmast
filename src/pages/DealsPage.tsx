@@ -506,7 +506,7 @@ export default function DealsPage() {
   }
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -523,7 +523,7 @@ export default function DealsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-slate-100 px-4 py-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
             <TrendingUp size={17} className="text-emerald-600" />
@@ -554,8 +554,8 @@ export default function DealsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="relative flex-1 min-w-56">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="relative w-full sm:flex-1 sm:min-w-0">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -570,10 +570,10 @@ export default function DealsPage() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1 py-1">
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1 py-1 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setStatusFilter('')}
-            className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+            className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
               statusFilter === '' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100')}
           >
             Все
@@ -582,7 +582,7 @@ export default function DealsPage() {
             <button
               key={s.value}
               onClick={() => setStatusFilter(statusFilter === s.value ? '' : s.value)}
-              className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+              className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
                 statusFilter === s.value ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100')}
             >
               {s.label}

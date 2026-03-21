@@ -678,9 +678,9 @@ export default function ClientsPage() {
   )
 
   return (
-    <div className="p-6 max-w-screen-xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Клиенты</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -725,7 +725,7 @@ export default function ClientsPage() {
       {!isLoading && <OverdueBanner clients={clients} />}
 
       {/* Type filter tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
         {TYPE_TABS.map((tab) => {
           const count = tab.value ? (typeCounts[tab.value] ?? 0) : clients.length
           return (
@@ -754,8 +754,8 @@ export default function ClientsPage() {
       </div>
 
       {/* Search + status filter + sort */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="relative flex-1 min-w-64">
+      <div className="flex flex-wrap gap-2 mb-5">
+        <div className="relative w-full sm:flex-1 sm:min-w-0">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
