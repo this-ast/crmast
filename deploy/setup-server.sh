@@ -141,7 +141,7 @@ update_telegram_bot() {
     return
   fi
   # Если бот ещё ни разу не устанавливался — запускаем полную установку
-  if [[ ! -f "$BOT_ENV" || ! -d "$BOT_DIR/.venv" ]]; then
+  if [[ ! -f "$BOT_ENV" || ! -x "$BOT_DIR/.venv/bin/pip" ]]; then
     log "Бот не настроен — запускаем первоначальную установку..."
     install_python
     setup_bot_env
