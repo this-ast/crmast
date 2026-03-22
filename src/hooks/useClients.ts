@@ -40,13 +40,24 @@ export function useCreateClient() {
   return useMutation({
     mutationFn: async (data: ClientFormData & { client_number?: number }) => {
       if (!navigator.onLine) {
+        const tempId = crypto.randomUUID()
         await enqueue({
           entity: 'clients',
           operation: 'create',
-          data: data as Record<string, unknown>,
+          data: { id: tempId, ...(data as unknown as Record<string, unknown>) },
         })
         await refreshPendingCount()
-        return OFFLINE_MARKER
+        // Возвращаем fake-объект с temp ID — компонент может использовать .id
+        return {
+          id: tempId,
+          client_number: 0,
+          name: data.name,
+          phone: data.phone ?? '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...data,
+          _offline: true,
+        } as unknown as Client
       }
 
       let clientNumber = data.client_number
@@ -70,7 +81,7 @@ export function useCreateClient() {
       return created as Client
     },
     onSuccess: (result) => {
-      if (isOfflineMarker(result)) return
+      if ((result as any)?._offline) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
     },
   })

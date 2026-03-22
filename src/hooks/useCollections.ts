@@ -102,7 +102,13 @@ export function useCreateCollection() {
       if (!navigator.onLine) {
         await enqueue({ entity: 'collections', operation: 'create', data: payload as Record<string, unknown> })
         await refreshPendingCount()
-        return OFFLINE_MARKER
+        return {
+          ...payload,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          _offline: true,
+        } as unknown as Collection
       }
 
       const { data, error } = await supabase
@@ -114,7 +120,7 @@ export function useCreateCollection() {
       return data as Collection
     },
     onSuccess: (result) => {
-      if (isOfflineMarker(result)) return
+      if ((result as any)?._offline) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
     },
   })

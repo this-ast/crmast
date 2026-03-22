@@ -90,13 +90,23 @@ export function useCreateProperty() {
   return useMutation({
     mutationFn: async (data: PropertyFormData) => {
       if (!navigator.onLine) {
+        const tempId = crypto.randomUUID()
         await enqueue({
           entity: 'properties',
           operation: 'create',
-          data: { ...data, photos: [], videos: [] } as Record<string, unknown>,
+          data: { id: tempId, ...data, photos: [], videos: [] } as Record<string, unknown>,
         })
         await refreshPendingCount()
-        return OFFLINE_MARKER
+        return {
+          id: tempId,
+          article: 'TMP',
+          photos: [],
+          videos: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...data,
+          _offline: true,
+        } as unknown as Property
       }
 
       const article = await getNextArticle(data.type)
@@ -110,7 +120,7 @@ export function useCreateProperty() {
       return created as Property
     },
     onSuccess: (result) => {
-      if (isOfflineMarker(result)) return
+      if ((result as any)?._offline) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
     },
   })
