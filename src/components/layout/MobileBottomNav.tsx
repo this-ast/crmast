@@ -31,11 +31,11 @@ export default function MobileBottomNav() {
   const visible = sections.filter((s) => !s.hidden)
 
   return (
-    <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-700 safe-area-pb"
-      style={{ WebkitOverflowScrolling: 'touch' }}
-    >
-      <div className="flex overflow-x-auto scrollbar-hide px-1">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-700 safe-area-pb">
+      <div
+        className="flex overflow-x-auto scrollbar-hide px-1"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+      >
         {visible.map(({ id, label }) => {
           const Icon = SECTION_ICONS[id] ?? LayoutDashboard
           const to = SECTION_ROUTES[id] ?? `/${id}`
