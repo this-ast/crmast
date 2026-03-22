@@ -4,8 +4,9 @@ import {
   Database, Globe, Shield, Info, CheckCircle2, User, Palette,
   Tags, Filter, ChevronUp, ChevronDown, Eye, EyeOff, Pencil,
   Trash2, Plus, X, Loader2, RotateCcw, Save, Sparkles, Moon,
-  Sun, Monitor, Type, Zap, Layers,
+  Sun, Monitor, Type, Zap, Layers, GraduationCap, ChevronRight,
 } from 'lucide-react'
+import { OnboardingRestartButton } from '@/components/onboarding/OnboardingTour'
 import { useAgentSettings, useUpsertAgentSettings } from '@/hooks/useAgentSettings'
 import {
   useCustomStatuses, useCreateCustomStatus, useUpdateCustomStatus, useDeleteCustomStatus,
@@ -718,6 +719,14 @@ function SystemTab() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-100 p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center"><GraduationCap size={18} className="text-indigo-600" /></div>
+          <h2 className="text-sm font-semibold text-slate-800">Обучение</h2>
+        </div>
+        <OnboardingRestartButton variant="settings" />
       </div>
 
       <div className="bg-white rounded-xl border border-slate-100 p-5">

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useUISettings } from '@/store/useUISettings'
+import { OnboardingRestartButton } from '@/components/onboarding/OnboardingTour'
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
   dashboard:   LayoutDashboard,
@@ -51,6 +52,7 @@ export default function Sidebar() {
             <NavLink
               key={id}
               to={to}
+              data-tour={`nav-${id}`}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
@@ -66,6 +68,11 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Onboarding restart */}
+      <div className="px-2 pb-2">
+        <OnboardingRestartButton variant="sidebar" />
+      </div>
 
       {/* Settings always visible */}
       <div className="px-2 pb-4">

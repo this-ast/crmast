@@ -1,8 +1,21 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import MobileBottomNav from './MobileBottomNav'
+import OnboardingTour from '@/components/onboarding/OnboardingTour'
+import { useOnboarding } from '@/store/useOnboarding'
 
 export default function Layout() {
+  const { hasCompleted, start } = useOnboarding()
+
+  // Auto-start tour for new users
+  useEffect(() => {
+    if (!hasCompleted) {
+      const t = setTimeout(start, 800)
+      return () => clearTimeout(t)
+    }
+  }, []) // eslint-disable-line
+
   return (
     <div className="flex h-[100dvh] bg-slate-100 overflow-hidden">
       {/* Sidebar — desktop only */}
@@ -17,6 +30,9 @@ export default function Layout() {
 
       {/* Bottom nav — mobile only */}
       <MobileBottomNav />
+
+      {/* Onboarding tour overlay */}
+      <OnboardingTour />
     </div>
   )
 }

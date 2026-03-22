@@ -129,6 +129,7 @@ export default function PropertiesPage() {
           </p>
         </div>
         <button
+          data-tour="add-property"
           onClick={() => openForm()}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
         >

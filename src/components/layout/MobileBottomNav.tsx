@@ -41,6 +41,7 @@ export default function MobileBottomNav() {
           <NavLink
             key={id}
             to={to}
+            data-tour={`nav-${id}`}
             className={({ isActive }) =>
               cn(
                 'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-center transition-colors min-w-0',
