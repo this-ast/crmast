@@ -180,7 +180,9 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         {complex.description && (
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Описание</h3>
-            <p className="text-sm text-slate-700 leading-relaxed">{complex.description}</p>
+            <p className="text-sm text-slate-700 leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
+              {complex.description}
+            </p>
           </div>
         )}
 
@@ -190,15 +192,67 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
               Условия покупки
             </h3>
-            <p className="text-sm text-emerald-800">{complex.purchase_conditions}</p>
+            <p className="text-sm text-emerald-800" style={{ whiteSpace: 'pre-wrap' }}>
+              {complex.purchase_conditions}
+            </p>
           </div>
         )}
 
-        {/* Characteristics */}
+        {/* Structural building characteristics */}
+        {(complex.floors_total || complex.building_type || complex.elevator ||
+          (complex.yard_features?.length ?? 0) > 0 || (complex.parking?.length ?? 0) > 0) && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Характеристики здания
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {complex.floors_total && (
+                <div className="bg-slate-50 rounded-lg p-2.5">
+                  <p className="text-xs text-slate-400 mb-0.5">Этажность</p>
+                  <p className="text-sm font-medium text-slate-800">{complex.floors_total}</p>
+                </div>
+              )}
+              {complex.building_type && (
+                <div className="bg-slate-50 rounded-lg p-2.5">
+                  <p className="text-xs text-slate-400 mb-0.5">Тип дома</p>
+                  <p className="text-sm font-medium text-slate-800">{complex.building_type}</p>
+                </div>
+              )}
+              {complex.elevator && (
+                <div className="bg-slate-50 rounded-lg p-2.5">
+                  <p className="text-xs text-slate-400 mb-0.5">Лифт</p>
+                  <p className="text-sm font-medium text-slate-800">{complex.elevator}</p>
+                </div>
+              )}
+              {(complex.yard_features?.length ?? 0) > 0 && (
+                <div className="bg-slate-50 rounded-lg p-2.5 col-span-2">
+                  <p className="text-xs text-slate-400 mb-1.5">Двор</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {complex.yard_features!.map((f) => (
+                      <span key={f} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(complex.parking?.length ?? 0) > 0 && (
+                <div className="bg-slate-50 rounded-lg p-2.5 col-span-2">
+                  <p className="text-xs text-slate-400 mb-1.5">Парковка</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {complex.parking!.map((p) => (
+                      <span key={p} className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-xs font-medium">{p}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Free-form characteristics */}
         {charEntries.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Характеристики
+              Дополнительно
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {charEntries.map(([key, value]) => (
