@@ -33,6 +33,138 @@ err() { echo -e "${RED}[ERR]${NC} $1"; exit 1; }
 INSTALL_DIR="/var/www/crm"
 NGINX_CONF="/etc/nginx/sites-available/crm"
 NGINX_ENABLED="/etc/nginx/sites-enabled/crm"
+BOT_DIR="$INSTALL_DIR/telegram-bot"
+BOT_ENV="$BOT_DIR/.env"
+BOT_SERVICE="crm-tgbot"
+
+# ---------------------------------------------------------------------------
+# Функции для Telegram-бота
+# ---------------------------------------------------------------------------
+
+install_python() {
+  if command -v python3 &>/dev/null && python3 -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" 2>/dev/null; then
+    log "Python 3 уже установлен: $(python3 --version)"
+    return
+  fi
+  log "Установка Python 3.11..."
+  add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+  apt-get update -qq
+  apt-get install -y -qq python3.11 python3.11-venv python3.11-distutils curl
+  curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+  log "Python установлен: $(python3 --version)"
+}
+
+setup_bot_env() {
+  if [[ -f "$BOT_ENV" ]]; then
+    log "Файл $BOT_ENV уже существует, пропускаем."
+    return
+  fi
+
+  echo ""
+  echo "=== Настройка Telegram-бота ==="
+  echo ""
+  echo "Для настройки бота потребуются:"
+  echo "  1. Токен бота (от @BotFather)"
+  echo "  2. Ваш Telegram User ID (можно узнать у @userinfobot)"
+  echo ""
+
+  read -p "Настроить Telegram-бота? [y/N]: " SETUP_BOT < /dev/tty
+  if [[ "$SETUP_BOT" != "y" && "$SETUP_BOT" != "Y" ]]; then
+    warn "Пропускаем настройку бота."
+    return
+  fi
+
+  read -p "TELEGRAM_BOT_TOKEN: " TG_TOKEN < /dev/tty
+  [[ -z "$TG_TOKEN" ]] && err "Токен бота обязателен"
+
+  read -p "Ваш Telegram User ID (числовой): " TG_USER_ID < /dev/tty
+  [[ -z "$TG_USER_ID" ]] && err "User ID обязателен"
+
+  read -p "POLZA_API_KEY [pza_yj1niHvxJC-A9Kh6-cRzaYBJ3PZF28Jm]: " POLZA_KEY < /dev/tty
+  POLZA_KEY=${POLZA_KEY:-pza_yj1niHvxJC-A9Kh6-cRzaYBJ3PZF28Jm}
+
+  cat > "$BOT_ENV" << BOTENV
+TELEGRAM_BOT_TOKEN=$TG_TOKEN
+ALLOWED_USER_IDS=$TG_USER_ID
+POLZA_API_KEY=$POLZA_KEY
+POLZA_BASE_URL=https://polza.ai/api/v1
+AI_MODEL=google/gemini-2.5-flash-lite-preview-09-2025
+SUPABASE_URL=https://mtigcxqcymxvqjjqfyts.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10aWdjeHFjeW14dnFqanFmeXRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjcyMDA5NiwiZXhwIjoyMDg4Mjk2MDk2fQ.xVzANZk08H59sUJsTzcDd6s3sfDs8zMZ-DKHnZCH_nM
+BOTENV
+  chmod 600 "$BOT_ENV"
+  log "Файл $BOT_ENV создан"
+}
+
+install_bot_deps() {
+  log "Создание виртуального окружения Python..."
+  python3 -m venv "$BOT_DIR/.venv"
+  log "Установка зависимостей бота..."
+  "$BOT_DIR/.venv/bin/pip" install --quiet --upgrade pip
+  "$BOT_DIR/.venv/bin/pip" install --quiet -r "$BOT_DIR/requirements.txt"
+  log "Зависимости установлены"
+}
+
+create_bot_service() {
+  log "Создание systemd-службы $BOT_SERVICE..."
+  cat > "/etc/systemd/system/$BOT_SERVICE.service" << SERVICE
+[Unit]
+Description=CRM Telegram Bot
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$BOT_DIR
+EnvironmentFile=$BOT_ENV
+ExecStart=$BOT_DIR/.venv/bin/python3 $BOT_DIR/bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=$BOT_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+  systemctl daemon-reload
+  systemctl enable "$BOT_SERVICE"
+  systemctl restart "$BOT_SERVICE"
+  sleep 2
+  if systemctl is-active --quiet "$BOT_SERVICE"; then
+    log "Бот запущен (служба $BOT_SERVICE)"
+  else
+    warn "Бот не запустился. Проверьте: journalctl -u $BOT_SERVICE -n 50"
+  fi
+}
+
+update_telegram_bot() {
+  if [[ ! -d "$BOT_DIR" ]]; then
+    warn "Директория бота не найдена ($BOT_DIR), пропускаем."
+    return
+  fi
+  log "Обновление зависимостей бота..."
+  "$BOT_DIR/.venv/bin/pip" install --quiet --upgrade -r "$BOT_DIR/requirements.txt"
+  log "Перезапуск службы бота..."
+  systemctl restart "$BOT_SERVICE" || warn "Не удалось перезапустить $BOT_SERVICE"
+  log "Бот обновлён."
+}
+
+setup_telegram_bot() {
+  if [[ ! -d "$BOT_DIR" ]]; then
+    warn "Папка telegram-bot не найдена в репозитории ($BOT_DIR)"
+    return
+  fi
+  install_python
+  setup_bot_env
+  if [[ -f "$BOT_ENV" ]]; then
+    install_bot_deps
+    create_bot_service
+  fi
+}
 
 # --- Проверка root ---
 [[ $EUID -eq 0 ]] || err "Запустите с правами root: sudo $0"
@@ -76,6 +208,9 @@ ENV
 
   log "Перезагрузка Nginx..."
   systemctl reload nginx
+
+  # --- Обновление Telegram-бота ---
+  update_telegram_bot
 
   DOMAIN=$(grep -m1 "server_name" "$NGINX_CONF" 2>/dev/null | awk '{print $2}' | tr -d ';' || echo "—")
   log "Обновление завершено. Сайт: https://$DOMAIN"
@@ -300,12 +435,22 @@ if command -v ufw &>/dev/null; then
   log "Firewall настроен: SSH (22), HTTP (80), HTTPS (443)"
 fi
 
+# --- Telegram-бот ---
+setup_telegram_bot
+
 # --- Итог ---
 echo ""
 log "Установка завершена."
 echo ""
 echo "  Сайт: https://$DOMAIN"
 echo "  Путь: $INSTALL_DIR"
+echo ""
+if systemctl is-active --quiet "$BOT_SERVICE" 2>/dev/null; then
+  echo "  Telegram-бот: запущен (служба $BOT_SERVICE)"
+  echo "    Логи: journalctl -u $BOT_SERVICE -f"
+else
+  echo "  Telegram-бот: не настроен (запустите setup_telegram_bot вручную)"
+fi
 echo ""
 echo "  Обновление (запустите этот же скрипт снова):"
 echo "    sudo $0"
