@@ -343,10 +343,11 @@ def execute_db_select(table: str, select: str = "*", filters: dict = None,
 
 def execute_db_count(table: str, filters: dict = None) -> dict:
     try:
-        query = supabase.table(table).select("*", count="exact", head=True)
+        query = supabase.table(table).select("id", count="exact")
         query = _apply_filters(query, filters or {})
         result = query.execute()
-        return {"success": True, "count": result.count}
+        count = result.count if result.count is not None else len(result.data)
+        return {"success": True, "count": count}
     except Exception as e:
         logger.error(f"db_count error: {e}")
         return {"success": False, "error": str(e)}
