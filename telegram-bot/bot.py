@@ -12,6 +12,7 @@ from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp import ClientTimeout
 from aiogram.enums import ParseMode, ChatAction
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
@@ -51,7 +52,8 @@ logger = logging.getLogger(__name__)
 ai_client = AsyncOpenAI(api_key=POLZA_API_KEY, base_url=POLZA_BASE_URL)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-_session = AiohttpSession(proxy=BOT_PROXY) if BOT_PROXY else AiohttpSession()
+_timeout = ClientTimeout(total=120, connect=120, sock_connect=120, sock_read=60)
+_session = AiohttpSession(proxy=BOT_PROXY, timeout=_timeout) if BOT_PROXY else AiohttpSession()
 bot = Bot(token=TELEGRAM_BOT_TOKEN, session=_session)
 dp  = Dispatcher()
 
