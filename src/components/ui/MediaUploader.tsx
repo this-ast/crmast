@@ -10,6 +10,35 @@ interface MediaUploaderProps {
   className?: string
 }
 
+// ─── Convert any image to WebP via Canvas ────────────────────────────────────
+
+function convertToWebP(file: File, quality = 0.85): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Canvas context unavailable'))
+      ctx.drawImage(img, 0, 0)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error('Canvas toBlob failed'))
+          const baseName = file.name.replace(/\.[^.]+$/, '')
+          resolve(new File([blob], `${baseName}.webp`, { type: 'image/webp' }))
+        },
+        'image/webp',
+        quality
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')) }
+    img.src = url
+  })
+}
+
 // ─── Lightbox ────────────────────────────────────────────────────────────────
 
 function Lightbox({
@@ -104,7 +133,8 @@ export default function MediaUploader({
       if (!files || files.length === 0) return
       const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'))
       if (imageFiles.length === 0) return
-      await onUpload(imageFiles)
+      const webpFiles = await Promise.all(imageFiles.map((f) => convertToWebP(f)))
+      await onUpload(webpFiles)
     },
     [onUpload]
   )
@@ -185,7 +215,7 @@ export default function MediaUploader({
                 {photos.length === 0 ? 'Добавить фотографии' : 'Добавить ещё'}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
-                Перетащите или нажмите · JPG, PNG, WEBP · до 10 МБ
+                Перетащите или нажмите · любой формат → WebP · до 10 МБ
               </p>
             </div>
           </>
