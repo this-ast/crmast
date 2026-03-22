@@ -42,17 +42,28 @@ BOT_SERVICE="crm-tgbot"
 # ---------------------------------------------------------------------------
 
 install_python() {
+  # Определяем версию Python (например: 3.12)
+  local pyver=""
   if command -v python3 &>/dev/null && python3 -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" 2>/dev/null; then
-    log "Python 3 уже установлен: $(python3 --version)"
-    return
+    pyver=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    log "Python $pyver уже установлен"
+  else
+    log "Установка Python 3.11..."
+    add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+    apt-get update -qq
+    apt-get install -y -qq python3.11 python3.11-distutils curl
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+    pyver="3.11"
   fi
-  log "Установка Python 3.11..."
-  add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
-  apt-get update -qq
-  apt-get install -y -qq python3.11 python3.11-venv python3.11-distutils curl
-  curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-  log "Python установлен: $(python3 --version)"
+
+  # Устанавливаем venv и pip для конкретной версии Python
+  log "Установка python${pyver}-venv и pip..."
+  apt-get install -y -qq "python${pyver}-venv" || true
+  if ! python3 -m pip --version &>/dev/null 2>&1; then
+    apt-get install -y -qq python3-pip 2>/dev/null || \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+  fi
+  log "Python готов: $(python3 --version)"
 }
 
 setup_bot_env() {
