@@ -3,11 +3,15 @@ import { useForm } from 'react-hook-form'
 import { Loader2, Search, Plus, X, UserX, Check, ChevronDown } from 'lucide-react'
 import type { PropertyFormData, PropertyType } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
-import { useCreateProperty, useUpdateProperty, useProperty } from '@/hooks/useProperties'
+import {
+  useCreateProperty, useUpdateProperty, useProperty,
+  useUploadPropertyPhoto, useDeletePropertyPhoto,
+} from '@/hooks/useProperties'
 import { useClients, useCreateClient } from '@/hooks/useClients'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
+import MediaUploader from '@/components/ui/MediaUploader'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -278,6 +282,8 @@ export default function PropertyForm() {
   const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
+  const uploadPhoto = useUploadPropertyPhoto()
+  const deletePhoto = useDeletePropertyPhoto()
 
   // Local state for button-group fields (avoids setValue/register conflicts)
   const [propType,    setPropType]    = useState<PropertyType>('apartment')
@@ -695,6 +701,33 @@ export default function PropertyForm() {
             </p>
           )}
         </div>
+
+        {/* ── Photos ───────────────────────────────────────────────────── */}
+        {editingPropertyId && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">
+              Фотографии
+              {editingProperty?.photos?.length ? (
+                <span className="ml-1.5 text-slate-400 font-normal">({editingProperty.photos.length})</span>
+              ) : null}
+            </label>
+            <MediaUploader
+              photos={editingProperty?.photos ?? []}
+              uploading={uploadPhoto.isPending}
+              onUpload={async (files) => {
+                for (const file of files) {
+                  await uploadPhoto.mutateAsync({ propertyId: editingPropertyId, file })
+                }
+              }}
+              onDelete={(url) => deletePhoto.mutate({ propertyId: editingPropertyId, url })}
+            />
+          </div>
+        )}
+        {!editingPropertyId && (
+          <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 border border-dashed border-slate-200">
+            💡 Фотографии можно добавить после сохранения объекта
+          </p>
+        )}
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}

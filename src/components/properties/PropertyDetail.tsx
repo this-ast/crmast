@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
   ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, HeartHandshake,
+  ChevronLeft, ZoomIn,
   type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
@@ -27,6 +28,107 @@ import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import MatchingClientsSection from './MatchingClientsSection'
 import { ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// ─── Photo gallery ────────────────────────────────────────────────────────────
+
+function PhotoGallery({ photos }: { photos: string[] }) {
+  const [idx, setIdx] = useState(0)
+  const [lightbox, setLightbox] = useState(false)
+
+  if (!photos || photos.length === 0) return null
+
+  function prev(e: React.MouseEvent) {
+    e.stopPropagation()
+    setIdx((i) => (i - 1 + photos.length) % photos.length)
+  }
+  function next(e: React.MouseEvent) {
+    e.stopPropagation()
+    setIdx((i) => (i + 1) % photos.length)
+  }
+
+  return (
+    <>
+      <div className="relative w-full h-52 bg-slate-900 overflow-hidden group">
+        <img
+          src={photos[idx]}
+          alt=""
+          className="w-full h-full object-cover cursor-zoom-in"
+          onClick={() => setLightbox(true)}
+          loading="lazy"
+        />
+        {photos.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setIdx(i) }}
+                  className={cn('w-1.5 h-1.5 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/50')}
+                />
+              ))}
+            </div>
+          </>
+        )}
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+          <ZoomIn size={10} />
+          {idx + 1}/{photos.length}
+        </div>
+      </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <X size={20} />
+          </button>
+          {photos.length > 1 && (
+            <>
+              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <ChevronLeft size={24} />
+              </button>
+              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <ChevronRight size={24} />
+              </button>
+            </>
+          )}
+          <img
+            src={photos[idx]}
+            alt=""
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {photos.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {photos.map((_, i) => (
+                <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i) }}
+                  className={cn('w-2 h-2 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/40')}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
 
 interface PropertyDetailProps {
   property: PropertyWithOwner
@@ -201,7 +303,13 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto space-y-6">
+        {/* Photo gallery — full width, no padding */}
+        {property.photos && property.photos.length > 0 && (
+          <PhotoGallery photos={property.photos} />
+        )}
+
+        <div className="px-6 space-y-6">
         {/* Price */}
         <div className="bg-blue-50 rounded-xl px-4 py-3">
           <p className="text-xs text-blue-500 font-medium mb-0.5">
@@ -422,6 +530,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             </div>
           </div>
         )}
+        </div>{/* /px-6 */}
       </div>
     </div>
   )

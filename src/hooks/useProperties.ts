@@ -133,6 +133,65 @@ export function useDeleteProperty() {
   })
 }
 
+export function useUploadPropertyPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, file }: { propertyId: string; file: File }) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `${propertyId}/${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('property-photos')
+        .upload(path, file, { upsert: true })
+      if (uploadError) throw new Error(uploadError.message)
+
+      const { data: urlData } = supabase.storage.from('property-photos').getPublicUrl(path)
+      const url = urlData.publicUrl
+
+      const { data: current } = await supabase
+        .from('properties').select('photos').eq('id', propertyId).single()
+      const photos = [...(current?.photos ?? []), url]
+
+      const { error } = await supabase
+        .from('properties').update({ photos }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+      return url
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useDeletePropertyPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, url }: { propertyId: string; url: string }) => {
+      // Remove from DB array
+      const { data: current } = await supabase
+        .from('properties').select('photos').eq('id', propertyId).single()
+      const photos = (current?.photos ?? []).filter((p: string) => p !== url)
+      const { error } = await supabase
+        .from('properties').update({ photos }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+
+      // Best-effort delete from storage
+      try {
+        const urlObj = new URL(url)
+        const pathParts = urlObj.pathname.split('/property-photos/')
+        if (pathParts[1]) {
+          await supabase.storage.from('property-photos').remove([pathParts[1]])
+        }
+      } catch { /* ignore storage delete errors */ }
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
 export function usePropertiesByOwner(ownerId: string) {
   return useQuery({
     queryKey: [QUERY_KEY, 'owner', ownerId],
