@@ -98,6 +98,27 @@ BOTENV
   log "Файл $BOT_ENV создан"
 }
 
+install_tor() {
+  if systemctl is-active --quiet tor 2>/dev/null; then
+    log "Tor уже запущен"
+    return
+  fi
+  log "Установка Tor (SOCKS5-прокси для обхода блокировки Telegram)..."
+  apt-get install -y -qq tor
+  systemctl enable tor
+  systemctl start tor
+  # Ждём пока Tor поднимется
+  local i=0
+  while ! ss -tlnp | grep -q ':9050' && (( i < 15 )); do
+    sleep 1; (( i++ ))
+  done
+  if ss -tlnp | grep -q ':9050'; then
+    log "Tor запущен на localhost:9050"
+  else
+    warn "Tor не запустился вовремя, но продолжаем"
+  fi
+}
+
 install_bot_deps() {
   # Удаляем сломанное venv если есть
   if [[ -d "$BOT_DIR/.venv" && ! -x "$BOT_DIR/.venv/bin/pip" ]]; then
@@ -156,6 +177,7 @@ update_telegram_bot() {
   if [[ ! -f "$BOT_ENV" || ! -x "$BOT_DIR/.venv/bin/pip" ]]; then
     log "Бот не настроен — запускаем первоначальную установку..."
     install_python
+    install_tor
     setup_bot_env
     if [[ -f "$BOT_ENV" ]]; then
       install_bot_deps
@@ -176,6 +198,7 @@ setup_telegram_bot() {
     return
   fi
   install_python
+  install_tor
   setup_bot_env
   if [[ -f "$BOT_ENV" ]]; then
     install_bot_deps

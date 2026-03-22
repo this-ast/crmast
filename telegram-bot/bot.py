@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode, ChatAction
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
@@ -35,6 +36,7 @@ ALLOWED_USER_IDS   = set(
     for x in os.environ.get("ALLOWED_USER_IDS", "0").split(",")
     if x.strip().isdigit()
 )
+BOT_PROXY          = os.environ.get("BOT_PROXY")  # e.g. socks5://127.0.0.1:9050
 
 # ---------------------------------------------------------------------------
 # Клиенты
@@ -49,7 +51,8 @@ logger = logging.getLogger(__name__)
 ai_client = AsyncOpenAI(api_key=POLZA_API_KEY, base_url=POLZA_BASE_URL)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+_session = AiohttpSession(proxy=BOT_PROXY) if BOT_PROXY else AiohttpSession()
+bot = Bot(token=TELEGRAM_BOT_TOKEN, session=_session)
 dp  = Dispatcher()
 
 # История сообщений (in-memory, только для одного пользователя — владельца)
