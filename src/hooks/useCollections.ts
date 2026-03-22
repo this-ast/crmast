@@ -8,23 +8,42 @@ function generateSlug(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 }
 
+// Загружает коллекции без PostgREST FK-join (два отдельных запроса),
+// чтобы не зависеть от актуальности schema cache PostgREST.
 export function useCollections() {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: async (): Promise<CollectionWithClient[]> => {
-      const { data, error } = await supabase
+      const { data: cols, error } = await supabase
         .from('collections')
-        .select(`
-          *,
-          client:clients(id, client_number, name, phone)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
+
       if (error) {
         console.error('[useCollections] error:', error)
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
       }
-      return (data ?? []) as CollectionWithClient[]
+      if (!cols || cols.length === 0) return []
+
+      // Собираем уникальные client_id и подгружаем клиентов одним запросом
+      const clientIds = [...new Set(cols.map((c) => c.client_id).filter(Boolean))]
+      let clientMap: Record<string, { id: string; client_number: number; name: string; phone: string }> = {}
+
+      if (clientIds.length > 0) {
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('id, client_number, name, phone')
+          .in('id', clientIds)
+        if (clients) {
+          clientMap = Object.fromEntries(clients.map((c) => [c.id, c]))
+        }
+      }
+
+      return cols.map((c) => ({
+        ...c,
+        client: c.client_id ? (clientMap[c.client_id] ?? null) : null,
+      })) as CollectionWithClient[]
     },
   })
 }
@@ -33,16 +52,26 @@ export function useCollectionBySlug(slug: string) {
   return useQuery({
     queryKey: [QUERY_KEY, 'slug', slug],
     queryFn: async (): Promise<CollectionWithClient | null> => {
-      const { data, error } = await supabase
+      const { data: col, error } = await supabase
         .from('collections')
-        .select(`
-          *,
-          client:clients(id, client_number, name, phone)
-        `)
+        .select('*')
         .eq('slug', slug)
         .maybeSingle()
+
       if (error) throw new Error(error.message)
-      return data as CollectionWithClient | null
+      if (!col) return null
+
+      let client = null
+      if (col.client_id) {
+        const { data } = await supabase
+          .from('clients')
+          .select('id, client_number, name, phone')
+          .eq('id', col.client_id)
+          .maybeSingle()
+        client = data ?? null
+      }
+
+      return { ...col, client } as CollectionWithClient
     },
     enabled: !!slug,
   })
