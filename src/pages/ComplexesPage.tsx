@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Search } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal } from 'lucide-react'
 import { useComplexes } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useComplexStore } from '@/store/useComplexStore'
@@ -8,12 +8,16 @@ import ComplexCard from '@/components/complexes/ComplexCard'
 import ComplexDetail from '@/components/complexes/ComplexDetail'
 import ComplexForm from '@/components/complexes/ComplexForm'
 import Modal from '@/components/ui/Modal'
+import ComplexFilters, { ComplexFilterState, defaultComplexFilters } from '@/components/complexes/ComplexFilters'
+import { cn } from '@/utils/cn'
 
 export default function ComplexesPage() {
   const { data: complexes = [], isLoading, error } = useComplexes()
   const { data: properties = [] } = useProperties()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState<ComplexFilterState>(defaultComplexFilters)
+  const [showFilters, setShowFilters] = useState(false)
 
   const {
     selectedComplexId,
@@ -39,14 +43,62 @@ export default function ComplexesPage() {
   }, [searchParams, complexes, openDetail, setSearchParams])
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return complexes
-    const q = search.toLowerCase()
-    return complexes.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.developer?.toLowerCase().includes(q) ?? false)
-    )
-  }, [complexes, search])
+    let result = complexes
+
+    // Text search
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.developer?.toLowerCase().includes(q) ?? false)
+      )
+    }
+
+    // Building type
+    if (filters.buildingType) {
+      result = result.filter((c) =>
+        c.building_type?.toLowerCase().includes(filters.buildingType.toLowerCase())
+      )
+    }
+
+    // Elevator
+    if (filters.elevator) {
+      result = result.filter((c) => c.elevator === filters.elevator)
+    }
+
+    // Yard features (AND — must have all selected)
+    if (filters.yardFeatures.length > 0) {
+      result = result.filter((c) =>
+        filters.yardFeatures.every((f) => (c.yard_features ?? []).includes(f))
+      )
+    }
+
+    // Parking (AND — must have all selected)
+    if (filters.parkingTypes.length > 0) {
+      result = result.filter((c) =>
+        filters.parkingTypes.every((p) => (c.parking ?? []).includes(p))
+      )
+    }
+
+    // Floors range
+    if (filters.floorsMin) {
+      const min = parseInt(filters.floorsMin)
+      result = result.filter((c) => {
+        const f = parseInt(c.floors_total ?? '')
+        return isNaN(f) || f >= min
+      })
+    }
+    if (filters.floorsMax) {
+      const max = parseInt(filters.floorsMax)
+      result = result.filter((c) => {
+        const f = parseInt(c.floors_total ?? '')
+        return isNaN(f) || f <= max
+      })
+    }
+
+    return result
+  }, [complexes, search, filters])
 
   // Count properties per complex
   const propCountByComplex = useMemo(() => {
@@ -79,17 +131,41 @@ export default function ComplexesPage() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-5 relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Поиск по названию или застройщику..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      {/* Search + Filters toggle */}
+      <div className="mb-5 flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Поиск по названию или застройщику..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors',
+            showFilters
+              ? 'bg-blue-600 border-blue-600 text-white'
+              : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+          )}
+        >
+          <SlidersHorizontal size={15} />
+          Фильтры
+        </button>
       </div>
+
+      {showFilters && (
+        <ComplexFilters
+          filters={filters}
+          onChange={setFilters}
+          onReset={() => setFilters(defaultComplexFilters)}
+          resultCount={filtered.length}
+          totalCount={complexes.length}
+        />
+      )}
 
       {/* Loading */}
       {isLoading && (

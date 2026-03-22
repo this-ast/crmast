@@ -19,11 +19,64 @@ const DOC_TYPE_LABELS = {
   other: 'Другое',
 }
 
+const ELEVATOR_OPTIONS = ['нет', '1', '2', '3+']
+const YARD_OPTIONS = ['закрытая территория', 'детская площадка', 'спортивная площадка']
+const PARKING_OPTIONS = ['подземная', 'наземная', 'многоуровневая', 'открытая во дворе', 'за шлагбаумом']
+const BUILDING_TYPE_OPTIONS = ['кирпичный', 'монолитно-кирпичный', 'блочный', 'монолитно-блочный']
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <label className="block text-xs font-medium text-slate-600 mb-1.5">
       {children}
     </label>
+  )
+}
+
+function MultiToggle({
+  label, options, value, onChange, multi = false
+}: {
+  label: string
+  options: string[]
+  value: string | string[]
+  onChange: (v: string | string[]) => void
+  multi?: boolean
+}) {
+  const selected = multi ? (value as string[]) : []
+  const singleVal = multi ? '' : (value as string)
+
+  function toggle(opt: string) {
+    if (multi) {
+      const arr = selected.includes(opt) ? selected.filter(x => x !== opt) : [...selected, opt]
+      onChange(arr)
+    } else {
+      onChange(singleVal === opt ? '' : opt)
+    }
+  }
+
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map(opt => {
+          const active = multi ? selected.includes(opt) : singleVal === opt
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => toggle(opt)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                active
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+              )}
+            >
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -58,6 +111,11 @@ export default function ComplexForm() {
   const [completionDate, setCompletionDate] = useState('')
   const [description, setDescription] = useState('')
   const [purchaseConditions, setPurchaseConditions] = useState('')
+  const [floorsTotal, setFloorsTotal] = useState('')
+  const [elevator, setElevator] = useState('')
+  const [yardFeatures, setYardFeatures] = useState<string[]>([])
+  const [parking, setParking] = useState<string[]>([])
+  const [buildingType, setBuildingType] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -69,6 +127,11 @@ export default function ComplexForm() {
       setCompletionDate(editingComplex.completion_date ?? '')
       setDescription(editingComplex.description ?? '')
       setPurchaseConditions(editingComplex.purchase_conditions ?? '')
+      setFloorsTotal(editingComplex.floors_total ?? '')
+      setElevator(editingComplex.elevator ?? '')
+      setYardFeatures(editingComplex.yard_features ?? [])
+      setParking(editingComplex.parking ?? [])
+      setBuildingType(editingComplex.building_type ?? '')
     }
   }, [editingComplex])
 
@@ -93,6 +156,11 @@ export default function ComplexForm() {
       developer_phones: editingComplex?.developer_phones ?? [],
       manager_names: editingComplex?.manager_names ?? [],
       manager_phones: editingComplex?.manager_phones ?? [],
+      floors_total: floorsTotal.trim() || undefined,
+      elevator: elevator.trim() || undefined,
+      yard_features: yardFeatures,
+      parking: parking,
+      building_type: buildingType.trim() || undefined,
     }
 
     console.log('[ComplexForm] Отправка данных:', data)
@@ -244,6 +312,61 @@ export default function ComplexForm() {
             placeholder="Ипотека 0,1%, рассрочка на 24 мес..."
             value={purchaseConditions}
             onChange={(e) => setPurchaseConditions(e.target.value)}
+          />
+        </div>
+
+        {/* Building characteristics */}
+        <div className="space-y-4 pt-1">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Характеристики здания</p>
+
+          {/* Floors + Building type */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Этажность</FieldLabel>
+              <Input
+                placeholder="25"
+                value={floorsTotal}
+                onChange={(e) => setFloorsTotal(e.target.value)}
+              />
+            </div>
+            <div>
+              <FieldLabel>Тип дома</FieldLabel>
+              <Input
+                placeholder="кирпичный"
+                value={buildingType}
+                onChange={(e) => setBuildingType(e.target.value)}
+                list="building-type-options"
+              />
+              <datalist id="building-type-options">
+                {BUILDING_TYPE_OPTIONS.map(o => <option key={o} value={o} />)}
+              </datalist>
+            </div>
+          </div>
+
+          {/* Elevator */}
+          <MultiToggle
+            label="Лифт"
+            options={ELEVATOR_OPTIONS}
+            value={elevator}
+            onChange={(v) => setElevator(v as string)}
+          />
+
+          {/* Yard */}
+          <MultiToggle
+            label="Двор"
+            options={YARD_OPTIONS}
+            value={yardFeatures}
+            onChange={(v) => setYardFeatures(v as string[])}
+            multi
+          />
+
+          {/* Parking */}
+          <MultiToggle
+            label="Парковка"
+            options={PARKING_OPTIONS}
+            value={parking}
+            onChange={(v) => setParking(v as string[])}
+            multi
           />
         </div>
 

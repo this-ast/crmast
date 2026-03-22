@@ -15,6 +15,11 @@ export interface Complex {
   documents: ComplexDocument[]
   created_at: string
   updated_at: string
+  floors_total?: string
+  elevator?: string
+  yard_features?: string[]
+  parking?: string[]
+  building_type?: string
 }
 
 export interface ComplexDocument {
@@ -37,6 +42,11 @@ export interface ComplexFormData {
   developer_phones: string[]
   manager_names: string[]
   manager_phones: string[]
+  floors_total?: string
+  elevator?: string
+  yard_features?: string[]
+  parking?: string[]
+  building_type?: string
 }
 
 export interface AgentSettings {
