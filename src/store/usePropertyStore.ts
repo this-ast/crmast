@@ -33,6 +33,12 @@ interface PropertyFilters {
   filterParking: boolean
   filterActiveBusiness: boolean
   filterWetPoints: boolean
+  // Source
+  filterRealtorProperty: boolean
+  // Date range
+  dateField: 'created_at' | 'updated_at'
+  dateFrom: string   // YYYY-MM-DD
+  dateTo: string     // YYYY-MM-DD
 }
 
 interface PropertyStore {
@@ -73,6 +79,10 @@ const defaultFilters: PropertyFilters = {
   filterParking: false,
   filterActiveBusiness: false,
   filterWetPoints: false,
+  filterRealtorProperty: false,
+  dateField: 'created_at',
+  dateFrom: '',
+  dateTo: '',
 }
 
 export const usePropertyStore = create<PropertyStore>((set) => ({

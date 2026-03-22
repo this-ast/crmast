@@ -52,10 +52,20 @@ export default function PropertyCard({ property, onClick }: PropertyCardProps) {
               {property.photos!.length} фото
             </div>
           )}
+          {property.is_realtor_property && (
+            <div className="absolute top-2 left-2 text-[11px] bg-purple-600/90 text-white px-2 py-0.5 rounded-full backdrop-blur-sm font-medium">
+              🤝 Риэлтор
+            </div>
+          )}
         </div>
       ) : (
-        <div className="w-full h-20 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+        <div className="relative w-full h-20 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
           <PropertyTypeIcon type={type} size="sm" />
+          {property.is_realtor_property && (
+            <div className="absolute top-2 left-2 text-[11px] bg-purple-600/90 text-white px-2 py-0.5 rounded-full font-medium">
+              🤝 Риэлтор
+            </div>
+          )}
         </div>
       )}
 

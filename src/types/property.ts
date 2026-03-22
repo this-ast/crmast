@@ -56,6 +56,9 @@ export interface Property {
   has_parking?: boolean
   entrance_groups?: number
 
+  // Source
+  is_realtor_property: boolean  // объект передан риэлтором в работу
+
   created_at: string
   updated_at: string
 }
@@ -101,6 +104,8 @@ export interface PropertyFormData {
   has_wet_points?: boolean
   has_parking?: boolean
   entrance_groups?: number
+  // Source
+  is_realtor_property?: boolean
 }
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {

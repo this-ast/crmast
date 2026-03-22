@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, X, User } from 'lucide-react'
+import { Search, X, User, Calendar } from 'lucide-react'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
 import type { FilterCategory } from '@/store/usePropertyStore'
 import type { PropertyStatus } from '@/types'
@@ -92,7 +92,10 @@ export default function PropertyFilters() {
     filters.filterMilitaryMort ||
     filters.filterParking ||
     filters.filterActiveBusiness ||
-    filters.filterWetPoints
+    filters.filterWetPoints ||
+    filters.filterRealtorProperty ||
+    filters.dateFrom !== '' ||
+    filters.dateTo !== ''
 
   const { dealType } = categoryToFilters(category)
   const priceLabel = dealType === 'rent' ? 'Аренда/мес' : 'Цена'
@@ -401,6 +404,54 @@ export default function PropertyFilters() {
           </button>
         </div>
       )}
+
+      {/* ── Row 5: Дата + Риэлтор ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Calendar size={14} className="text-slate-400 shrink-0" />
+        <select
+          value={filters.dateField}
+          onChange={(e) => setFilter('dateField', e.target.value as 'created_at' | 'updated_at')}
+          className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="created_at">Дата добавления</option>
+          <option value="updated_at">Дата изменения</option>
+        </select>
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={filters.dateFrom}
+            onChange={(e) => setFilter('dateFrom', e.target.value)}
+            className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-slate-300 text-xs">—</span>
+          <input
+            type="date"
+            value={filters.dateTo}
+            onChange={(e) => setFilter('dateTo', e.target.value)}
+            className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {(filters.dateFrom || filters.dateTo) && (
+            <button
+              onClick={() => { setFilter('dateFrom', ''); setFilter('dateTo', '') }}
+              className="text-slate-400 hover:text-slate-600 ml-0.5"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => setFilter('filterRealtorProperty', !filters.filterRealtorProperty)}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ml-auto',
+            filters.filterRealtorProperty
+              ? 'bg-purple-600 text-white border-purple-600'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300 hover:text-purple-600'
+          )}
+        >
+          🤝 Объект риэлтора
+        </button>
+      </div>
     </div>
   )
 }

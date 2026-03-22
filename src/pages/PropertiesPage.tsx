@@ -77,6 +77,20 @@ function filterProperties(
     if (filters.filterActiveBusiness && !p.is_active_business) return false
     if (filters.filterWetPoints && !p.has_wet_points) return false
 
+    // Realtor property
+    if (filters.filterRealtorProperty && !p.is_realtor_property) return false
+
+    // Date range
+    if (filters.dateFrom || filters.dateTo) {
+      const dateVal = new Date(p[filters.dateField]).getTime()
+      if (filters.dateFrom && dateVal < new Date(filters.dateFrom).getTime()) return false
+      if (filters.dateTo) {
+        const to = new Date(filters.dateTo)
+        to.setHours(23, 59, 59, 999)
+        if (dateVal > to.getTime()) return false
+      }
+    }
+
     return true
   })
 }

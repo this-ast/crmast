@@ -291,6 +291,7 @@ export default function PropertyForm() {
   const [marketType,  setMarketType]  = useState<'secondary' | 'new_build' | undefined>(undefined)
   const [ownerId,     setOwnerId]     = useState('')
   const [communications, setComms]   = useState<string[]>([])
+  const [isRealtorProperty, setIsRealtorProperty] = useState(false)
 
   const {
     register,
@@ -309,6 +310,7 @@ export default function PropertyForm() {
       setMarketType(editingProperty.market_type ?? undefined)
       setOwnerId(editingProperty.owner_id ?? '')
       setComms(editingProperty.communications ?? [])
+      setIsRealtorProperty(editingProperty.is_realtor_property ?? false)
       reset({
         status:          editingProperty.status,
         price:           editingProperty.price != null ? String(editingProperty.price) : '',
@@ -400,6 +402,8 @@ export default function PropertyForm() {
       has_wet_points: !!raw.has_wet_points || undefined,
       has_parking:   !!raw.has_parking || undefined,
       entrance_groups: intOrUndef(raw.entrance_groups),
+      // Source
+      is_realtor_property: isRealtorProperty,
     }
 
     try {
@@ -447,6 +451,29 @@ export default function PropertyForm() {
             ))}
           </div>
         </div>
+
+        {/* ── Realtor property flag ────────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setIsRealtorProperty((v) => !v)}
+          className={cn(
+            'w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-sm font-medium transition-all',
+            isRealtorProperty
+              ? 'bg-purple-50 border-purple-300 text-purple-800'
+              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-base">🤝</span>
+            Объект риэлтора
+          </span>
+          <span className={cn(
+            'text-xs px-2 py-0.5 rounded-full font-medium',
+            isRealtorProperty ? 'bg-purple-200 text-purple-800' : 'bg-slate-100 text-slate-500'
+          )}>
+            {isRealtorProperty ? 'Да' : 'Нет'}
+          </span>
+        </button>
 
         {/* ── Deal type + Market type ──────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
