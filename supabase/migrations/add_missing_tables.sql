@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS saved_filters (
 );
 
 ALTER TABLE saved_filters ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_saved_filters ON saved_filters;
 CREATE POLICY allow_all_saved_filters ON saved_filters FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_saved_filters_entity_type ON saved_filters(entity_type);
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS custom_statuses (
 );
 
 ALTER TABLE custom_statuses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_custom_statuses ON custom_statuses;
 CREATE POLICY allow_all_custom_statuses ON custom_statuses FOR ALL USING (true) WITH CHECK (true);
 
 -- Подборки объектов
@@ -44,6 +46,7 @@ CREATE TABLE IF NOT EXISTS collections (
 );
 
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_collections ON collections;
 CREATE POLICY allow_all_collections ON collections FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_collections_slug      ON collections(slug);
@@ -73,6 +76,7 @@ CREATE TABLE IF NOT EXISTS timeline_events (
 );
 
 ALTER TABLE timeline_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_timeline_events ON timeline_events;
 CREATE POLICY allow_all_timeline_events ON timeline_events FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_timeline_entity ON timeline_events(entity_type, entity_id);

@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { cacheEntities, getCachedEntities, enqueue, OFFLINE_MARKER, isOfflineMarker } from '@/lib/db'
+import { refreshPendingCount } from '@/store/useNetworkStore'
 import type { Collection, CollectionWithClient, CollectionFormData } from '@/types'
 
 const QUERY_KEY = 'collections'
@@ -8,12 +10,16 @@ function generateSlug(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 }
 
-// Загружает коллекции без PostgREST FK-join (два отдельных запроса),
-// чтобы не зависеть от актуальности schema cache PostgREST.
+// Загружает коллекции без PostgREST FK-join (два отдельных запроса)
 export function useCollections() {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: async (): Promise<CollectionWithClient[]> => {
+      if (!navigator.onLine) {
+        console.log('[Collections] offline → IDB cache')
+        return getCachedEntities<CollectionWithClient>(QUERY_KEY)
+      }
+
       const { data: cols, error } = await supabase
         .from('collections')
         .select('*')
@@ -22,11 +28,12 @@ export function useCollections() {
       if (error) {
         console.error('[useCollections] error:', error)
         if (error.code === '42P01') return []
+        const cached = await getCachedEntities<CollectionWithClient>(QUERY_KEY)
+        if (cached.length > 0) return cached
         throw new Error(error.message ?? JSON.stringify(error))
       }
       if (!cols || cols.length === 0) return []
 
-      // Собираем уникальные client_id и подгружаем клиентов одним запросом
       const clientIds = [...new Set(cols.map((c) => c.client_id).filter(Boolean))]
       let clientMap: Record<string, { id: string; client_number: number; name: string; phone: string }> = {}
 
@@ -40,10 +47,13 @@ export function useCollections() {
         }
       }
 
-      return cols.map((c) => ({
+      const result = cols.map((c) => ({
         ...c,
         client: c.client_id ? (clientMap[c.client_id] ?? null) : null,
       })) as CollectionWithClient[]
+
+      cacheEntities(QUERY_KEY, result)
+      return result
     },
   })
 }
@@ -80,7 +90,7 @@ export function useCollectionBySlug(slug: string) {
 export function useCreateCollection() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (formData: CollectionFormData): Promise<Collection> => {
+    mutationFn: async (formData: CollectionFormData) => {
       const payload = {
         slug: generateSlug(),
         title: formData.title || 'Подборка',
@@ -88,18 +98,25 @@ export function useCreateCollection() {
         comment: formData.comment || null,
         property_ids: formData.property_ids ?? [],
       }
+
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'collections', operation: 'create', data: payload as Record<string, unknown> })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
+
       const { data, error } = await supabase
-        .from('collections')
-        .insert(payload)
-        .select()
-        .single()
+        .from('collections').insert(payload).select().single()
       if (error) {
         console.error('[useCreateCollection] error:', error)
         throw new Error(error.message ?? JSON.stringify(error))
       }
       return data as Collection
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
   })
 }
 
@@ -113,19 +130,22 @@ export function useUpdateCollection() {
       if (data.comment !== undefined) payload.comment = data.comment || null
       if (data.property_ids !== undefined) payload.property_ids = data.property_ids
 
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'collections', operation: 'update', data: payload, entityId: id })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
+
       const { data: updated, error } = await supabase
-        .from('collections')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single()
+        .from('collections').update(payload).eq('id', id).select().single()
       if (error) throw new Error(error.message)
       return updated as Collection
     },
-    onSuccess: (updated) => {
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
-      if (updated?.slug) {
-        queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'slug', updated.slug] })
+      if ((result as Collection)?.slug) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'slug', (result as Collection).slug] })
       }
     },
   })
@@ -135,9 +155,17 @@ export function useDeleteCollection() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'collections', operation: 'delete', data: {}, entityId: id })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
       const { error } = await supabase.from('collections').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
   })
 }

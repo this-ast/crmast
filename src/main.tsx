@@ -10,10 +10,19 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,  // 5 минут
-      gcTime: 1000 * 60 * 10,    // 10 минут
-      refetchOnWindowFocus: false, // не перезаписывать данные при возврате в окно
-      retry: 1,
+      staleTime: 1000 * 60 * 5,    // 5 минут
+      gcTime: 1000 * 60 * 30,      // 30 минут — дольше держим кэш
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,    // автоматически рефетчим при reconnect
+      networkMode: 'always',       // queryFn сам решает offline/online через IDB
+      retry: (failureCount, error) => {
+        // Не ретраить если нет сети
+        if (!navigator.onLine) return false
+        return failureCount < 1
+      },
+    },
+    mutations: {
+      networkMode: 'always',       // мутации тоже всегда выполняются (queueing внутри)
     },
   },
 })

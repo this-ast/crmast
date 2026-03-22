@@ -21,3 +21,5 @@ npm-debug.log*
 # TypeScript cache
 *.tsbuildinfo
 claude-501/
+telegram-bot/.venv-local/
+telegram-bot/.venv/

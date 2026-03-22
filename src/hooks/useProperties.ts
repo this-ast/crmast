@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { cacheEntities, getCachedEntities, enqueue, OFFLINE_MARKER, isOfflineMarker } from '@/lib/db'
+import { refreshPendingCount } from '@/store/useNetworkStore'
 import type { Property, PropertyWithOwner, PropertyFormData } from '@/types'
 import { ARTICLE_PREFIXES } from '@/types'
 import { generateArticle } from '@/utils/format'
@@ -10,6 +12,11 @@ export function useProperties() {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: async (): Promise<PropertyWithOwner[]> => {
+      if (!navigator.onLine) {
+        console.log('[Properties] offline → IDB cache')
+        return getCachedEntities<PropertyWithOwner>(QUERY_KEY)
+      }
+
       const { data, error } = await supabase
         .from('properties')
         .select(`
@@ -23,8 +30,16 @@ export function useProperties() {
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
-      return data ?? []
+      if (error) {
+        console.error('[Properties] fetch error:', error)
+        const cached = await getCachedEntities<PropertyWithOwner>(QUERY_KEY)
+        if (cached.length > 0) return cached
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
+
+      const result = data ?? []
+      cacheEntities(QUERY_KEY, result)
+      return result
     },
   })
 }
@@ -33,6 +48,11 @@ export function useProperty(id: string) {
   return useQuery({
     queryKey: [QUERY_KEY, id],
     queryFn: async (): Promise<PropertyWithOwner | null> => {
+      if (!navigator.onLine) {
+        const all = await getCachedEntities<PropertyWithOwner>(QUERY_KEY)
+        return all.find((p) => p.id === id) ?? null
+      }
+
       const { data, error } = await supabase
         .from('properties')
         .select(`
@@ -68,24 +88,29 @@ export function useCreateProperty() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: PropertyFormData): Promise<Property> => {
-      const article = await getNextArticle(data.type)
+    mutationFn: async (data: PropertyFormData) => {
+      if (!navigator.onLine) {
+        await enqueue({
+          entity: 'properties',
+          operation: 'create',
+          data: { ...data, photos: [], videos: [] } as Record<string, unknown>,
+        })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
 
+      const article = await getNextArticle(data.type)
       const { data: created, error } = await supabase
         .from('properties')
-        .insert({
-          ...data,
-          article,
-          photos: [],
-          videos: [],
-        })
+        .insert({ ...data, article, photos: [], videos: [] })
         .select()
         .single()
 
       if (error) throw new Error(error.message ?? JSON.stringify(error))
-      return created
+      return created as Property
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
     },
   })
@@ -95,10 +120,21 @@ export function useUpdateProperty() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<PropertyFormData> }): Promise<Property> => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PropertyFormData> }) => {
       const payload = Object.fromEntries(
         Object.entries(data).filter(([, v]) => v !== undefined)
       )
+
+      if (!navigator.onLine) {
+        await enqueue({
+          entity: 'properties',
+          operation: 'update',
+          data: payload as Record<string, unknown>,
+          entityId: id,
+        })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
 
       console.log('[useUpdateProperty] payload:', payload)
 
@@ -114,13 +150,14 @@ export function useUpdateProperty() {
         throw new Error(error.message ?? JSON.stringify(error))
       }
       if (!updated) {
-        console.error('[useUpdateProperty] no rows returned — check RLS/GRANT on properties table')
+        console.error('[useUpdateProperty] no rows — check RLS/GRANT')
         throw new Error('Объект не найден или нет прав на обновление')
       }
       console.log('[useUpdateProperty] success:', updated.id)
-      return updated
+      return updated as Property
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: (result, { id }) => {
+      if (isOfflineMarker(result)) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] })
     },
@@ -135,10 +172,17 @@ export function useDeleteProperty() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'properties', operation: 'delete', data: {}, entityId: id })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
+
       const { error } = await supabase.from('properties').delete().eq('id', id)
       if (error) throw new Error(error.message ?? JSON.stringify(error))
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
     },
   })
@@ -207,6 +251,11 @@ export function usePropertiesByOwner(ownerId: string) {
   return useQuery({
     queryKey: [QUERY_KEY, 'owner', ownerId],
     queryFn: async (): Promise<Property[]> => {
+      if (!navigator.onLine) {
+        const all = await getCachedEntities<PropertyWithOwner>(QUERY_KEY)
+        return all.filter((p) => p.owner_id === ownerId)
+      }
+
       const { data, error } = await supabase
         .from('properties')
         .select('*')

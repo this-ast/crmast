@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { cacheEntities, getCachedEntities, enqueue, OFFLINE_MARKER, isOfflineMarker } from '@/lib/db'
+import { refreshPendingCount } from '@/store/useNetworkStore'
 import type { Deal, DealFormData } from '@/types'
 
 const QUERY_KEY = 'deals'
@@ -8,15 +10,25 @@ export function useDeals() {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: async (): Promise<Deal[]> => {
+      if (!navigator.onLine) {
+        console.log('[Deals] offline → IDB cache')
+        return getCachedEntities<Deal>(QUERY_KEY)
+      }
+
       const { data, error } = await supabase
         .from('deals')
         .select('*')
         .order('created_at', { ascending: false })
       if (error) {
         if (error.code === '42P01') return []
+        const cached = await getCachedEntities<Deal>(QUERY_KEY)
+        if (cached.length > 0) return cached
         throw new Error(error.message ?? JSON.stringify(error))
       }
-      return (data ?? []) as Deal[]
+
+      const result = (data ?? []) as Deal[]
+      cacheEntities(QUERY_KEY, result)
+      return result
     },
   })
 }
@@ -68,33 +80,42 @@ function cleanData(data: DealFormData) {
 export function useCreateDeal() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (data: DealFormData): Promise<Deal> => {
+    mutationFn: async (data: DealFormData) => {
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'deals', operation: 'create', data: cleanData(data) as Record<string, unknown> })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
       const { data: created, error } = await supabase
-        .from('deals')
-        .insert(cleanData(data))
-        .select('*')
-        .single()
+        .from('deals').insert(cleanData(data)).select('*').single()
       if (error) throw new Error(error.message ?? JSON.stringify(error))
       return created as Deal
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
   })
 }
 
 export function useUpdateDeal() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<DealFormData> }): Promise<Deal> => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DealFormData> }) => {
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'deals', operation: 'update', data: cleanData(data as DealFormData) as Record<string, unknown>, entityId: id })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
       const { data: updated, error } = await supabase
-        .from('deals')
-        .update(cleanData(data as DealFormData))
-        .eq('id', id)
-        .select('*')
-        .single()
+        .from('deals').update(cleanData(data as DealFormData)).eq('id', id).select('*').single()
       if (error) throw new Error(error.message ?? JSON.stringify(error))
       return updated as Deal
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
   })
 }
 
@@ -102,9 +123,17 @@ export function useDeleteDeal() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!navigator.onLine) {
+        await enqueue({ entity: 'deals', operation: 'delete', data: {}, entityId: id })
+        await refreshPendingCount()
+        return OFFLINE_MARKER
+      }
       const { error } = await supabase.from('deals').delete().eq('id', id)
       if (error) throw new Error(error.message ?? JSON.stringify(error))
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (result) => {
+      if (isOfflineMarker(result)) return
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
   })
 }
