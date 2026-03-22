@@ -14,7 +14,7 @@ const pageVariants = {
   exit:     { opacity: 0, y: -6 },
 }
 
-const pageTransition = { duration: 0.18, ease: 'easeOut' }
+const pageTransition = { duration: 0.18, ease: [0.4, 0, 0.2, 1] as const }
 
 export default function Layout() {
   const { hasCompleted, start } = useOnboarding()
