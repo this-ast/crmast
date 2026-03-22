@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  Plus, Link2, Pencil, Trash2, Copy, Check, Search, Wand2, X, ChevronDown,
+  Plus, Link2, Pencil, Trash2, Copy, Check, Search, Wand2, X, ChevronDown, ExternalLink,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useCollections, useCreateCollection, useUpdateCollection, useDeleteCollection } from '@/hooks/useCollections'
 import { useClients } from '@/hooks/useClients'
 import { useProperties } from '@/hooks/useProperties'
@@ -101,7 +102,10 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
       }
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка сохранения')
+      const msg = err instanceof Error ? err.message : 'Ошибка сохранения'
+      setError(msg)
+      toast.error(msg, { duration: 8000 })
+      console.error('[CollectionForm] save error:', err)
     } finally {
       setIsLoading(false)
     }
@@ -288,6 +292,7 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
                           <span>{p.area} м²</span>
                           {p.rooms !== undefined && <span>{p.rooms === 0 ? 'Студия' : `${p.rooms}к`}</span>}
                           {p.complex_name && <span className="text-slate-400">{p.complex_name}</span>}
+                          {p.owner && <span className="text-slate-400">· {p.owner.name}</span>}
                         </div>
                       </div>
                     </label>
@@ -356,7 +361,10 @@ function CollectionCard({ collection, onEdit, onDelete }: CollectionCardProps) {
   })
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow">
+    <div
+      className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => window.open(`/share/${collection.slug}`, '_blank')}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-900 truncate">{collection.title}</h3>
@@ -378,7 +386,7 @@ function CollectionCard({ collection, onEdit, onDelete }: CollectionCardProps) {
             <span>{date}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onEdit(collection)}
             className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -395,15 +403,15 @@ function CollectionCard({ collection, onEdit, onDelete }: CollectionCardProps) {
           </button>
         </div>
       </div>
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
         <CopyButton slug={collection.slug} />
         <a
           href={`/share/${collection.slug}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
         >
-          <Link2 size={13} />
+          <ExternalLink size={13} />
           Открыть
         </a>
       </div>

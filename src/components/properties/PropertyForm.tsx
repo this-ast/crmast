@@ -716,7 +716,13 @@ export default function PropertyForm() {
               uploading={uploadPhoto.isPending}
               onUpload={async (files) => {
                 for (const file of files) {
-                  await uploadPhoto.mutateAsync({ propertyId: editingPropertyId, file })
+                  try {
+                    await uploadPhoto.mutateAsync({ propertyId: editingPropertyId, file })
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : 'Ошибка загрузки фото'
+                    toast.error(msg, { duration: 8000 })
+                    console.error('[PropertyForm] upload error:', err)
+                  }
                 }
               }}
               onDelete={(url) => deletePhoto.mutate({ propertyId: editingPropertyId, url })}
