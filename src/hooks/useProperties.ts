@@ -109,6 +109,7 @@ export function useUpdateProperty() {
         .single()
 
       if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (!updated) throw new Error('Объект не найден или нет прав на обновление')
       return updated
     },
     onSuccess: (_, { id }) => {

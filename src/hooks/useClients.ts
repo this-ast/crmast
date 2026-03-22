@@ -64,6 +64,7 @@ export function useUpdateClient() {
         .single()
 
       if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (!updated) throw new Error('Клиент не найден или нет прав на обновление')
       return updated
     },
     onSuccess: () => {
