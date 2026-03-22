@@ -31,15 +31,39 @@ export default function PropertyCard({ property, onClick }: PropertyCardProps) {
     return PROPERTY_TYPE_LABELS[type]
   })()
 
+  const firstPhoto = property.photos?.[0]
+
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group"
+      className="bg-white rounded-2xl border border-slate-100 cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group overflow-hidden"
     >
+      {/* Photo preview */}
+      {firstPhoto ? (
+        <div className="relative w-full h-36 bg-slate-100 overflow-hidden">
+          <img
+            src={firstPhoto}
+            alt=""
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+          {(property.photos?.length ?? 0) > 1 && (
+            <div className="absolute bottom-2 right-2 text-[11px] bg-black/50 text-white px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+              {property.photos!.length} фото
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="w-full h-20 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+          <PropertyTypeIcon type={type} size="sm" />
+        </div>
+      )}
+
+      <div className="p-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <PropertyTypeIcon type={type} size="sm" />
+          {!firstPhoto && <PropertyTypeIcon type={type} size="sm" />}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900 truncate">{title}</p>
             <p className="text-xs text-slate-400 font-mono">{article}</p>
@@ -89,6 +113,7 @@ export default function PropertyCard({ property, onClick }: PropertyCardProps) {
           </span>
         </div>
       )}
+      </div>
     </div>
   )
 }

@@ -358,7 +358,9 @@ server {
     index index.html;
 
     # Прокси для Supabase (обход блокировок в РФ)
-    location /supabase-proxy/ {
+    # ^~ — префиксный матч приоритетнее regex (иначе .jpg/.png перехватывались бы правилом статики)
+    client_max_body_size 20m;
+    location ^~ /supabase-proxy/ {
         proxy_pass https://mtigcxqcymxvqjjqfyts.supabase.co/;
         proxy_ssl_server_name on;
         proxy_ssl_name mtigcxqcymxvqjjqfyts.supabase.co;
@@ -422,7 +424,9 @@ server {
     ssl_prefer_server_ciphers on;
 
     # Прокси для Supabase (обход блокировок в РФ)
-    location /supabase-proxy/ {
+    # ^~ — префиксный матч приоритетнее regex (иначе .jpg/.png перехватывались бы правилом статики)
+    client_max_body_size 20m;
+    location ^~ /supabase-proxy/ {
         proxy_pass https://mtigcxqcymxvqjjqfyts.supabase.co/;
         proxy_ssl_server_name on;
         proxy_ssl_name mtigcxqcymxvqjjqfyts.supabase.co;
