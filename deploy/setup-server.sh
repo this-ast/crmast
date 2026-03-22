@@ -56,13 +56,9 @@ install_python() {
     pyver="3.11"
   fi
 
-  # Устанавливаем venv и pip для конкретной версии Python
-  log "Установка python${pyver}-venv и pip..."
-  apt-get install -y -qq "python${pyver}-venv" || true
-  if ! python3 -m pip --version &>/dev/null 2>&1; then
-    apt-get install -y -qq python3-pip 2>/dev/null || \
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3
-  fi
+  # Устанавливаем venv для конкретной версии Python
+  log "Установка python${pyver}-venv..."
+  apt-get install -y "python${pyver}-venv"
   log "Python готов: $(python3 --version)"
 }
 
@@ -103,6 +99,11 @@ BOTENV
 }
 
 install_bot_deps() {
+  # Удаляем сломанное venv если есть
+  if [[ -d "$BOT_DIR/.venv" && ! -x "$BOT_DIR/.venv/bin/pip" ]]; then
+    log "Удаление сломанного .venv..."
+    rm -rf "$BOT_DIR/.venv"
+  fi
   log "Создание виртуального окружения Python..."
   python3 -m venv "$BOT_DIR/.venv"
   log "Установка зависимостей бота..."
