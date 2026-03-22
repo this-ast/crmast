@@ -28,46 +28,80 @@ const SECTION_ROUTES: Record<string, string> = {
 
 export default function MobileBottomNav() {
   const { sections } = useUISettings()
-
-  // Show max 4 visible sections + settings
-  const visible = sections.filter((s) => !s.hidden).slice(0, 4)
+  const visible = sections.filter((s) => !s.hidden)
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-700 flex items-center safe-area-pb">
-      {visible.map(({ id, label }) => {
-        const Icon = SECTION_ICONS[id] ?? LayoutDashboard
-        const to = SECTION_ROUTES[id] ?? `/${id}`
-        return (
-          <NavLink
-            key={id}
-            to={to}
-            data-tour={`nav-${id}`}
-            className={({ isActive }) =>
-              cn(
-                'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-center transition-colors min-w-0',
-                isActive ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
-              )
-            }
-          >
-            <Icon size={20} />
-            <span className="text-[10px] font-medium truncate max-w-full px-1">{label}</span>
-          </NavLink>
-        )
-      })}
-
-      {/* Settings always last */}
-      <NavLink
-        to="/settings"
-        className={({ isActive }) =>
-          cn(
-            'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-center transition-colors min-w-0',
-            isActive ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
+    <nav
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-700 safe-area-pb"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <div className="flex overflow-x-auto scrollbar-hide px-1">
+        {visible.map(({ id, label }) => {
+          const Icon = SECTION_ICONS[id] ?? LayoutDashboard
+          const to = SECTION_ROUTES[id] ?? `/${id}`
+          return (
+            <NavLink
+              key={id}
+              to={to}
+              data-tour={`nav-${id}`}
+              className={({ isActive }) =>
+                cn(
+                  'relative flex-shrink-0 flex flex-col items-center justify-center py-3 px-3 gap-1 text-center',
+                  'min-w-[64px] transition-all duration-150 ease-out',
+                  'active:scale-90 active:opacity-70',
+                  isActive
+                    ? 'text-blue-400'
+                    : 'text-slate-500 hover:text-slate-300'
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn(
+                      'transition-transform duration-150',
+                      isActive && 'scale-110'
+                    )}
+                  >
+                    <Icon size={22} />
+                  </span>
+                  <span className="text-[10px] font-medium leading-tight">{label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 w-8 h-0.5 bg-blue-400 rounded-full" />
+                  )}
+                </>
+              )}
+            </NavLink>
           )
-        }
-      >
-        <Settings size={20} />
-        <span className="text-[10px] font-medium">Настройки</span>
-      </NavLink>
+        })}
+
+        {/* Settings always last */}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              'flex-shrink-0 flex flex-col items-center justify-center py-3 px-3 gap-1 text-center',
+              'min-w-[64px] transition-all duration-150 ease-out',
+              'active:scale-90 active:opacity-70',
+              isActive
+                ? 'text-blue-400'
+                : 'text-slate-500 hover:text-slate-300'
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className={cn('transition-transform duration-150', isActive && 'scale-110')}>
+                <Settings size={22} />
+              </span>
+              <span className="text-[10px] font-medium leading-tight">Настройки</span>
+              {isActive && (
+                <span className="absolute bottom-0 w-8 h-0.5 bg-blue-400 rounded-full" />
+              )}
+            </>
+          )}
+        </NavLink>
+      </div>
     </nav>
   )
 }
