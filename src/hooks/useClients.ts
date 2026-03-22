@@ -51,11 +51,10 @@ export function useCreateClient() {
         return {
           id: tempId,
           client_number: 0,
-          name: data.name,
-          phone: data.phone ?? '',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           ...data,
+          phone: data.phone ?? '',
           _offline: true,
         } as unknown as Client
       }
