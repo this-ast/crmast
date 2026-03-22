@@ -96,10 +96,11 @@ export function useUpdateProperty() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PropertyFormData> }): Promise<Property> => {
-      // Strip undefined values so Supabase only updates provided fields
       const payload = Object.fromEntries(
         Object.entries(data).filter(([, v]) => v !== undefined)
       )
+
+      console.log('[useUpdateProperty] payload:', payload)
 
       const { data: updated, error } = await supabase
         .from('properties')
@@ -108,13 +109,23 @@ export function useUpdateProperty() {
         .select()
         .single()
 
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
-      if (!updated) throw new Error('Объект не найден или нет прав на обновление')
+      if (error) {
+        console.error('[useUpdateProperty] error:', error)
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
+      if (!updated) {
+        console.error('[useUpdateProperty] no rows returned — check RLS/GRANT on properties table')
+        throw new Error('Объект не найден или нет прав на обновление')
+      }
+      console.log('[useUpdateProperty] success:', updated.id)
       return updated
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] })
+    },
+    onError: (error) => {
+      console.error('[useUpdateProperty] mutation failed:', error)
     },
   })
 }

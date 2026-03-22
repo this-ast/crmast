@@ -20,6 +20,7 @@ export function useCollections() {
         `)
         .order('created_at', { ascending: false })
       if (error) {
+        console.error('[useCollections] error:', error)
         if (error.code === '42P01') return []
         throw new Error(error.message ?? JSON.stringify(error))
       }
@@ -63,7 +64,10 @@ export function useCreateCollection() {
         .insert(payload)
         .select()
         .single()
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (error) {
+        console.error('[useCreateCollection] error:', error)
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return data as Collection
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
