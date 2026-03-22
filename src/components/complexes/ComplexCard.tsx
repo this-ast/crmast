@@ -5,9 +5,10 @@ interface ComplexCardProps {
   complex: Complex
   propertyCount?: number
   onClick: () => void
+  onShowProperties?: (e: React.MouseEvent) => void
 }
 
-export default function ComplexCard({ complex, propertyCount = 0, onClick }: ComplexCardProps) {
+export default function ComplexCard({ complex, propertyCount = 0, onClick, onShowProperties }: ComplexCardProps) {
   return (
     <div
       onClick={onClick}
@@ -59,6 +60,17 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick }: Com
           </span>
         )}
       </div>
+
+      {propertyCount > 0 && onShowProperties && (
+        <button
+          type="button"
+          onClick={onShowProperties}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium transition-colors"
+        >
+          <Layers size={12} />
+          Объекты в этом доме ({propertyCount})
+        </button>
+      )}
     </div>
   )
 }

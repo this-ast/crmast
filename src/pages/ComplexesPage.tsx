@@ -1,9 +1,12 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight } from 'lucide-react'
 import { useComplexes } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useComplexStore } from '@/store/useComplexStore'
+import { PROPERTY_TYPE_LABELS, PROPERTY_STATUS_COLORS, PROPERTY_STATUS_LABELS } from '@/types'
+import { formatPriceShort } from '@/utils/format'
+import PropertyTypeIcon from '@/components/properties/PropertyTypeIcon'
 import ComplexCard from '@/components/complexes/ComplexCard'
 import ComplexDetail from '@/components/complexes/ComplexDetail'
 import ComplexForm from '@/components/complexes/ComplexForm'
@@ -18,6 +21,8 @@ export default function ComplexesPage() {
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<ComplexFilterState>(defaultComplexFilters)
   const [showFilters, setShowFilters] = useState(false)
+  const [propertiesModalComplexId, setPropertiesModalComplexId] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const {
     selectedComplexId,
@@ -204,6 +209,7 @@ export default function ComplexesPage() {
               complex={complex}
               propertyCount={propCountByComplex[complex.id] ?? 0}
               onClick={() => openDetail(complex.id)}
+              onShowProperties={(e) => { e.stopPropagation(); setPropertiesModalComplexId(complex.id) }}
             />
           ))}
         </div>
@@ -220,6 +226,56 @@ export default function ComplexesPage() {
       <Modal isOpen={isFormOpen} onClose={closeForm} title={formTitle} size="lg">
         <ComplexForm />
       </Modal>
+
+      {/* Properties Modal */}
+      {(() => {
+        const modalComplex = complexes.find((c) => c.id === propertiesModalComplexId)
+        const modalProperties = properties.filter((p) => p.complex_id === propertiesModalComplexId)
+        return (
+          <Modal
+            isOpen={!!propertiesModalComplexId}
+            onClose={() => setPropertiesModalComplexId(null)}
+            title={modalComplex ? `Объекты в ${modalComplex.name}` : 'Объекты'}
+            size="lg"
+          >
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {modalProperties.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Building2 size={36} className="text-slate-300 mb-3" />
+                  <p className="text-slate-500 font-medium">Нет объектов</p>
+                  <p className="text-slate-400 text-sm mt-1">Добавьте объекты, указав этот ЖК</p>
+                </div>
+              ) : (
+                modalProperties.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setPropertiesModalComplexId(null); setTimeout(() => navigate(`/properties?open=${p.id}`), 150) }}
+                    className="w-full flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all text-left group"
+                  >
+                    <PropertyTypeIcon type={p.type} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-slate-900">
+                          {p.rooms ? `${p.rooms}-комн. ` : ''}{PROPERTY_TYPE_LABELS[p.type]}
+                        </p>
+                        <span className={cn('text-xs px-1.5 py-0.5 rounded-full', PROPERTY_STATUS_COLORS[p.status])}>
+                          {PROPERTY_STATUS_LABELS[p.status]}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{p.article}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-slate-900">{formatPriceShort(p.price)}</p>
+                      <p className="text-xs text-slate-400">{p.area} м²</p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+          </Modal>
+        )
+      })()}
     </div>
   )
 }

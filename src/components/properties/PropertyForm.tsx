@@ -8,6 +8,7 @@ import {
   useUploadPropertyPhoto, useDeletePropertyPhoto,
 } from '@/hooks/useProperties'
 import { useClients, useCreateClient } from '@/hooks/useClients'
+import { useComplexes } from '@/hooks/useComplexes'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
@@ -43,6 +44,132 @@ function FieldError({ message }: { message?: string }) {
 
 const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const selectCls = inputCls
+
+// ─── Complex Selector ──────────────────────────────────────────────────────────
+
+function ComplexSelector({
+  complexId,
+  complexName,
+  onChange,
+}: {
+  complexId: string
+  complexName: string
+  onChange: (id: string, name: string) => void
+}) {
+  const { data: complexes = [] } = useComplexes()
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  const selected = complexes.find((c) => c.id === complexId)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = complexes
+    .filter((c) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return c.name.toLowerCase().includes(q) || (c.developer?.toLowerCase().includes(q) ?? false)
+    })
+    .slice(0, 30)
+
+  const handleSelect = (id: string, name: string) => {
+    onChange(id, name)
+    setOpen(false)
+    setSearch('')
+  }
+
+  const handleClear = () => {
+    onChange('', '')
+    setSearch('')
+  }
+
+  return (
+    <div ref={dropRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 bg-white border rounded-lg text-sm text-left transition-all',
+          open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-200 hover:border-slate-300'
+        )}
+      >
+        {selected ? (
+          <span className="text-slate-900 flex items-center gap-2 flex-1 min-w-0">
+            <span className="truncate">{selected.name}</span>
+            {selected.developer && (
+              <span className="text-xs text-slate-400 shrink-0 truncate">{selected.developer}</span>
+            )}
+          </span>
+        ) : complexName ? (
+          <span className="text-slate-700 truncate flex-1">{complexName}</span>
+        ) : (
+          <span className="text-slate-400 flex-1">Выберите ЖК из списка...</span>
+        )}
+        <ChevronDown size={14} className={cn('text-slate-400 shrink-0 ml-2 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {(selected || complexName) && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="text-xs text-slate-400 hover:text-red-500 mt-1 flex items-center gap-1"
+        >
+          <X size={11} /> Убрать ЖК
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Поиск по названию или застройщику..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">
+                {search ? 'ЖК не найден' : 'Нет жилых комплексов'}
+              </p>
+            ) : (
+              filtered.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleSelect(c.id, c.name)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
+                    c.id === complexId && 'bg-blue-50 text-blue-700'
+                  )}
+                >
+                  <span className="flex-1 truncate font-medium">{c.name}</span>
+                  {c.developer && (
+                    <span className="text-xs text-slate-400 shrink-0 truncate max-w-[40%]">{c.developer}</span>
+                  )}
+                  {c.id === complexId && <Check size={12} className="text-blue-600 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Owner Selector ────────────────────────────────────────────────────────────
 
@@ -290,6 +417,8 @@ export default function PropertyForm() {
   const [dealType,    setDealType]    = useState<'sale' | 'rent'>('sale')
   const [marketType,  setMarketType]  = useState<'secondary' | 'new_build' | undefined>(undefined)
   const [ownerId,     setOwnerId]     = useState('')
+  const [complexId,   setComplexId]   = useState('')
+  const [complexName, setComplexName] = useState('')
   const [communications, setComms]   = useState<string[]>([])
   const [isRealtorProperty, setIsRealtorProperty] = useState(false)
 
@@ -309,6 +438,8 @@ export default function PropertyForm() {
       setDealType(editingProperty.deal_type ?? 'sale')
       setMarketType(editingProperty.market_type ?? undefined)
       setOwnerId(editingProperty.owner_id ?? '')
+      setComplexId(editingProperty.complex_id ?? '')
+      setComplexName(editingProperty.complex_name ?? '')
       setComms(editingProperty.communications ?? [])
       setIsRealtorProperty(editingProperty.is_realtor_property ?? false)
       reset({
@@ -390,7 +521,8 @@ export default function PropertyForm() {
       total_floors:  intOrUndef(raw.total_floors),
       view:          strOrUndef(raw.view),
       address:       raw.address.trim(),
-      complex_name:  strOrUndef(raw.complex_name),
+      complex_id:    complexId || undefined,
+      complex_name:  complexName.trim() || undefined,
       description:   strOrUndef(raw.description),
       owner_id:      ownerId || (null as any), // DB allows NULL
       // Land
@@ -688,8 +820,12 @@ export default function PropertyForm() {
         {/* ── Location ────────────────────────────────────────────────── */}
         <div className="space-y-3">
           <div>
-            <FieldLabel>Название ЖК / Комплекса</FieldLabel>
-            <input className={inputCls} placeholder="Москва Сити, Новые Черёмушки..." {...register('complex_name')} />
+            <FieldLabel>Жилой комплекс</FieldLabel>
+            <ComplexSelector
+              complexId={complexId}
+              complexName={complexName}
+              onChange={(id, name) => { setComplexId(id); setComplexName(name) }}
+            />
           </div>
           <div>
             <FieldLabel required>Адрес</FieldLabel>
