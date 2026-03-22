@@ -4,7 +4,7 @@
 -- ================================================
 
 -- Таблица ЖК
-CREATE TABLE complexes (
+CREATE TABLE IF NOT EXISTS complexes (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name                text NOT NULL,
   description         text,
@@ -47,10 +47,11 @@ CREATE TRIGGER trg_complexes_updated_at
 
 -- RLS
 ALTER TABLE complexes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_complexes ON complexes;
 CREATE POLICY allow_all_complexes ON complexes FOR ALL USING (true) WITH CHECK (true);
 
 -- Настройки агента (одна запись)
-CREATE TABLE agent_settings (
+CREATE TABLE IF NOT EXISTS agent_settings (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name         text,
   phone        text,
@@ -71,6 +72,7 @@ CREATE TRIGGER trg_agent_settings_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 ALTER TABLE agent_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_all_agent_settings ON agent_settings;
 CREATE POLICY allow_all_agent_settings ON agent_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- Storage buckets (выполни в Supabase Dashboard → Storage, или раскомментируй):

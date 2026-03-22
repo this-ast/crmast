@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS custom_statuses (
 );
 
 ALTER TABLE custom_statuses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow all custom_statuses" ON custom_statuses FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow all custom_statuses" ON custom_statuses;
+DROP POLICY IF EXISTS allow_all_custom_statuses ON custom_statuses;
+CREATE POLICY allow_all_custom_statuses ON custom_statuses FOR ALL USING (true) WITH CHECK (true);
 
 -- Pre-populate with defaults
 INSERT INTO custom_statuses (name, color, type, hint, sort_order) VALUES
@@ -34,4 +36,6 @@ CREATE TABLE IF NOT EXISTS saved_filters (
 );
 
 ALTER TABLE saved_filters ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow all saved_filters" ON saved_filters FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow all saved_filters" ON saved_filters;
+DROP POLICY IF EXISTS allow_all_saved_filters ON saved_filters;
+CREATE POLICY allow_all_saved_filters ON saved_filters FOR ALL USING (true) WITH CHECK (true);

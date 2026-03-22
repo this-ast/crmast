@@ -176,28 +176,6 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           </div>
         )}
 
-        {/* Description */}
-        {complex.description && (
-          <div>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Описание</h3>
-            <p className="text-sm text-slate-700 leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
-              {complex.description}
-            </p>
-          </div>
-        )}
-
-        {/* Purchase conditions */}
-        {complex.purchase_conditions && (
-          <div className="bg-emerald-50 rounded-xl p-4">
-            <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-              Условия покупки
-            </h3>
-            <p className="text-sm text-emerald-800" style={{ whiteSpace: 'pre-wrap' }}>
-              {complex.purchase_conditions}
-            </p>
-          </div>
-        )}
-
         {/* Structural building characteristics */}
         {(complex.floors_total || complex.building_type || complex.elevator ||
           (complex.yard_features?.length ?? 0) > 0 || (complex.parking?.length ?? 0) > 0) && (
@@ -262,6 +240,28 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Purchase conditions */}
+        {complex.purchase_conditions && (
+          <div className="bg-emerald-50 rounded-xl p-4">
+            <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
+              Условия покупки
+            </h3>
+            <p className="text-sm text-emerald-800" style={{ whiteSpace: 'pre-wrap' }}>
+              {complex.purchase_conditions}
+            </p>
+          </div>
+        )}
+
+        {/* Description */}
+        {complex.description && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Описание</h3>
+            <p className="text-sm text-slate-700 leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
+              {complex.description}
+            </p>
           </div>
         )}
 
