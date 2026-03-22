@@ -61,33 +61,27 @@ setup_bot_env() {
     return
   fi
 
-  echo ""
-  echo "=== Настройка Telegram-бота ==="
-  echo ""
-  echo "Для настройки бота потребуются:"
-  echo "  1. Токен бота (от @BotFather)"
-  echo "  2. Ваш Telegram User ID (можно узнать у @userinfobot)"
-  echo ""
-
-  read -p "Настроить Telegram-бота? [y/N]: " SETUP_BOT < /dev/tty
-  if [[ "$SETUP_BOT" != "y" && "$SETUP_BOT" != "Y" ]]; then
-    warn "Пропускаем настройку бота."
+  # Пробуем взять значение из .env.example (уже содержит все ключи)
+  local example="$BOT_DIR/.env.example"
+  if [[ -f "$example" ]]; then
+    cp "$example" "$BOT_ENV"
+    chmod 600 "$BOT_ENV"
+    log "Файл $BOT_ENV создан из .env.example"
     return
   fi
 
+  # Fallback: ручной ввод
+  echo ""
+  echo "=== Настройка Telegram-бота ==="
   read -p "TELEGRAM_BOT_TOKEN: " TG_TOKEN < /dev/tty
   [[ -z "$TG_TOKEN" ]] && err "Токен бота обязателен"
-
   read -p "Ваш Telegram User ID (числовой): " TG_USER_ID < /dev/tty
   [[ -z "$TG_USER_ID" ]] && err "User ID обязателен"
-
-  read -p "POLZA_API_KEY [pza_yj1niHvxJC-A9Kh6-cRzaYBJ3PZF28Jm]: " POLZA_KEY < /dev/tty
-  POLZA_KEY=${POLZA_KEY:-pza_yj1niHvxJC-A9Kh6-cRzaYBJ3PZF28Jm}
 
   cat > "$BOT_ENV" << BOTENV
 TELEGRAM_BOT_TOKEN=$TG_TOKEN
 ALLOWED_USER_IDS=$TG_USER_ID
-POLZA_API_KEY=$POLZA_KEY
+POLZA_API_KEY=pza_yj1niHvxJC-A9Kh6-cRzaYBJ3PZF28Jm
 POLZA_BASE_URL=https://polza.ai/api/v1
 AI_MODEL=google/gemini-2.5-flash-lite-preview-09-2025
 SUPABASE_URL=https://mtigcxqcymxvqjjqfyts.supabase.co
@@ -144,6 +138,17 @@ SERVICE
 update_telegram_bot() {
   if [[ ! -d "$BOT_DIR" ]]; then
     warn "Директория бота не найдена ($BOT_DIR), пропускаем."
+    return
+  fi
+  # Если бот ещё ни разу не устанавливался — запускаем полную установку
+  if [[ ! -f "$BOT_ENV" || ! -d "$BOT_DIR/.venv" ]]; then
+    log "Бот не настроен — запускаем первоначальную установку..."
+    install_python
+    setup_bot_env
+    if [[ -f "$BOT_ENV" ]]; then
+      install_bot_deps
+      create_bot_service
+    fi
     return
   fi
   log "Обновление зависимостей бота..."
