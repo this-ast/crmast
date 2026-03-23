@@ -172,6 +172,162 @@ function ComplexSelector({
   )
 }
 
+// ─── District Selector ─────────────────────────────────────────────────────────
+
+const DEFAULT_DISTRICTS = [
+  'Центр', 'Северный', 'Южный', 'Западный', 'Восточный',
+  'Новый город', 'Старый город', 'Микрорайон', 'ПМР',
+  'Левый берег', 'Правый берег',
+]
+
+const DISTRICTS_KEY = 'crm_districts'
+
+function getDistricts(): string[] {
+  try {
+    const raw = localStorage.getItem(DISTRICTS_KEY)
+    if (!raw) return [...DEFAULT_DISTRICTS]
+    const saved: string[] = JSON.parse(raw)
+    // Merge defaults + saved, unique
+    return Array.from(new Set([...DEFAULT_DISTRICTS, ...saved]))
+  } catch {
+    return [...DEFAULT_DISTRICTS]
+  }
+}
+
+function saveCustomDistrict(name: string) {
+  try {
+    const raw = localStorage.getItem(DISTRICTS_KEY)
+    const saved: string[] = raw ? JSON.parse(raw) : []
+    if (!saved.includes(name)) {
+      localStorage.setItem(DISTRICTS_KEY, JSON.stringify([...saved, name]))
+    }
+  } catch { /* ignore */ }
+}
+
+function DistrictSelector({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [districts, setDistricts] = useState<string[]>(() => getDistricts())
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = districts.filter((d) =>
+    !search.trim() || d.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const handleSelect = (d: string) => {
+    onChange(d)
+    setOpen(false)
+    setSearch('')
+  }
+
+  const handleAddNew = () => {
+    const name = search.trim()
+    if (!name) return
+    saveCustomDistrict(name)
+    setDistricts(getDistricts())
+    onChange(name)
+    setOpen(false)
+    setSearch('')
+  }
+
+  const canAdd = search.trim().length > 0 && !districts.some(
+    (d) => d.toLowerCase() === search.trim().toLowerCase()
+  )
+
+  return (
+    <div ref={dropRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 bg-white border rounded-lg text-sm text-left transition-all',
+          open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-200 hover:border-slate-300'
+        )}
+      >
+        {value ? (
+          <span className="text-slate-900 flex-1 truncate">{value}</span>
+        ) : (
+          <span className="text-slate-400 flex-1">Выберите район...</span>
+        )}
+        <ChevronDown size={14} className={cn('text-slate-400 shrink-0 ml-2 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="text-xs text-slate-400 hover:text-red-500 mt-1 flex items-center gap-1"
+        >
+          <X size={11} /> Убрать район
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Поиск или новый район..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); canAdd ? handleAddNew() : filtered[0] && handleSelect(filtered[0]) } }}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {canAdd && (
+              <button
+                type="button"
+                onClick={handleAddNew}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-blue-600 hover:bg-blue-50 transition-colors border-b border-slate-100"
+              >
+                <Plus size={13} />
+                Добавить «{search.trim()}»
+              </button>
+            )}
+            {filtered.length === 0 && !canAdd ? (
+              <p className="text-xs text-slate-400 text-center py-4">Ничего не найдено</p>
+            ) : (
+              filtered.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => handleSelect(d)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors',
+                    d === value && 'bg-blue-50 text-blue-700'
+                  )}
+                >
+                  <span className="flex-1 truncate">{d}</span>
+                  {d === value && <Check size={12} className="text-blue-600 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Owner Selector ────────────────────────────────────────────────────────────
 
 function OwnerSelector({
@@ -427,6 +583,7 @@ export default function PropertyForm() {
   const [ownerId,     setOwnerId]     = useState('')
   const [complexId,   setComplexId]   = useState('')
   const [complexName, setComplexName] = useState('')
+  const [district,    setDistrict]    = useState('')
   const [communications, setComms]   = useState<string[]>([])
   const [isRealtorProperty, setIsRealtorProperty] = useState(false)
   // Apartment extended
@@ -456,6 +613,7 @@ export default function PropertyForm() {
       setOwnerId(editingProperty.owner_id ?? '')
       setComplexId(editingProperty.complex_id ?? '')
       setComplexName(editingProperty.complex_name ?? '')
+      setDistrict(editingProperty.district ?? '')
       setComms(editingProperty.communications ?? [])
       setWindowViews(editingProperty.window_views ?? [])
       setFurnitureList(editingProperty.furniture ?? [])
@@ -548,6 +706,7 @@ export default function PropertyForm() {
       total_floors:  intOrUndef(raw.total_floors),
       view:          strOrUndef(raw.view),
       address:       raw.address.trim(),
+      district:      district.trim() || undefined,
       complex_id:    complexId || undefined,
       complex_name:  complexName.trim() || undefined,
       description:   strOrUndef(raw.description),
@@ -994,6 +1153,10 @@ export default function PropertyForm() {
 
         {/* ── Location ────────────────────────────────────────────────── */}
         <div className="space-y-3">
+          <div>
+            <FieldLabel>Район</FieldLabel>
+            <DistrictSelector value={district} onChange={setDistrict} />
+          </div>
           <div>
             <FieldLabel>Жилой комплекс</FieldLabel>
             <ComplexSelector

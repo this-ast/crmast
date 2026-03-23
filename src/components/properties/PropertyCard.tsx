@@ -15,7 +15,7 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ property, onClick }: PropertyCardProps) {
-  const { type, status, price, area, rooms, floor, total_floors, complex_name, address, owner, article } =
+  const { type, status, price, area, rooms, floor, total_floors, complex_name, address, owner, article, district } =
     property
 
   // Location display: complex name if exists, else address
@@ -90,10 +90,19 @@ export default function PropertyCard({ property, onClick }: PropertyCardProps) {
       </div>
 
       {/* Location */}
-      <div className="flex items-start gap-1.5 mb-3">
+      <div className="flex items-start gap-1.5 mb-2">
         <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
         <p className="text-xs text-slate-600 line-clamp-1">{locationDisplay}</p>
       </div>
+
+      {/* District badge */}
+      {district && (
+        <div className="mb-3">
+          <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+            📍 {district}
+          </span>
+        </div>
+      )}
 
       {/* Details row */}
       <div className="flex items-center gap-3 mb-3">

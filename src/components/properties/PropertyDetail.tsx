@@ -172,7 +172,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
 
   const {
     id, article, type, status, price, area, rooms, floor, total_floors,
-    complex_name, address, description, owner,
+    complex_name, address, district, description, owner,
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
     market_type, deal_type, has_mortgage, has_installment,
@@ -479,6 +479,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 }
               />
             )}
+            {district && <InfoRow icon={MapPin} label="Район" value={district} />}
             <InfoRow icon={MapPin} label="Адрес" value={address} />
           </div>
         </div>

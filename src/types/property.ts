@@ -54,6 +54,9 @@ export interface Property {
   // Owner reference (nullable — can be saved without owner)
   owner_id: string | null
 
+  // Location details
+  district?: string
+
   // Complex reference
   complex_id?: string
 
@@ -117,6 +120,8 @@ export interface PropertyFormData {
   complex_name?: string
   description?: string
   owner_id?: string | null
+  // Location details
+  district?: string
   // Complex
   complex_id?: string
   // Land
