@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { Loader2, Search, Plus, X, UserX, Check, ChevronDown, ImageIcon, Trash2 } from 'lucide-react'
+import { Loader2, Search, Plus, X, UserX, Check, ChevronDown, ImageIcon, Trash2, HeartHandshake } from 'lucide-react'
 import type { PropertyFormData, PropertyType } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
 import {
@@ -569,7 +570,9 @@ const SALE_METHOD_OPTIONS = ['Свободная', 'Альтернатива', '
 // ─── Main Form ─────────────────────────────────────────────────────────────────
 
 export default function PropertyForm() {
+  const navigate = useNavigate()
   const { closeForm, editingPropertyId, openDetail } = usePropertyStore()
+  const [soldPrompt, setSoldPrompt] = useState<{ propertyId: string; sellerId: string } | null>(null)
   const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
@@ -740,13 +743,20 @@ export default function PropertyForm() {
       if (editingPropertyId) {
         await updateProperty.mutateAsync({ id: editingPropertyId, data })
         toast.success('Объект обновлён')
-        closeForm()
+        if (data.status === 'sold') {
+          setSoldPrompt({ propertyId: editingPropertyId, sellerId: ownerId })
+        } else {
+          closeForm()
+        }
       } else {
         const created = await createProperty.mutateAsync(data)
         toast.success('Объект добавлен')
-        closeForm()
-        // Auto-open detail to show matching clients
-        setTimeout(() => openDetail(created.id), 150)
+        if (data.status === 'sold') {
+          setSoldPrompt({ propertyId: created.id, sellerId: ownerId })
+        } else {
+          closeForm()
+          setTimeout(() => openDetail(created.id), 150)
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -756,6 +766,43 @@ export default function PropertyForm() {
 
   const showMarketType  = propType === 'apartment' || propType === 'house'
   const showConditions  = propType !== 'land'
+
+  // ── Sold prompt overlay ────────────────────────────────────────────────────
+  if (soldPrompt) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 p-8 text-center min-h-[320px]">
+        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+          <HeartHandshake size={32} className="text-emerald-600" />
+        </div>
+        <div>
+          <p className="text-lg font-bold text-slate-900 mb-1">Объект продан!</p>
+          <p className="text-sm text-slate-500">Хотите создать сделку по этому объекту?</p>
+        </div>
+        <div className="flex flex-col gap-2 w-full max-w-xs">
+          <button
+            type="button"
+            onClick={() => {
+              closeForm()
+              const params = new URLSearchParams({ new: '1', property_id: soldPrompt.propertyId })
+              if (soldPrompt.sellerId) params.set('seller_id', soldPrompt.sellerId)
+              navigate(`/deals?${params.toString()}`)
+            }}
+            className="w-full py-3 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 flex items-center justify-center gap-2"
+          >
+            <HeartHandshake size={16} />
+            Создать сделку
+          </button>
+          <button
+            type="button"
+            onClick={() => closeForm()}
+            className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Пропустить
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90dvh]">

@@ -618,6 +618,9 @@ export default function DealsPage() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const openId = searchParams.get('open') ?? ''
+  const newDealParam = searchParams.get('new') === '1'
+  const newPropertyId = searchParams.get('property_id') ?? ''
+  const newSellerId = searchParams.get('seller_id') ?? ''
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -625,6 +628,7 @@ export default function DealsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
   const [deletingDeal, setDeletingDeal] = useState<Deal | null>(null)
+  const [formInitial, setFormInitial] = useState<Partial<DealFormData> | undefined>(undefined)
 
   // Auto-expand deal from URL param, then clear it
   useEffect(() => {
@@ -633,6 +637,19 @@ export default function DealsPage() {
     const t = setTimeout(() => setSearchParams({}, { replace: true }), 1500)
     return () => clearTimeout(t)
   }, [openId, setSearchParams])
+
+  // Auto-open new deal form from URL params (triggered from sold property)
+  useEffect(() => {
+    if (!newDealParam) return
+    const initial: Partial<DealFormData> = { status: 'active' }
+    if (newPropertyId) initial.property_id = newPropertyId
+    if (newSellerId) initial.seller_id = newSellerId
+    setFormInitial(initial)
+    setEditingDeal(null)
+    setIsFormOpen(true)
+    setSearchParams({}, { replace: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Enrich deals with client/property data from already-loaded lists
   const deals = useMemo<Deal[]>(() => rawDeals.map((d) => ({
@@ -689,6 +706,7 @@ export default function DealsPage() {
       }
       setIsFormOpen(false)
       setEditingDeal(null)
+      setFormInitial(undefined)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка при сохранении')
     }
@@ -719,7 +737,7 @@ export default function DealsPage() {
           <p className="text-sm text-slate-500 mt-0.5">{filtered.length} из {deals.length}</p>
         </div>
         <button
-          onClick={() => { setEditingDeal(null); setIsFormOpen(true) }}
+          onClick={() => { setEditingDeal(null); setFormInitial(undefined); setIsFormOpen(true) }}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
         >
           <Plus size={16} />
@@ -851,9 +869,9 @@ export default function DealsPage() {
             commission_split: editingDeal.commission_split,
             status: editingDeal.status,
             notes: editingDeal.notes,
-          } : undefined}
+          } : formInitial}
           onSave={handleSave}
-          onCancel={() => { setIsFormOpen(false); setEditingDeal(null) }}
+          onCancel={() => { setIsFormOpen(false); setEditingDeal(null); setFormInitial(undefined) }}
           isSubmitting={createDeal.isPending || updateDeal.isPending}
         />
       </Modal>
