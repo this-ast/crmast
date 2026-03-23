@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { Loader2, Search, Plus, X, UserX, Check, ChevronDown } from 'lucide-react'
+import { Loader2, Search, Plus, X, UserX, Check, ChevronDown, ImageIcon, Trash2 } from 'lucide-react'
 import type { PropertyFormData, PropertyType } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
 import {
   useCreateProperty, useUpdateProperty, useProperty,
   useUploadPropertyPhoto, useDeletePropertyPhoto,
+  useUploadFloorPlan, useDeleteFloorPlan,
 } from '@/hooks/useProperties'
 import { useClients, useCreateClient } from '@/hooks/useClients'
 import { useComplexes } from '@/hooks/useComplexes'
@@ -402,6 +403,13 @@ function OwnerSelector({
 
 const COMM_OPTIONS = ['Электричество', 'Газ', 'Водоснабжение', 'Канализация', 'Отопление', 'Интернет']
 
+const ROOM_TYPE_OPTIONS = ['Изолированные', 'Смежные', 'Студия', 'Евростудия', 'Свободная планировка']
+const BATHROOM_OPTIONS  = ['Совмещенный', 'Раздельный', '2 санузла', '3+ санузла']
+const WINDOW_VIEW_OPTIONS = ['Во двор', 'На улицу', 'На солнечную сторону', 'Угловая', 'Панорамный вид']
+const RENOVATION_OPTIONS  = ['Без ремонта', 'Черновая отделка', 'Косметический', 'Евро', 'Дизайнерский', 'Студийный']
+const FURNITURE_OPTIONS   = ['Без мебели', 'Хранение одежды', 'Спальные места', 'Кухонный гарнитур', 'Встроенная кухня', 'Вся мебель']
+const SALE_METHOD_OPTIONS = ['Свободная', 'Альтернатива', 'Ипотечная', 'Долевая', 'Переуступка']
+
 // ─── Main Form ─────────────────────────────────────────────────────────────────
 
 export default function PropertyForm() {
@@ -421,6 +429,14 @@ export default function PropertyForm() {
   const [complexName, setComplexName] = useState('')
   const [communications, setComms]   = useState<string[]>([])
   const [isRealtorProperty, setIsRealtorProperty] = useState(false)
+  // Apartment extended
+  const [windowViews,   setWindowViews]   = useState<string[]>([])
+  const [furnitureList, setFurnitureList] = useState<string[]>([])
+  const [extraFeatures, setExtraFeatures] = useState<string[]>([])
+  const [heatedFloor,   setHeatedFloor]   = useState(false)
+  const [extraInput,    setExtraInput]    = useState('')
+  const uploadFloorPlan = useUploadFloorPlan()
+  const deleteFloorPlan = useDeleteFloorPlan()
 
   const {
     register,
@@ -441,6 +457,10 @@ export default function PropertyForm() {
       setComplexId(editingProperty.complex_id ?? '')
       setComplexName(editingProperty.complex_name ?? '')
       setComms(editingProperty.communications ?? [])
+      setWindowViews(editingProperty.window_views ?? [])
+      setFurnitureList(editingProperty.furniture ?? [])
+      setExtraFeatures(editingProperty.extra_features ?? [])
+      setHeatedFloor(editingProperty.heated_floor ?? false)
       setIsRealtorProperty(editingProperty.is_realtor_property ?? false)
       reset({
         status:          editingProperty.status,
@@ -456,6 +476,13 @@ export default function PropertyForm() {
         cadastral_number: editingProperty.cadastral_number ?? '',
         area_sotki:      editingProperty.area_sotki != null ? String(editingProperty.area_sotki) : '',
         entrance_groups: editingProperty.entrance_groups ?? '',
+        kitchen_area:    editingProperty.kitchen_area != null ? String(editingProperty.kitchen_area) : '',
+        living_area:     editingProperty.living_area  != null ? String(editingProperty.living_area)  : '',
+        room_type:       editingProperty.room_type ?? '',
+        ceiling_height:  editingProperty.ceiling_height != null ? String(editingProperty.ceiling_height) : '',
+        bathroom_type:   editingProperty.bathroom_type ?? '',
+        renovation:      editingProperty.renovation ?? '',
+        sale_method:     editingProperty.sale_method ?? '',
         has_mortgage:     editingProperty.has_mortgage ?? false,
         has_installment:  editingProperty.has_installment ?? false,
         has_trade_in:     editingProperty.has_trade_in ?? false,
@@ -524,7 +551,19 @@ export default function PropertyForm() {
       complex_id:    complexId || undefined,
       complex_name:  complexName.trim() || undefined,
       description:   strOrUndef(raw.description),
-      owner_id:      ownerId || (null as any), // DB allows NULL
+      owner_id:      ownerId || (null as any),
+      // Apartment extended
+      kitchen_area:  floatOrUndef(raw.kitchen_area),
+      living_area:   floatOrUndef(raw.living_area),
+      room_type:     strOrUndef(raw.room_type),
+      ceiling_height: floatOrUndef(raw.ceiling_height),
+      bathroom_type: strOrUndef(raw.bathroom_type),
+      renovation:    strOrUndef(raw.renovation),
+      sale_method:   strOrUndef(raw.sale_method),
+      heated_floor:  heatedFloor || undefined,
+      window_views:  windowViews.length > 0 ? windowViews : undefined,
+      furniture:     furnitureList.length > 0 ? furnitureList : undefined,
+      extra_features: extraFeatures.length > 0 ? extraFeatures : undefined,
       // Land
       area_sotki:    floatOrUndef(raw.area_sotki),
       communications: communications.length > 0 ? communications : undefined,
@@ -709,6 +748,9 @@ export default function PropertyForm() {
         {/* ── Apartment specifics ──────────────────────────────────────── */}
         {propType === 'apartment' && (
           <div className="space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">О квартире</p>
+
+            {/* rooms, floor, total_floors */}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <FieldLabel>Комнат</FieldLabel>
@@ -728,9 +770,142 @@ export default function PropertyForm() {
                 <input className={inputCls} placeholder="16" inputMode="numeric" {...register('total_floors')} />
               </div>
             </div>
+
+            {/* kitchen_area, living_area */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Площадь кухни (м²)</FieldLabel>
+                <input className={inputCls} placeholder="12" inputMode="decimal" {...register('kitchen_area')} />
+              </div>
+              <div>
+                <FieldLabel>Жилая площадь (м²)</FieldLabel>
+                <input className={inputCls} placeholder="38" inputMode="decimal" {...register('living_area')} />
+              </div>
+            </div>
+
+            {/* ceiling_height, bathroom_type */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Высота потолков (м)</FieldLabel>
+                <input className={inputCls} placeholder="2.8" inputMode="decimal" {...register('ceiling_height')} />
+              </div>
+              <div>
+                <FieldLabel>Санузел</FieldLabel>
+                <select className={selectCls} {...register('bathroom_type')}>
+                  <option value="">—</option>
+                  {BATHROOM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* room_type */}
             <div>
-              <FieldLabel>Вид из окон</FieldLabel>
-              <input className={inputCls} placeholder="Двор, улица, парк, лес..." {...register('view')} />
+              <FieldLabel>Тип комнат</FieldLabel>
+              <select className={selectCls} {...register('room_type')}>
+                <option value="">—</option>
+                {ROOM_TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* window_views chips */}
+            <div>
+              <FieldLabel>Окна</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                {WINDOW_VIEW_OPTIONS.map((o) => (
+                  <button key={o} type="button"
+                    onClick={() => setWindowViews((p) => p.includes(o) ? p.filter((v) => v !== o) : [...p, o])}
+                    className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
+                      windowViews.includes(o) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    )}
+                  >{o}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* renovation, sale_method */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Ремонт</FieldLabel>
+                <select className={selectCls} {...register('renovation')}>
+                  <option value="">—</option>
+                  {RENOVATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <FieldLabel>Способ продажи</FieldLabel>
+                <select className={selectCls} {...register('sale_method')}>
+                  <option value="">—</option>
+                  {SALE_METHOD_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* heated_floor toggle */}
+            <button type="button" onClick={() => setHeatedFloor((v) => !v)}
+              className={cn('flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                heatedFloor ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+              )}
+            >
+              <span>🔥</span> Тёплый пол
+              <span className={cn('ml-auto text-xs px-2 py-0.5 rounded-full', heatedFloor ? 'bg-orange-200 text-orange-800' : 'bg-slate-100 text-slate-500')}>
+                {heatedFloor ? 'Есть' : 'Нет'}
+              </span>
+            </button>
+
+            {/* furniture chips */}
+            <div>
+              <FieldLabel>Мебель</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                {FURNITURE_OPTIONS.map((o) => (
+                  <button key={o} type="button"
+                    onClick={() => setFurnitureList((p) => p.includes(o) ? p.filter((v) => v !== o) : [...p, o])}
+                    className={cn('px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
+                      furnitureList.includes(o) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    )}
+                  >{o}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* extra_features tag input */}
+            <div>
+              <FieldLabel>Дополнительно</FieldLabel>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {extraFeatures.map((f) => (
+                  <span key={f} className="flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-xs font-medium">
+                    {f}
+                    <button type="button" onClick={() => setExtraFeatures((p) => p.filter((v) => v !== f))}>
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className={cn(inputCls, 'flex-1')}
+                  placeholder="Гардеробная, панорамные окна... (Enter)"
+                  value={extraInput}
+                  onChange={(e) => setExtraInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ',') && extraInput.trim()) {
+                      e.preventDefault()
+                      const v = extraInput.trim().replace(/,$/, '')
+                      if (v && !extraFeatures.includes(v)) setExtraFeatures((p) => [...p, v])
+                      setExtraInput('')
+                    }
+                  }}
+                />
+                <button type="button"
+                  onClick={() => {
+                    const v = extraInput.trim()
+                    if (v && !extraFeatures.includes(v)) setExtraFeatures((p) => [...p, v])
+                    setExtraInput('')
+                  }}
+                  className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm hover:bg-slate-200 transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -894,8 +1069,59 @@ export default function PropertyForm() {
         )}
         {!editingPropertyId && (
           <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 border border-dashed border-slate-200">
-            💡 Фотографии можно добавить после сохранения объекта
+            💡 Фотографии и планировку можно добавить после сохранения объекта
           </p>
+        )}
+
+        {/* ── Floor plan ───────────────────────────────────────────────── */}
+        {editingPropertyId && (propType === 'apartment' || propType === 'house') && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Планировка</label>
+            {editingProperty?.floor_plan ? (
+              <div className="relative inline-block">
+                <img
+                  src={editingProperty.floor_plan}
+                  alt="Планировка"
+                  className="w-full max-h-48 object-contain rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => deleteFloorPlan.mutate(editingPropertyId)}
+                  disabled={deleteFloorPlan.isPending}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className={cn(
+                'flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-colors',
+                uploadFloorPlan.isPending ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+              )}>
+                {uploadFloorPlan.isPending
+                  ? <Loader2 size={20} className="animate-spin text-blue-500" />
+                  : <ImageIcon size={20} className="text-slate-400" />
+                }
+                <span className="text-xs text-slate-500">
+                  {uploadFloorPlan.isPending ? 'Загрузка...' : 'Нажмите для загрузки планировки'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    try {
+                      await uploadFloorPlan.mutateAsync({ propertyId: editingPropertyId, file })
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+                    }
+                  }}
+                />
+              </label>
+            )}
+          </div>
         )}
       </div>
 

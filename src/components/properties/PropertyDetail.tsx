@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
   ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, HeartHandshake,
-  ChevronLeft, ZoomIn,
+  ChevronLeft, ZoomIn, LayoutDashboard,
   type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
@@ -26,6 +26,7 @@ import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
 import Timeline from '@/components/timeline/Timeline'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import MatchingClientsSection from './MatchingClientsSection'
+import type { Client } from '@/types'
 import { ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -160,6 +161,9 @@ function InfoRow({
 export default function PropertyDetail({ property, onClose }: PropertyDetailProps) {
   const [phoneRevealed, setPhoneRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [inlineClient, setInlineClient] = useState<(Client & { matchReasons?: string[] }) | null>(null)
+  const [showOwnerPopup, setShowOwnerPopup] = useState(false)
+  const [showFloorPlan, setShowFloorPlan] = useState(false)
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
   const { data: agentSettings } = useAgentSettings()
@@ -167,12 +171,15 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const navigate = useNavigate()
 
   const {
-    id, article, type, status, price, area, rooms, floor, total_floors, view,
+    id, article, type, status, price, area, rooms, floor, total_floors,
     complex_name, address, description, owner,
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
     market_type, deal_type, has_mortgage, has_installment,
     has_trade_in, has_maternal_cap, has_military_mort,
+    kitchen_area, living_area, room_type, ceiling_height, bathroom_type,
+    window_views, renovation, heated_floor, furniture, sale_method,
+    extra_features, floor_plan,
   } = property
 
   const title = (() => {
@@ -198,8 +205,12 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
 
   const handleOwnerClick = () => {
     if (!owner) return
+    setShowOwnerPopup(true)
+  }
+
+  const handleGoToClient = (id: string) => {
     onClose()
-    setTimeout(() => navigate(`/clients?highlight=${owner.id}`), 150)
+    setTimeout(() => navigate(`/clients?highlight=${id}`), 150)
   }
 
   return (
@@ -331,7 +342,41 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 {floor && total_floors && (
                   <InfoRow icon={Building2} label="Этаж" value={`${floor} из ${total_floors}`} />
                 )}
-                {view && <InfoRow icon={Eye} label="Вид из окон" value={view} />}
+                {kitchen_area && <InfoRow icon={Maximize2} label="Площадь кухни" value={`${kitchen_area} м²`} />}
+                {living_area  && <InfoRow icon={Maximize2} label="Жилая площадь"  value={`${living_area} м²`}  />}
+                {ceiling_height && <InfoRow icon={Eye} label="Высота потолков" value={`${ceiling_height} м`} />}
+                {room_type    && <InfoRow icon={Layers}   label="Тип комнат"       value={room_type}   />}
+                {bathroom_type && <InfoRow icon={Hash}    label="Санузел"          value={bathroom_type} />}
+                {renovation   && <InfoRow icon={Pencil}   label="Ремонт"           value={renovation}  />}
+                {sale_method  && <InfoRow icon={ChevronRight} label="Способ продажи" value={sale_method} />}
+                {heated_floor && <InfoRow icon={Eye}      label="Тёплый пол"       value="Есть"        />}
+                {(window_views?.length ?? 0) > 0 && (
+                  <InfoRow icon={Eye} label="Окна" value={
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {window_views!.map((v) => (
+                        <span key={v} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{v}</span>
+                      ))}
+                    </div>
+                  } />
+                )}
+                {(furniture?.length ?? 0) > 0 && (
+                  <InfoRow icon={Layers} label="Мебель" value={
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {furniture!.map((v) => (
+                        <span key={v} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{v}</span>
+                      ))}
+                    </div>
+                  } />
+                )}
+                {(extra_features?.length ?? 0) > 0 && (
+                  <InfoRow icon={Layers} label="Дополнительно" value={
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {extra_features!.map((v) => (
+                        <span key={v} className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{v}</span>
+                      ))}
+                    </div>
+                  } />
+                )}
               </>
             )}
             {type === 'land' && (
@@ -387,6 +432,28 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           </div>
         </div>
 
+        {/* Floor plan */}
+        {floor_plan && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Планировка</h3>
+            <button
+              onClick={() => setShowFloorPlan(true)}
+              className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 hover:border-blue-300 transition-colors group"
+            >
+              <img
+                src={floor_plan}
+                alt="Планировка"
+                className="w-full max-h-52 object-contain"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white/90 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-full shadow">
+                  <ZoomIn size={12} /> Открыть
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
+
         {/* Location */}
         <div>
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -438,21 +505,27 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
               Собственник
             </h3>
             <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-              <button
-                onClick={handleOwnerClick}
-                className="flex items-center gap-3 w-full text-left group"
-              >
+              <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                   <User size={16} className="text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                  <button
+                    onClick={handleOwnerClick}
+                    className="text-sm font-semibold text-slate-900 hover:text-blue-600 transition-colors text-left"
+                  >
                     {owner.name}
-                  </p>
+                  </button>
                   <p className="text-xs text-slate-400 font-mono">Клиент #{owner.client_number}</p>
                 </div>
-                <ExternalLink size={14} className="text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
-              </button>
+                <button
+                  onClick={() => handleGoToClient(owner.id)}
+                  className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                  title="Перейти к клиенту"
+                >
+                  <ExternalLink size={14} />
+                </button>
+              </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Phone size={14} className="text-slate-400" />
@@ -473,7 +546,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
 
         {/* Matching clients */}
         <div>
-          <MatchingClientsSection property={property} />
+          <MatchingClientsSection property={property} onClientClick={(c) => setInlineClient(c)} />
         </div>
 
         {/* Tasks */}
@@ -532,6 +605,131 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
         )}
         </div>{/* /px-6 */}
       </div>
+
+      {/* ── Floor plan lightbox ──────────────────────────────────────────── */}
+      {showFloorPlan && floor_plan && (
+        <div
+          className="fixed inset-0 z-[10200] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setShowFloorPlan(false)}
+        >
+          <div className="relative max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowFloorPlan(false)}
+              className="absolute -top-10 right-0 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <img src={floor_plan} alt="Планировка" className="w-full rounded-2xl shadow-2xl bg-white" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline owner popup ───────────────────────────────────────────── */}
+      {showOwnerPopup && owner && (
+        <div
+          className="fixed inset-0 z-[10200] bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setShowOwnerPopup(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <User size={18} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{owner.name}</p>
+                  <p className="text-xs text-slate-400 font-mono">Клиент #{owner.client_number}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowOwnerPopup(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            {owner.phone && (
+              <a href={`tel:${owner.phone}`} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-blue-50 transition-colors">
+                <Phone size={15} className="text-slate-400" />
+                <span className="text-sm font-medium text-slate-800">{owner.phone}</span>
+              </a>
+            )}
+            <button
+              onClick={() => { setShowOwnerPopup(false); handleGoToClient(owner.id) }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <ExternalLink size={14} /> Открыть в разделе клиентов
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline matched client popup ──────────────────────────────────── */}
+      {inlineClient && (
+        <div
+          className="fixed inset-0 z-[10200] bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setInlineClient(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                  <User size={18} className="text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{inlineClient.name}</p>
+                  <p className="text-xs text-slate-400 font-mono">Клиент #{inlineClient.client_number}</p>
+                </div>
+              </div>
+              <button onClick={() => setInlineClient(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {inlineClient.phone && (
+                <a href={`tel:${inlineClient.phone}`} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl">
+                  <Phone size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-sm text-slate-700">{inlineClient.phone}</span>
+                </a>
+              )}
+              {inlineClient.budget && (
+                <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-400 shrink-0 pt-0.5">Бюджет</span>
+                  <span className="text-sm font-medium text-slate-800">{inlineClient.budget}</span>
+                </div>
+              )}
+              {inlineClient.request && (
+                <div className="flex items-start gap-3 p-2.5 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-400 shrink-0 pt-0.5">Запрос</span>
+                  <span className="text-sm text-slate-700 line-clamp-3">{inlineClient.request}</span>
+                </div>
+              )}
+              {inlineClient.status && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5">
+                  <span className="text-xs text-slate-400">Статус:</span>
+                  <span className="text-xs font-medium text-slate-700">{inlineClient.status}</span>
+                </div>
+              )}
+              {(inlineClient.matchReasons?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {inlineClient.matchReasons!.map((r) => (
+                    <span key={r} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded border border-violet-100">{r}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => { setInlineClient(null); handleGoToClient(inlineClient.id) }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+            >
+              <ExternalLink size={14} /> Открыть в разделе клиентов
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

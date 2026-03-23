@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 
 interface MatchingClientsSectionProps {
   property: Property
+  onClientClick?: (client: MatchedClient) => void
 }
 
 const LEVEL_STYLES = {
@@ -23,7 +24,7 @@ interface MatchedClient extends Client {
   matchReasons: string[]
 }
 
-function ClientRow({ client, property }: { client: MatchedClient; property: Property }) {
+function ClientRow({ client, property, onClientClick }: { client: MatchedClient; property: Property; onClientClick?: (c: MatchedClient) => void }) {
   const [creating, setCreating] = useState(false)
   const createCollection = useCreateCollection()
   const level = getMatchLevel(client.matchScore)
@@ -65,7 +66,13 @@ function ClientRow({ client, property }: { client: MatchedClient; property: Prop
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-900">{client.name}</span>
+            <button
+              type="button"
+              onClick={() => onClientClick?.(client)}
+              className="text-sm font-semibold text-slate-900 hover:text-violet-600 transition-colors text-left"
+            >
+              {client.name}
+            </button>
             <span className="text-xs text-slate-400 font-mono">#{client.client_number}</span>
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-slate-500">
@@ -116,7 +123,7 @@ function ClientRow({ client, property }: { client: MatchedClient; property: Prop
   )
 }
 
-export default function MatchingClientsSection({ property }: MatchingClientsSectionProps) {
+export default function MatchingClientsSection({ property, onClientClick }: MatchingClientsSectionProps) {
   const { data: clients = [], isLoading } = useClients()
   const [expanded, setExpanded] = useState(true)
   const [showAll, setShowAll] = useState(false)
@@ -159,7 +166,7 @@ export default function MatchingClientsSection({ property }: MatchingClientsSect
           ) : (
             <div className="space-y-2">
               {displayed.map((c) => (
-                <ClientRow key={c.id} client={c} property={property} />
+                <ClientRow key={c.id} client={c} property={property} onClientClick={onClientClick} />
               ))}
               {matches.length > 5 && (
                 <button

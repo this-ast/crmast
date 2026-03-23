@@ -257,6 +257,43 @@ export function useDeletePropertyPhoto() {
   })
 }
 
+export function useUploadFloorPlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, file }: { propertyId: string; file: File }) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `${propertyId}/floor-plan.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('property-photos')
+        .upload(path, file, { upsert: true })
+      if (uploadError) throw new Error(uploadError.message)
+      const { data: urlData } = supabase.storage.from('property-photos').getPublicUrl(path)
+      const url = urlData.publicUrl
+      const { error } = await supabase.from('properties').update({ floor_plan: url }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+      return url
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useDeleteFloorPlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (propertyId: string) => {
+      const { error } = await supabase.from('properties').update({ floor_plan: null }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, propertyId) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
 export function usePropertiesByOwner(ownerId: string) {
   return useQuery({
     queryKey: [QUERY_KEY, 'owner', ownerId],

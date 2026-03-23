@@ -26,7 +26,19 @@ export interface Property {
   rooms?: number
   floor?: number
   total_floors?: number
-  view?: string // вид из окон
+  view?: string
+  kitchen_area?: number
+  living_area?: number
+  extra_features?: string[]
+  room_type?: string
+  ceiling_height?: number
+  bathroom_type?: string
+  window_views?: string[]
+  renovation?: string
+  heated_floor?: boolean
+  furniture?: string[]
+  sale_method?: string
+  floor_plan?: string
 
   // Location
   address: string
@@ -89,6 +101,18 @@ export interface PropertyFormData {
   floor?: number
   total_floors?: number
   view?: string
+  kitchen_area?: number
+  living_area?: number
+  extra_features?: string[]
+  room_type?: string
+  ceiling_height?: number
+  bathroom_type?: string
+  window_views?: string[]
+  renovation?: string
+  heated_floor?: boolean
+  furniture?: string[]
+  sale_method?: string
+  floor_plan?: string
   address: string
   complex_name?: string
   description?: string
