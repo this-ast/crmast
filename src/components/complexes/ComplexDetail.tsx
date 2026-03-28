@@ -188,7 +188,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
       setTimeout(() => { setLightbox(false); setSwipeDy(0); setDismissing(false) }, 220)
     } else {
       setSwipeDy(0)
-      if (adx > 50 && adx > ady && complex.photos.length > 1) {
+      if (adx > 50 && adx > ady && complex && complex.photos.length > 1) {
         if (dx < 0) goToPhoto((activePhotoIdx + 1) % complex.photos.length, 'left')
         else goToPhoto((activePhotoIdx - 1 + complex.photos.length) % complex.photos.length, 'right')
       }
