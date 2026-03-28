@@ -37,6 +37,10 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   const [lightbox, setLightbox] = useState(false)
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
   const [lbTouchStart, setLbTouchStart] = useState({ x: 0, y: 0 })
+  const [swipeDy, setSwipeDy] = useState(0)
+  const [swipeDx, setSwipeDx] = useState(0)
+  const [swipeAxis, setSwipeAxis] = useState<'x' | 'y' | null>(null)
+  const [dismissing, setDismissing] = useState(false)
   const stripRef = useState<HTMLDivElement | null>(null)
 
   if (!photos || photos.length === 0) return null
@@ -45,7 +49,6 @@ function PhotoGallery({ photos }: { photos: string[] }) {
     setSlideDir(dir)
     setIdx(newIdx)
   }
-
   function prev(e: React.MouseEvent) {
     e.stopPropagation()
     goTo((idx - 1 + photos.length) % photos.length, 'right')
@@ -54,24 +57,6 @@ function PhotoGallery({ photos }: { photos: string[] }) {
     e.stopPropagation()
     goTo((idx + 1) % photos.length, 'left')
   }
-
-  function handleLbTouchStart(e: React.TouchEvent) {
-    setLbTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
-  }
-
-  function handleLbTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0].clientX - lbTouchStart.x
-    const dy = e.changedTouches[0].clientY - lbTouchStart.y
-    const adx = Math.abs(dx)
-    const ady = Math.abs(dy)
-    if (ady > 60 && ady > adx) {
-      setLightbox(false)
-    } else if (adx > 50 && adx > ady && photos.length > 1) {
-      if (dx < 0) goTo((idx + 1) % photos.length, 'left')
-      else goTo((idx - 1 + photos.length) % photos.length, 'right')
-    }
-  }
-
   function scrollThumbIntoView(i: number) {
     const el = stripRef[0]
     if (!el) return
@@ -79,9 +64,45 @@ function PhotoGallery({ photos }: { photos: string[] }) {
     if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }
 
+  function handleLbTouchStart(e: React.TouchEvent) {
+    setLbTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    setSwipeAxis(null)
+  }
+  function handleLbTouchMove(e: React.TouchEvent) {
+    const dx = e.touches[0].clientX - lbTouchStart.x
+    const dy = e.touches[0].clientY - lbTouchStart.y
+    const adx = Math.abs(dx), ady = Math.abs(dy)
+    const axis = swipeAxis ?? (adx > 8 || ady > 8 ? (ady > adx ? 'y' : 'x') : null)
+    if (axis && !swipeAxis) setSwipeAxis(axis)
+    if (axis === 'y') setSwipeDy(dy * 0.55)
+    if (axis === 'x') setSwipeDx(dx * 0.25)
+  }
+  function handleLbTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - lbTouchStart.x
+    const dy = e.changedTouches[0].clientY - lbTouchStart.y
+    const adx = Math.abs(dx), ady = Math.abs(dy)
+    setSwipeDx(0)
+    if (ady > 60 && ady > adx) {
+      setDismissing(true)
+      setSwipeDy(dy > 0 ? 400 : -400)
+      setTimeout(() => { setLightbox(false); setSwipeDy(0); setDismissing(false) }, 220)
+    } else {
+      setSwipeDy(0)
+      if (adx > 50 && adx > ady && photos.length > 1) {
+        if (dx < 0) goTo((idx + 1) % photos.length, 'left')
+        else goTo((idx - 1 + photos.length) % photos.length, 'right')
+      }
+    }
+    setSwipeAxis(null)
+  }
+
   const photoAnimClass = slideDir === 'left' ? 'lb-photo-from-right'
     : slideDir === 'right' ? 'lb-photo-from-left'
     : lightbox ? 'lb-photo-in' : ''
+
+  const isTracking = swipeDy !== 0 || swipeDx !== 0
+  const dragProgress = Math.min(Math.abs(swipeDy) / 260, 1)
+  const overlayOpacity = dismissing ? 0 : Math.max(0, 1 - dragProgress * 0.85)
 
   return (
     <>
@@ -95,7 +116,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             <img
               src={src}
               alt=""
-              className="w-full h-52 object-cover cursor-zoom-in"
+              className="w-full h-52 object-cover cursor-zoom-in transition-transform duration-200 active:scale-[0.98]"
               onClick={() => { setSlideDir(null); setIdx(i); setLightbox(true) }}
               loading="lazy"
             />
@@ -103,13 +124,13 @@ function PhotoGallery({ photos }: { photos: string[] }) {
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); goTo((i - 1 + photos.length) % photos.length, 'right'); scrollThumbIntoView((i - 1 + photos.length) % photos.length) }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all duration-200"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); goTo((i + 1) % photos.length, 'left'); scrollThumbIntoView((i + 1) % photos.length) }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all duration-200"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -135,8 +156,8 @@ function PhotoGallery({ photos }: { photos: string[] }) {
               key={src}
               onClick={() => { goTo(i, i > idx ? 'left' : 'right'); scrollThumbIntoView(i) }}
               className={cn(
-                'w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
-                i === idx ? 'border-blue-400 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:border-slate-400'
+                'w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-300',
+                i === idx ? 'border-blue-400 scale-105' : 'border-transparent opacity-50 hover:opacity-90 hover:border-slate-400'
               )}
             >
               <img src={src} alt="" className="w-full h-full object-cover" />
@@ -148,23 +169,34 @@ function PhotoGallery({ photos }: { photos: string[] }) {
       {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center lb-overlay-in"
-          onClick={() => setLightbox(false)}
+          className="fixed inset-0 z-[10100] flex items-center justify-center lb-overlay-in"
+          style={{ backgroundColor: `rgba(0,0,0,${0.95 * overlayOpacity})` }}
+          onClick={() => { if (!isTracking) setLightbox(false) }}
           onTouchStart={handleLbTouchStart}
+          onTouchMove={handleLbTouchMove}
           onTouchEnd={handleLbTouchEnd}
         >
           <button
             onClick={(e) => { e.stopPropagation(); setLightbox(false) }}
+            style={{ opacity: overlayOpacity, transition: 'opacity 0.2s' }}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
             <X size={20} />
           </button>
           {photos.length > 1 && (
             <>
-              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+              <button
+                onClick={prev}
+                style={{ opacity: overlayOpacity, transition: 'opacity 0.2s' }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+              >
                 <ChevronLeft size={24} />
               </button>
-              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+              <button
+                onClick={next}
+                style={{ opacity: overlayOpacity, transition: 'opacity 0.2s' }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+              >
                 <ChevronRight size={24} />
               </button>
             </>
@@ -173,20 +205,31 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             key={idx}
             src={photos[idx]}
             alt=""
-            className={`max-w-[90vw] max-h-[90vh] object-contain rounded-lg ${photoAnimClass}`}
+            className={`max-w-[90vw] max-h-[90vh] object-contain rounded-2xl ${isTracking ? '' : photoAnimClass}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ touchAction: 'none' }}
+            style={{
+              touchAction: 'none',
+              transform: `translateY(${swipeDy}px) translateX(${swipeDx}px) scale(${1 - dragProgress * 0.08})`,
+              transition: isTracking ? 'none' : dismissing ? 'transform 0.22s cubic-bezier(0.4,0,1,1), opacity 0.22s' : 'transform 0.38s cubic-bezier(0.34,1.56,0.64,1)',
+              opacity: Math.max(0, 1 - dragProgress * 0.6),
+            }}
           />
           {photos.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+            <div
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5"
+              style={{ opacity: overlayOpacity, transition: 'opacity 0.2s' }}
+            >
               {photos.map((_, i) => (
-                <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i) }}
-                  className={cn('w-2.5 h-2.5 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/40')}
+                <button key={i} onClick={(e) => { e.stopPropagation(); goTo(i, i > idx ? 'left' : 'right') }}
+                  className={cn('w-2.5 h-2.5 rounded-full transition-all duration-300', i === idx ? 'bg-white scale-110' : 'bg-white/40')}
                 />
               ))}
             </div>
           )}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+          <div
+            className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm"
+            style={{ opacity: overlayOpacity, transition: 'opacity 0.2s' }}
+          >
             {idx + 1} / {photos.length}
           </div>
         </div>

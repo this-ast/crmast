@@ -26,10 +26,10 @@ export default function Modal({ isOpen, onClose, title, children, size = 'lg' }:
     <Dialog open={isOpen} onClose={onClose} className="relative z-50" transition>
       {/* Backdrop */}
       <TransitionChild
-        enter="transition-opacity duration-200 ease-out"
+        enter="transition duration-[280ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
         enterFrom="opacity-0"
         enterTo="opacity-100"
-        leave="transition-opacity duration-150 ease-in"
+        leave="transition duration-[220ms] ease-[cubic-bezier(0.4,0,1,1)]"
         leaveFrom="opacity-100"
         leaveTo="opacity-0"
       >
@@ -39,12 +39,12 @@ export default function Modal({ isOpen, onClose, title, children, size = 'lg' }:
       {/* Modal container — sheet on mobile, centered on desktop */}
       <div className="fixed inset-0 flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 overflow-y-auto">
         <TransitionChild
-          enter="transition duration-250 ease-out"
-          enterFrom="opacity-0 translate-y-8 sm:translate-y-0 sm:scale-95"
+          enter="transition duration-[380ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+          enterFrom="opacity-0 translate-y-full sm:translate-y-0 sm:scale-[0.93]"
           enterTo="opacity-100 translate-y-0 sm:scale-100"
-          leave="transition duration-150 ease-in"
+          leave="transition duration-[220ms] ease-[cubic-bezier(0.4,0,1,1)]"
           leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-          leaveTo="opacity-0 translate-y-8 sm:translate-y-0 sm:scale-95"
+          leaveTo="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-[0.96]"
         >
           <DialogPanel
             className={`w-full ${sizeClasses[size]} bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col`}
