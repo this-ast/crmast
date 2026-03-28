@@ -5,7 +5,8 @@ import {
   Building2, Users, TrendingUp, Clock, AlertCircle, Loader2,
   Plus, CheckCircle2, Circle, Trash2, Pencil, X, Bell,
   ChevronLeft, ChevronRight, BarChart2, Target, Zap, Star,
-  Calendar, Link2,
+  Calendar, Link2, Phone, DollarSign, TrendingDown, Flame,
+  ChevronUp, ChevronDown, GripVertical, Settings2,
 } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { useClients } from '@/hooks/useClients'
@@ -871,6 +872,243 @@ function MiniCRM({ clients }: { clients: any[] }) {
   )
 }
 
+// ─── Money Block ──────────────────────────────────────────────────────────────
+
+function MoneyBlock({ deals }: { deals: any[] }) {
+  const navigate = useNavigate()
+  const now = new Date()
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
+  const activeDeals = deals.filter(d => d.status === 'active')
+  const expectedIncome = activeDeals.reduce((s: number, d: any) => s + (d.commission ?? 0), 0)
+  const potentialRevenue = activeDeals.reduce((s: number, d: any) => s + (d.deal_price ?? 0), 0)
+
+  const monthDeals = deals.filter(d => d.status === 'completed' && d.deal_date >= monthStart)
+  const monthIncome = monthDeals.reduce((s: number, d: any) => s + (d.commission ?? 0), 0)
+
+  const card = (icon: React.ElementType, label: string, value: string, sub: string, color: string, href?: string) => {
+    const Icon = icon
+    return (
+      <div
+        onClick={() => href && navigate(href)}
+        className={cn('bg-white rounded-2xl border border-slate-100 p-5 transition-all duration-200', href && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]')}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center', color)}>
+            <Icon size={16} />
+          </div>
+          <span className="text-xs font-medium text-slate-500">{label}</span>
+        </div>
+        <p className="text-xl font-bold text-slate-900">{value}</p>
+        <p className="text-xs text-slate-400 mt-1">{sub}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {card(DollarSign, 'Ожидаемый доход', formatPrice(expectedIncome), `${activeDeals.length} активных сделок`, 'bg-emerald-50 text-emerald-600', '/deals')}
+      {card(TrendingUp, 'Доход за месяц', formatPrice(monthIncome), `${monthDeals.length} закрытых сделок`, 'bg-blue-50 text-blue-600', '/deals')}
+      {card(Target, 'Потенциальный оборот', formatPrice(potentialRevenue), 'по активным сделкам', 'bg-violet-50 text-violet-600', '/deals')}
+    </div>
+  )
+}
+
+// ─── Sales Funnel Block ────────────────────────────────────────────────────────
+
+function SalesFunnelBlock({ clients }: { clients: any[] }) {
+  const navigate = useNavigate()
+  const active = clients.filter(c => c.status !== 'Архив' && c.status !== 'Сделка')
+  const leads     = active.filter(c => !c.funnel_stage || c.funnel_stage === 'new' || c.funnel_stage === 'needs').length
+  const selection = active.filter(c => c.funnel_stage === 'selection').length
+  const showings  = active.filter(c => c.funnel_stage === 'showings').length
+  const thinking  = active.filter(c => c.funnel_stage === 'thinking' || c.funnel_stage === 'bargain').length
+  const closed    = clients.filter(c => c.funnel_stage === 'deal' || c.status === 'Сделка').length
+
+  const stages = [
+    { label: 'Лиды',       count: leads,     color: 'bg-slate-400',   light: 'bg-slate-50 text-slate-600' },
+    { label: 'Подбор',     count: selection, color: 'bg-blue-400',    light: 'bg-blue-50 text-blue-600' },
+    { label: 'Показы',     count: showings,  color: 'bg-violet-400',  light: 'bg-violet-50 text-violet-600' },
+    { label: 'Думает/Торг',count: thinking,  color: 'bg-amber-400',   light: 'bg-amber-50 text-amber-700' },
+    { label: 'Сделка',     count: closed,    color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700' },
+  ]
+  const maxCount = Math.max(...stages.map(s => s.count), 1)
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-slate-800">Воронка продаж</h3>
+        <button onClick={() => navigate('/clients')} className="text-xs text-blue-600 hover:underline">Все клиенты →</button>
+      </div>
+      <div className="space-y-2.5">
+        {stages.map((s, i) => {
+          const pct = maxCount > 0 ? Math.round((s.count / maxCount) * 100) : 0
+          const conv = i > 0 && stages[i-1].count > 0 ? Math.round((s.count / stages[i-1].count) * 100) : null
+          return (
+            <div key={s.label}>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-xs text-slate-500 w-24 shrink-0">{s.label}</span>
+                <div className="flex-1 h-6 bg-slate-100 rounded-lg overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-2', s.color)}
+                    style={{ width: `${Math.max(pct, s.count > 0 ? 8 : 0)}%` }}
+                  >
+                    {s.count > 0 && <span className="text-[11px] font-bold text-white">{s.count}</span>}
+                  </div>
+                </div>
+                {conv !== null && (
+                  <span className={cn('text-[11px] font-semibold w-12 text-right shrink-0', conv >= 50 ? 'text-emerald-600' : conv >= 25 ? 'text-amber-600' : 'text-red-500')}>
+                    {conv}%
+                  </span>
+                )}
+                {conv === null && <span className="w-12 shrink-0" />}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-xs text-slate-400 mt-3">Конверсия между этапами</p>
+    </div>
+  )
+}
+
+// ─── Call Now Block ────────────────────────────────────────────────────────────
+
+function CallNowBlock({ clients }: { clients: any[] }) {
+  const navigate = useNavigate()
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const twoDaysAgo = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10)
+
+  const hot      = clients.filter(c => c.status === 'Горячий' && c.status !== 'Архив').slice(0, 3)
+  const noTouch  = clients.filter(c =>
+    c.status !== 'Архив' && c.status !== 'Сделка' &&
+    (!c.last_contact || c.last_contact < twoDaysAgo)
+  ).sort((a, b) => (a.last_contact ?? '') < (b.last_contact ?? '') ? -1 : 1).slice(0, 3)
+  const thinking = clients.filter(c => c.status === 'Думает' || c.funnel_stage === 'thinking').slice(0, 3)
+
+  const daysSince = (d?: string) => {
+    if (!d) return null
+    return Math.floor((Date.now() - new Date(d).getTime()) / 864e5)
+  }
+
+  const ClientRow = ({ c, tag }: { c: any; tag: string }) => (
+    <button
+      onClick={() => navigate('/clients')}
+      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-left"
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-slate-800 truncate">{c.name}</p>
+        {c.budget && <p className="text-[11px] text-slate-400 truncate">{c.budget}</p>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {c.payment_method && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{c.payment_method}</span>}
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{tag}</span>
+      </div>
+    </button>
+  )
+
+  const allEmpty = hot.length === 0 && noTouch.length === 0 && thinking.length === 0
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
+          <Phone size={15} className="text-red-500" />
+        </div>
+        <h3 className="text-sm font-semibold text-slate-800">Кому позвонить сейчас</h3>
+      </div>
+      {allEmpty ? (
+        <p className="text-xs text-slate-400 text-center py-4">Нет срочных контактов</p>
+      ) : (
+        <div className="space-y-3">
+          {hot.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-red-600 mb-1.5 flex items-center gap-1"><Flame size={11} /> Горячие</p>
+              <div className="space-y-1">
+                {hot.map(c => <ClientRow key={c.id} c={c} tag="🔥 Горячий" />)}
+              </div>
+            </div>
+          )}
+          {noTouch.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-amber-600 mb-1.5">⏰ Нет контакта {'>'}2 дней</p>
+              <div className="space-y-1">
+                {noTouch.map(c => {
+                  const d = daysSince(c.last_contact)
+                  return <ClientRow key={c.id} c={c} tag={d !== null ? `${d}д без связи` : 'Нет контакта'} />
+                })}
+              </div>
+            </div>
+          )}
+          {thinking.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-purple-600 mb-1.5">💭 Думает</p>
+              <div className="space-y-1">
+                {thinking.map(c => <ClientRow key={c.id} c={c} tag="Думает" />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Lost Opportunities Block ──────────────────────────────────────────────────
+
+function LostOpportunitiesBlock({ clients, deals }: { clients: any[]; deals: any[] }) {
+  const navigate = useNavigate()
+  const cancelled  = deals.filter(d => d.status === 'cancelled')
+  const coldLeads  = clients.filter(c => c.status === 'Холодный' || c.status === 'Воздухан' || c.status === 'Воздухан(ка)')
+  const noReply    = clients.filter(c => !c.last_contact && c.status !== 'Архив' && c.status !== 'Сделка')
+
+  const totalLost = cancelled.length + coldLeads.length + noReply.length
+  if (totalLost === 0) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-red-100 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
+          <TrendingDown size={15} className="text-red-500" />
+        </div>
+        <h3 className="text-sm font-semibold text-slate-800">Потерянные возможности</h3>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <button onClick={() => navigate('/deals')} className="text-center p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
+          <p className="text-2xl font-bold text-red-600">{cancelled.length}</p>
+          <p className="text-[11px] text-red-500 mt-0.5">Сорванных сделок</p>
+        </button>
+        <button onClick={() => navigate('/clients')} className="text-center p-3 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors">
+          <p className="text-2xl font-bold text-amber-600">{coldLeads.length}</p>
+          <p className="text-[11px] text-amber-500 mt-0.5">Холодных / воздухан</p>
+        </button>
+        <button onClick={() => navigate('/clients')} className="text-center p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+          <p className="text-2xl font-bold text-slate-600">{noReply.length}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Без контакта</p>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Layout block wrapper ──────────────────────────────────────────────────────
+
+const DEFAULT_LAYOUT = ['money', 'metrics', 'callnow_funnel', 'notifications', 'tasks', 'analytics', 'lost']
+
+function useLayout() {
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('crm_dash_layout') ?? '') } catch { return null } })()
+  const [layout, setLayoutState] = useState<string[]>(saved ?? DEFAULT_LAYOUT)
+  const setLayout = (l: string[]) => { setLayoutState(l); localStorage.setItem('crm_dash_layout', JSON.stringify(l)) }
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...layout]
+    const swap = idx + dir
+    if (swap < 0 || swap >= next.length) return
+    ;[next[idx], next[swap]] = [next[swap], next[idx]]
+    setLayout(next)
+  }
+  return { layout, move, reset: () => setLayout(DEFAULT_LAYOUT) }
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -878,6 +1116,8 @@ export default function DashboardPage() {
   const { data: clients = [], isLoading: clientsLoading, error: clientsError } = useClients()
   const { data: deals = [], isLoading: dealsLoading } = useDeals()
   const { data: tasks = [], isLoading: tasksLoading } = useTasks()
+  const [editLayout, setEditLayout] = useState(false)
+  const { layout, move, reset } = useLayout()
 
   const isLoading = propsLoading || clientsLoading || dealsLoading || tasksLoading
   const hasError = propsError || clientsError
@@ -904,16 +1144,57 @@ export default function DashboardPage() {
     )
   }
 
-  // Stat calculations
   const activeProps = properties.filter(p => p.status === 'active').length
-  const totalValue = properties.filter(p => p.status === 'active').reduce((s, p) => s + p.price, 0)
-  const hotClients = clients.filter(c => c.status === 'Горячий' || c.status === 'Тёплый').length
+  const hotClients = clients.filter(c => c.status === 'Горячий' || c.status === 'Тёплый' || c.status === 'Теплый').length
   const pendingTasks = tasks.filter(t => t.status !== 'done').length
   const overdueTasksCount = tasks.filter(t => t.status !== 'done' && isOverdue(t.deadline)).length
+  const activeDealsCount = (deals as any[]).filter(d => d.status === 'active').length
 
   const taskProps = properties.map(p => ({ id: p.id, article: p.article, address: p.address }))
   const taskDeals = (deals as any[]).map(d => ({ id: d.id, title: d.title, deal_number: d.deal_number }))
   const taskClients = clients.map(c => ({ id: c.id, name: c.name }))
+
+  const blocks: Record<string, React.ReactNode> = {
+    money: <MoneyBlock deals={deals as any[]} />,
+    metrics: (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard icon={Building2} label="Активных объектов" value={activeProps} sub={`${properties.length} всего в базе`} color="bg-blue-50 text-blue-600" href="/properties" />
+        <StatCard icon={Users} label="Горячих клиентов" value={hotClients} sub={`${clients.length} всего в базе`} color="bg-orange-50 text-orange-600" href="/clients" />
+        <StatCard icon={Clock} label="Активных задач" value={pendingTasks} sub={overdueTasksCount > 0 ? `⏰ ${overdueTasksCount} просрочено` : 'Всё в срок'} color="bg-purple-50 text-purple-600" href="/tasks" />
+        <StatCard icon={Zap} label="Активных сделок" value={activeDealsCount} sub="в работе" color="bg-emerald-50 text-emerald-600" href="/deals" />
+      </div>
+    ),
+    callnow_funnel: (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CallNowBlock clients={clients} />
+        <SalesFunnelBlock clients={clients} />
+      </div>
+    ),
+    notifications: (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <NotificationsWidget clients={clients} tasks={tasks} />
+        <div className="lg:col-span-2"><MiniCalendar tasks={tasks} /></div>
+      </div>
+    ),
+    tasks: <TasksWidget tasks={tasks} clients={taskClients} properties={taskProps} deals={taskDeals} />,
+    analytics: (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AnalyticsWidget tasks={tasks} clients={clients} deals={deals} />
+        <MiniCRM clients={clients} />
+      </div>
+    ),
+    lost: <LostOpportunitiesBlock clients={clients} deals={deals as any[]} />,
+  }
+
+  const BLOCK_LABELS: Record<string, string> = {
+    money: '💰 Деньги',
+    metrics: '📊 Метрики',
+    callnow_funnel: '📞 Позвонить + воронка',
+    notifications: '🔔 Уведомления + календарь',
+    tasks: '✅ Задачи',
+    analytics: '📈 Аналитика + клиенты',
+    lost: '⚠️ Потери',
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
@@ -923,45 +1204,53 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-slate-900 capitalize">{dateLabel}</h1>
           <p className="text-sm text-slate-500 mt-0.5">Сводка по работе</p>
         </div>
-        {overdueTasksCount > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
-            <AlertCircle size={14} className="text-red-500" />
-            <span className="text-xs font-semibold text-red-700">Просрочено задач: {overdueTasksCount}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <StatCard icon={Building2} label="Активных объектов" value={activeProps} sub={`${properties.length} всего в базе`} color="bg-blue-50 text-blue-600" href="/properties" />
-        <StatCard icon={TrendingUp} label="Сумма активных" value={formatPrice(totalValue)} sub={`${properties.filter(p=>p.status==='sold').length} продано`} color="bg-emerald-50 text-emerald-600" href="/properties" />
-        <StatCard icon={Users} label="Горячих клиентов" value={hotClients} sub={`${clients.length} всего в базе`} color="bg-orange-50 text-orange-600" href="/clients" />
-        <StatCard icon={Clock} label="Активных задач" value={pendingTasks} sub={overdueTasksCount > 0 ? `⏰ ${overdueTasksCount} просрочено` : 'Всё в срок'} color="bg-purple-50 text-purple-600" href="/tasks" />
-      </div>
-
-      {/* Notifications + Calendar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-        <NotificationsWidget clients={clients} tasks={tasks} />
-        <div className="lg:col-span-2">
-          <MiniCalendar tasks={tasks} />
+        <div className="flex items-center gap-2">
+          {overdueTasksCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle size={14} className="text-red-500" />
+              <span className="text-xs font-semibold text-red-700">Просрочено: {overdueTasksCount}</span>
+            </div>
+          )}
+          <button
+            onClick={() => setEditLayout(v => !v)}
+            className={cn('flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors', editLayout ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
+          >
+            <Settings2 size={14} />
+            {editLayout ? 'Готово' : 'Блоки'}
+          </button>
         </div>
       </div>
 
-      {/* Tasks */}
-      <div className="mb-5">
-        <TasksWidget
-          tasks={tasks}
-          clients={taskClients}
-          properties={taskProps}
-          deals={taskDeals}
-        />
+      {/* Blocks */}
+      <div className="space-y-5">
+        {layout.map((key, idx) => {
+          const block = blocks[key]
+          if (!block) return null
+          return (
+            <div key={key} className={cn('relative', editLayout && 'ring-2 ring-blue-200 rounded-2xl p-1')}>
+              {editLayout && (
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <GripVertical size={14} className="text-slate-400" />
+                    <span className="text-xs font-medium text-slate-600">{BLOCK_LABELS[key]}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => move(idx, -1)} disabled={idx === 0} className="p-1 rounded-lg hover:bg-slate-200 disabled:opacity-30 transition-colors"><ChevronUp size={14} /></button>
+                    <button onClick={() => move(idx, 1)} disabled={idx === layout.length - 1} className="p-1 rounded-lg hover:bg-slate-200 disabled:opacity-30 transition-colors"><ChevronDown size={14} /></button>
+                  </div>
+                </div>
+              )}
+              {block}
+            </div>
+          )
+        })}
       </div>
 
-      {/* Analytics + Mini CRM */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <AnalyticsWidget tasks={tasks} clients={clients} deals={deals} />
-        <MiniCRM clients={clients} />
-      </div>
+      {editLayout && (
+        <div className="mt-4 flex justify-center">
+          <button onClick={reset} className="text-xs text-slate-400 hover:text-red-500 transition-colors">Сбросить порядок</button>
+        </div>
+      )}
     </div>
   )
 }
