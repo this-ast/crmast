@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Building2, CalendarDays, FileText, Phone, User, X,
-  Pencil, Trash2, ChevronRight, ExternalLink, Download,
+  Building2, CalendarDays, FileText, MapPin, Phone, User, X,
+  Pencil, Trash2, ChevronRight, Download,
 } from 'lucide-react'
-import { useComplex, useDeleteComplex } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useDeleteComplex } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
@@ -22,6 +22,38 @@ const DOC_TYPE_LABELS = {
   permit: 'Разрешение на строительство',
   developer: 'Документы застройщика',
   other: 'Документ',
+}
+
+function DeveloperUnitsView({ complexId }: { complexId: string }) {
+  const { data: units = [] } = useComplexUnits(complexId)
+  if (units.length === 0) return null
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+        Объекты от застройщика ({units.length})
+      </h3>
+      <div className="space-y-2">
+        {units.map((unit) => (
+          <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-800">
+                {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
+                {unit.area ? ` · ${unit.area} м²` : ''}
+                {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+              </p>
+              {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
+            </div>
+            {unit.price != null && (
+              <div className="text-right shrink-0 ml-3">
+                <p className="text-xs text-slate-400">Наличный</p>
+                <p className="text-sm font-bold text-emerald-600">{new Intl.NumberFormat('ru-RU').format(unit.price)} ₽</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps) {
@@ -124,6 +156,23 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         </div>
       </div>
 
+      {/* District / Address badges */}
+      {(complex.district || complex.address) && (
+        <div className="mx-6 mb-0 flex flex-wrap gap-2 pt-3">
+          {complex.district && (
+            <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+              📍 {complex.district}
+            </span>
+          )}
+          {complex.address && (
+            <span className="inline-flex items-center text-xs text-slate-500 gap-1">
+              <MapPin size={12} />
+              {complex.address}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="mx-6 mt-4 p-4 bg-red-50 rounded-xl border border-red-100">
@@ -151,21 +200,32 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         {/* Photos gallery */}
         {complex.photos.length > 0 && (
           <div>
-            <div className="w-full h-48 rounded-xl overflow-hidden mb-2 bg-slate-100">
-              <img
-                src={complex.photos[activePhotoIdx]}
-                alt={complex.name}
-                className="w-full h-full object-cover"
-              />
+            {/* Main scrollable gallery */}
+            <div
+              className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {complex.photos.map((url, i) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={`${complex.name} ${i + 1}`}
+                  onClick={() => setActivePhotoIdx(i)}
+                  className={`w-full h-48 rounded-xl object-cover shrink-0 snap-center cursor-pointer transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
+                  style={{ minWidth: '100%' }}
+                  loading="lazy"
+                />
+              ))}
             </div>
+            {/* Thumbnail strip */}
             {complex.photos.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 mt-2" style={{ scrollbarWidth: 'thin' }}>
                 {complex.photos.map((url, i) => (
                   <button
                     key={url}
                     onClick={() => setActivePhotoIdx(i)}
-                    className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${
-                      activePhotoIdx === i ? 'border-blue-500' : 'border-transparent'
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${
+                      activePhotoIdx === i ? 'border-blue-500' : 'border-transparent hover:border-slate-300'
                     }`}
                   >
                     <img src={url} alt="" className="w-full h-full object-cover" />
@@ -252,6 +312,43 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             <p className="text-sm text-emerald-800" style={{ whiteSpace: 'pre-wrap' }}>
               {complex.purchase_conditions}
             </p>
+          </div>
+        )}
+
+        {/* Pricing / Deal conditions */}
+        {complex.pricing && Object.values(complex.pricing).some((e) => e?.price_per_sqm) && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Условия сделки (цена за м²)
+            </h3>
+            <div className="space-y-2">
+              {[
+                { key: 'cash', label: 'Наличный расчёт', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                { key: 'installment_6m', label: 'Рассрочка 6 мес', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_12m', label: 'Рассрочка 1 год', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_18m', label: 'Рассрочка 18 мес', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_24m', label: 'Рассрочка 2 года', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_36m', label: 'Рассрочка 3 года', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_48m', label: 'Рассрочка 4 года', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'installment_60m', label: 'Рассрочка 5 лет', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                { key: 'family_mortgage', label: 'Семейная ипотека 6%', color: 'bg-violet-50 text-violet-700 border-violet-100' },
+                { key: 'escrow', label: 'Эскроу счета', color: 'bg-amber-50 text-amber-700 border-amber-100' },
+              ].map(({ key, label, color }) => {
+                const entry = (complex.pricing as Record<string, { price_per_sqm?: number; updated_at?: string }>)?.[key]
+                if (!entry?.price_per_sqm) return null
+                return (
+                  <div key={key} className={`flex items-center justify-between p-2.5 rounded-xl border ${color}`}>
+                    <span className="text-xs font-medium">{label}</span>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">{new Intl.NumberFormat('ru-RU').format(entry.price_per_sqm)} ₽/м²</p>
+                      {entry.updated_at && (
+                        <p className="text-[10px] opacity-60">с {new Date(entry.updated_at).toLocaleDateString('ru-RU')}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
@@ -364,6 +461,9 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             </div>
           </div>
         )}
+
+        {/* Developer units */}
+        <DeveloperUnitsView complexId={complexId} />
       </div>
     </div>
   )

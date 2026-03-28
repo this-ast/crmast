@@ -1,5 +1,23 @@
 import type { PropertyWithOwner } from './property'
 
+export interface PricingEntry {
+  price_per_sqm?: number
+  updated_at?: string  // ISO date string e.g. "2024-01-15"
+}
+
+export interface ComplexPricing {
+  cash?: PricingEntry
+  installment_6m?: PricingEntry
+  installment_12m?: PricingEntry
+  installment_18m?: PricingEntry
+  installment_24m?: PricingEntry
+  installment_36m?: PricingEntry
+  installment_48m?: PricingEntry
+  installment_60m?: PricingEntry
+  family_mortgage?: PricingEntry
+  escrow?: PricingEntry
+}
+
 export interface Complex {
   id: string
   name: string
@@ -20,6 +38,10 @@ export interface Complex {
   yard_features?: string[]
   parking?: string[]
   building_type?: string
+  // New fields
+  district?: string
+  address?: string
+  pricing?: ComplexPricing
 }
 
 export interface ComplexDocument {
@@ -47,6 +69,35 @@ export interface ComplexFormData {
   yard_features?: string[]
   parking?: string[]
   building_type?: string
+  // New fields
+  district?: string
+  address?: string
+  pricing?: ComplexPricing
+}
+
+export interface ComplexUnit {
+  id: string
+  complex_id: string
+  title?: string
+  rooms?: number
+  area?: number
+  floor?: number
+  total_floors?: number
+  price?: number
+  notes?: string
+  photos: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ComplexUnitFormData {
+  title?: string
+  rooms?: number
+  area?: number
+  floor?: number
+  total_floors?: number
+  price?: number
+  notes?: string
 }
 
 export interface AgentSettings {

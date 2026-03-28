@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Complex, ComplexFormData, ComplexDocument } from '@/types'
+import type { Complex, ComplexFormData, ComplexDocument, ComplexUnit, ComplexUnitFormData, ComplexPricing } from '@/types'
 
 const QUERY_KEY = 'complexes'
 
@@ -60,6 +60,9 @@ export function useCreateComplex() {
         manager_phones: data.manager_phones ?? [],
         photos: [],
         documents: [],
+        district: data.district ?? undefined,
+        address: data.address ?? undefined,
+        pricing: data.pricing ?? undefined,
       }
       console.log('[useCreateComplex] payload →', payload)
       const { error } = await supabase.from('complexes').insert(payload)
@@ -226,6 +229,68 @@ export function useDeleteComplexDocument() {
   })
 }
 
+export function useComplexUnits(complexId: string) {
+  return useQuery({
+    queryKey: ['complex_units', complexId],
+    enabled: !!complexId,
+    queryFn: async (): Promise<ComplexUnit[]> => {
+      const { data, error } = await supabase
+        .from('complex_units')
+        .select('*')
+        .eq('complex_id', complexId)
+        .order('created_at', { ascending: false })
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message)
+      }
+      return (data ?? []).map((u) => ({ ...u, photos: u.photos ?? [] })) as ComplexUnit[]
+    },
+  })
+}
+
+export function useCreateComplexUnit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ complexId, data }: { complexId: string; data: ComplexUnitFormData }) => {
+      const payload = Object.fromEntries(Object.entries({ ...data, complex_id: complexId }).filter(([, v]) => v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v))))
+      const { data: created, error } = await supabase.from('complex_units').insert(payload).select('*').single()
+      if (error) throw new Error(error.message)
+      return created as ComplexUnit
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+    },
+  })
+}
+
+export function useUpdateComplexUnit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, complexId, data }: { id: string; complexId: string; data: Partial<ComplexUnitFormData> }) => {
+      const payload = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined))
+      const { data: updated, error } = await supabase.from('complex_units').update(payload).eq('id', id).select('*').single()
+      if (error) throw new Error(error.message)
+      return updated as ComplexUnit
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+    },
+  })
+}
+
+export function useDeleteComplexUnit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, complexId }: { id: string; complexId: string }) => {
+      const { error } = await supabase.from('complex_units').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+    },
+  })
+}
+
 // Normalize raw Supabase row to Complex type
 function normalizeComplex(row: Record<string, unknown>): Complex {
   return {
@@ -236,5 +301,8 @@ function normalizeComplex(row: Record<string, unknown>): Complex {
     manager_phones: (row.manager_phones as string[]) ?? [],
     photos: (row.photos as string[]) ?? [],
     documents: (row.documents as ComplexDocument[]) ?? [],
+    pricing: (row.pricing as ComplexPricing) ?? {},
+    district: row.district as string | undefined,
+    address: row.address as string | undefined,
   }
 }

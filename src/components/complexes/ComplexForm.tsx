@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
 import {
   useCreateComplex,
   useUpdateComplex,
@@ -8,10 +8,15 @@ import {
   useUploadComplexDocument,
   useDeleteComplexPhoto,
   useDeleteComplexDocument,
+  useComplexUnits,
+  useCreateComplexUnit,
+  useUpdateComplexUnit,
+  useDeleteComplexUnit,
 } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
+import type { ComplexPricing, ComplexUnit } from '@/types'
 
 const DOC_TYPE_LABELS = {
   permit: 'Разрешение на строительство',
@@ -92,6 +97,168 @@ function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
   )
 }
 
+function DeveloperUnitsSection({ complexId }: { complexId: string }) {
+  const { data: units = [] } = useComplexUnits(complexId)
+  const createUnit = useCreateComplexUnit()
+  const updateUnit = useUpdateComplexUnit()
+  const deleteUnit = useDeleteComplexUnit()
+  const [editingUnit, setEditingUnit] = useState<ComplexUnit | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+
+  const emptyForm = { title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' }
+  const [form, setForm] = useState<typeof emptyForm>(emptyForm)
+
+  const handleAdd = async () => {
+    try {
+      await createUnit.mutateAsync({
+        complexId,
+        data: {
+          title: form.title || undefined,
+          rooms: form.rooms ? Number(form.rooms) : undefined,
+          area: form.area ? Number(form.area) : undefined,
+          floor: form.floor ? Number(form.floor) : undefined,
+          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
+          price: form.price ? Number(form.price) : undefined,
+          notes: form.notes || undefined,
+        },
+      })
+      setForm(emptyForm)
+      setShowAddForm(false)
+      toast.success('Объект добавлен')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка')
+    }
+  }
+
+  const handleUpdate = async (unit: ComplexUnit) => {
+    if (!editingUnit) return
+    try {
+      await updateUnit.mutateAsync({
+        id: unit.id,
+        complexId,
+        data: {
+          title: form.title || undefined,
+          rooms: form.rooms ? Number(form.rooms) : undefined,
+          area: form.area ? Number(form.area) : undefined,
+          floor: form.floor ? Number(form.floor) : undefined,
+          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
+          price: form.price ? Number(form.price) : undefined,
+          notes: form.notes || undefined,
+        },
+      })
+      setEditingUnit(null)
+      toast.success('Обновлено')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка')
+    }
+  }
+
+  const handleDelete = async (unit: ComplexUnit) => {
+    try {
+      await deleteUnit.mutateAsync({ id: unit.id, complexId })
+      toast.success('Удалено')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка')
+    }
+  }
+
+  const startEdit = (unit: ComplexUnit) => {
+    setEditingUnit(unit)
+    setForm({
+      title: unit.title ?? '',
+      rooms: unit.rooms != null ? String(unit.rooms) : '',
+      area: unit.area != null ? String(unit.area) : '',
+      floor: unit.floor != null ? String(unit.floor) : '',
+      total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
+      price: unit.price != null ? String(unit.price) : '',
+      notes: unit.notes ?? '',
+    })
+    setShowAddForm(false)
+  }
+
+  const UnitForm = ({ onSave, onCancel, saving }: { onSave: () => void; onCancel: () => void; saving?: boolean }) => (
+    <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+      <Input placeholder="Название (напр. 2-комн. кв.)" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+      <div className="grid grid-cols-2 gap-2">
+        <Input type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
+        <Input type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
+        <Input type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
+      </div>
+      <Input type="number" placeholder="Цена (наличный)" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+      <Input placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100">Отмена</button>
+        <button type="button" onClick={onSave} disabled={saving} className="flex-1 py-1.5 rounded-lg bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-1">
+          {saving && <Loader2 size={12} className="animate-spin" />}Сохранить
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <FieldLabel>Объекты от застройщика</FieldLabel>
+        {!showAddForm && !editingUnit && (
+          <button type="button" onClick={() => { setShowAddForm(true); setForm(emptyForm) }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            <Plus size={12} /> Добавить
+          </button>
+        )}
+      </div>
+      {showAddForm && (
+        <UnitForm
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={createUnit.isPending}
+        />
+      )}
+      <div className="space-y-2">
+        {units.map((unit) => (
+          <div key={unit.id}>
+            {editingUnit?.id === unit.id ? (
+              <UnitForm
+                onSave={() => handleUpdate(unit)}
+                onCancel={() => setEditingUnit(null)}
+                saving={updateUnit.isPending}
+              />
+            ) : (
+              <div className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">
+                    {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
+                    {unit.area ? ` · ${unit.area} м²` : ''}
+                    {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+                  </p>
+                  {unit.price != null && (
+                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">
+                      💵 {new Intl.NumberFormat('ru-RU').format(unit.price)} ₽
+                    </p>
+                  )}
+                  {unit.notes && <p className="text-xs text-slate-400 truncate mt-0.5">{unit.notes}</p>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button type="button" onClick={() => startEdit(unit)} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                    <Pencil size={13} />
+                  </button>
+                  <button type="button" onClick={() => handleDelete(unit)} className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {units.length === 0 && !showAddForm && (
+          <p className="text-xs text-slate-400">Нет объектов от застройщика</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ComplexForm() {
   const { closeForm, editingComplexId } = useComplexStore()
   const { data: editingComplex } = useComplex(editingComplexId ?? '')
@@ -116,6 +283,9 @@ export default function ComplexForm() {
   const [yardFeatures, setYardFeatures] = useState<string[]>([])
   const [parking, setParking] = useState<string[]>([])
   const [buildingType, setBuildingType] = useState('')
+  const [district, setDistrict] = useState('')
+  const [address, setAddress] = useState('')
+  const [pricing, setPricing] = useState<ComplexPricing>({})
   const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -132,6 +302,9 @@ export default function ComplexForm() {
       setYardFeatures(editingComplex.yard_features ?? [])
       setParking(editingComplex.parking ?? [])
       setBuildingType(editingComplex.building_type ?? '')
+      setDistrict(editingComplex.district ?? '')
+      setAddress(editingComplex.address ?? '')
+      setPricing(editingComplex.pricing ?? {})
     }
   }, [editingComplex])
 
@@ -161,6 +334,9 @@ export default function ComplexForm() {
       yard_features: yardFeatures,
       parking: parking,
       building_type: buildingType.trim() || undefined,
+      district: district.trim() || undefined,
+      address: address.trim() || undefined,
+      pricing: Object.keys(pricing).length > 0 ? pricing : undefined,
     }
 
     console.log('[ComplexForm] Отправка данных:', data)
@@ -291,6 +467,26 @@ export default function ComplexForm() {
           </div>
         </div>
 
+        {/* District + Address */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>Район</FieldLabel>
+            <Input
+              placeholder="Центр, Северный..."
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+            />
+          </div>
+          <div>
+            <FieldLabel>Адрес</FieldLabel>
+            <Input
+              placeholder="ул. Ленина, 1"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* Description */}
         <div>
           <FieldLabel>Описание</FieldLabel>
@@ -313,6 +509,48 @@ export default function ComplexForm() {
             value={purchaseConditions}
             onChange={(e) => setPurchaseConditions(e.target.value)}
           />
+        </div>
+
+        {/* Pricing / Deal conditions */}
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Условия сделки (цена за м²)</p>
+          {[
+            { key: 'cash', label: 'Наличный расчёт' },
+            { key: 'installment_6m', label: 'Рассрочка 6 мес' },
+            { key: 'installment_12m', label: 'Рассрочка 12 мес (1 год)' },
+            { key: 'installment_18m', label: 'Рассрочка 18 мес' },
+            { key: 'installment_24m', label: 'Рассрочка 24 мес (2 года)' },
+            { key: 'installment_36m', label: 'Рассрочка 36 мес (3 года)' },
+            { key: 'installment_48m', label: 'Рассрочка 48 мес (4 года)' },
+            { key: 'installment_60m', label: 'Рассрочка 60 мес (5 лет)' },
+            { key: 'family_mortgage', label: 'Семейная ипотека 6%' },
+            { key: 'escrow', label: 'Эскроу счета' },
+          ].map(({ key, label }) => {
+            const entry = (pricing as Record<string, { price_per_sqm?: number; updated_at?: string }>)[key] ?? {}
+            return (
+              <div key={key} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                <span className="text-xs text-slate-600 truncate">{label}</span>
+                <Input
+                  type="number"
+                  placeholder="руб/м²"
+                  className="w-28 text-xs"
+                  value={entry.price_per_sqm ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : undefined
+                    setPricing((p) => ({ ...p, [key]: { ...entry, price_per_sqm: val } }))
+                  }}
+                />
+                <Input
+                  type="date"
+                  className="w-36 text-xs"
+                  value={entry.updated_at ?? ''}
+                  onChange={(e) => {
+                    setPricing((p) => ({ ...p, [key]: { ...entry, updated_at: e.target.value || undefined } }))
+                  }}
+                />
+              </div>
+            )
+          })}
         </div>
 
         {/* Building characteristics */}
@@ -605,6 +843,9 @@ export default function ComplexForm() {
             </div>
           </div>
         )}
+
+        {/* Developer Units — only when editing */}
+        {editingComplexId && <DeveloperUnitsSection complexId={editingComplexId} />}
 
         {!editingComplexId && (
           <p className="text-xs text-slate-400 bg-blue-50 rounded-lg p-3">
