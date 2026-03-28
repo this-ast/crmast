@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, CalendarDays, FileText, MapPin, Phone, User, X,
-  Pencil, Trash2, ChevronRight, Download, Plus, Loader2,
+  Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn,
 } from 'lucide-react'
 import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
@@ -129,6 +129,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [activePhotoIdx, setActivePhotoIdx] = useState(0)
+  const [lightbox, setLightbox] = useState(false)
 
   const handleEdit = () => {
     onClose()
@@ -271,15 +272,23 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {complex.photos.map((url, i) => (
-                <img
+                <div
                   key={url}
-                  src={url}
-                  alt={`${complex.name} ${i + 1}`}
-                  onClick={() => setActivePhotoIdx(i)}
-                  className={`w-full h-48 rounded-xl object-cover shrink-0 snap-center cursor-pointer transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
+                  className="relative w-full shrink-0 snap-center group"
                   style={{ minWidth: '100%' }}
-                  loading="lazy"
-                />
+                >
+                  <img
+                    src={url}
+                    alt={`${complex.name} ${i + 1}`}
+                    onClick={() => { setActivePhotoIdx(i); setLightbox(true) }}
+                    className={`w-full h-48 rounded-xl object-cover cursor-zoom-in transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
+                    loading="lazy"
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+                    <ZoomIn size={10} />
+                    {i + 1}/{complex.photos.length}
+                  </div>
+                </div>
               ))}
             </div>
             {/* Thumbnail strip */}
@@ -298,6 +307,57 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Lightbox */}
+        {lightbox && complex.photos.length > 0 && (
+          <div
+            className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
+            onClick={() => setLightbox(false)}
+          >
+            <button
+              onClick={() => setLightbox(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            {complex.photos.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length) }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i + 1) % complex.photos.length) }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+            <img
+              src={complex.photos[activePhotoIdx]}
+              alt=""
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {complex.photos.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {complex.photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i) }}
+                    className={`w-2 h-2 rounded-full transition-colors ${i === activePhotoIdx ? 'bg-white' : 'bg-white/40'}`}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+              {activePhotoIdx + 1} / {complex.photos.length}
+            </div>
           </div>
         )}
 
