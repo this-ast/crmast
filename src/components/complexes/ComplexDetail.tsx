@@ -130,6 +130,21 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [activePhotoIdx, setActivePhotoIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
+  const [touchStartX, setTouchStartX] = useState(0)
+  const [touchStartY, setTouchStartY] = useState(0)
+
+  const handlePhotoTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX)
+    setTouchStartY(e.touches[0].clientY)
+  }
+  const handlePhotoTouchEnd = (e: React.TouchEvent, i: number) => {
+    const dx = Math.abs(e.changedTouches[0].clientX - touchStartX)
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY)
+    if (dx < 8 && dy < 8) {
+      setActivePhotoIdx(i)
+      setLightbox(true)
+    }
+  }
 
   const handleEdit = () => {
     onClose()
@@ -281,7 +296,10 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                     src={url}
                     alt={`${complex.name} ${i + 1}`}
                     onClick={() => { setActivePhotoIdx(i); setLightbox(true) }}
+                    onTouchStart={handlePhotoTouchStart}
+                    onTouchEnd={(e) => handlePhotoTouchEnd(e, i)}
                     className={`w-full h-48 rounded-xl object-cover cursor-zoom-in transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
+                    style={{ touchAction: 'pan-x' }}
                     loading="lazy"
                   />
                   <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
@@ -315,9 +333,23 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           <div
             className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
             onClick={() => setLightbox(false)}
+            onTouchStart={(e) => {
+              setTouchStartX(e.touches[0].clientX)
+              setTouchStartY(e.touches[0].clientY)
+            }}
+            onTouchEnd={(e) => {
+              const dx = e.changedTouches[0].clientX - touchStartX
+              const dy = Math.abs(e.changedTouches[0].clientY - touchStartY)
+              if (Math.abs(dx) > 50 && dy < 80) {
+                if (dx < 0) setActivePhotoIdx((i) => (i + 1) % complex.photos.length)
+                else setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length)
+              } else if (Math.abs(dx) < 8 && dy < 8) {
+                setLightbox(false)
+              }
+            }}
           >
             <button
-              onClick={() => setLightbox(false)}
+              onClick={(e) => { e.stopPropagation(); setLightbox(false) }}
               className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
             >
               <X size={20} />
@@ -326,13 +358,13 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length) }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i + 1) % complex.photos.length) }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronRight size={24} />
                 </button>
@@ -343,6 +375,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               alt=""
               className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
+              style={{ touchAction: 'none' }}
             />
             {complex.photos.length > 1 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -350,7 +383,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i) }}
-                    className={`w-2 h-2 rounded-full transition-colors ${i === activePhotoIdx ? 'bg-white' : 'bg-white/40'}`}
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${i === activePhotoIdx ? 'bg-white' : 'bg-white/40'}`}
                   />
                 ))}
               </div>
