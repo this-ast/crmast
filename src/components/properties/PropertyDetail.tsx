@@ -35,6 +35,7 @@ import toast from 'react-hot-toast'
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [idx, setIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
+  const scrollRef = useState<HTMLDivElement | null>(null)
 
   if (!photos || photos.length === 0) return null
 
@@ -49,44 +50,65 @@ function PhotoGallery({ photos }: { photos: string[] }) {
 
   return (
     <>
-      <div className="relative w-full h-52 bg-slate-900 overflow-hidden group">
-        <img
-          src={photos[idx]}
-          alt=""
-          className="w-full h-full object-cover cursor-zoom-in"
-          onClick={() => setLightbox(true)}
-          loading="lazy"
-        />
-        {photos.length > 1 && (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-              {photos.map((_, i) => (
+      {/* Main scrollable strip */}
+      <div
+        className="flex overflow-x-auto snap-x snap-mandatory gap-2 bg-slate-900 scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {photos.map((src, i) => (
+          <div key={src} className="relative w-full shrink-0 snap-center group" style={{ minWidth: '100%' }}>
+            <img
+              src={src}
+              alt=""
+              className="w-full h-52 object-cover cursor-zoom-in"
+              onClick={() => { setIdx(i); setLightbox(true) }}
+              loading="lazy"
+            />
+            {photos.length > 1 && (
+              <>
                 <button
-                  key={i}
-                  onClick={(e) => { e.stopPropagation(); setIdx(i) }}
-                  className={cn('w-1.5 h-1.5 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/50')}
-                />
-              ))}
+                  onClick={(e) => { e.stopPropagation(); setIdx((i - 1 + photos.length) % photos.length) }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIdx((i + 1) % photos.length) }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </>
+            )}
+            <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+              <ZoomIn size={10} />
+              {i + 1}/{photos.length}
             </div>
-          </>
-        )}
-        <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-          <ZoomIn size={10} />
-          {idx + 1}/{photos.length}
-        </div>
+          </div>
+        ))}
       </div>
+
+      {/* Thumbnail strip */}
+      {photos.length > 1 && (
+        <div
+          ref={(el) => { scrollRef[1](el) }}
+          className="flex gap-2 overflow-x-auto px-4 py-2 bg-slate-900"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          {photos.map((src, i) => (
+            <button
+              key={src}
+              onClick={() => setIdx(i)}
+              className={cn(
+                'w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all',
+                i === idx ? 'border-blue-400' : 'border-transparent hover:border-slate-400'
+              )}
+            >
+              <img src={src} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightbox && (
@@ -125,6 +147,9 @@ function PhotoGallery({ photos }: { photos: string[] }) {
               ))}
             </div>
           )}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+            {idx + 1} / {photos.length}
+          </div>
         </div>
       )}
     </>
