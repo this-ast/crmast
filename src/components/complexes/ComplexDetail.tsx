@@ -339,12 +339,14 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             }}
             onTouchEnd={(e) => {
               const dx = e.changedTouches[0].clientX - touchStartX
-              const dy = Math.abs(e.changedTouches[0].clientY - touchStartY)
-              if (Math.abs(dx) > 50 && dy < 80) {
+              const dy = e.changedTouches[0].clientY - touchStartY
+              const adx = Math.abs(dx)
+              const ady = Math.abs(dy)
+              if (ady > 60 && ady > adx) {
+                setLightbox(false)
+              } else if (adx > 50 && adx > ady && complex.photos.length > 1) {
                 if (dx < 0) setActivePhotoIdx((i) => (i + 1) % complex.photos.length)
                 else setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length)
-              } else if (Math.abs(dx) < 8 && dy < 8) {
-                setLightbox(false)
               }
             }}
           >

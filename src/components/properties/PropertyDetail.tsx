@@ -35,7 +35,7 @@ import toast from 'react-hot-toast'
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [idx, setIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
-  const scrollRef = useState<HTMLDivElement | null>(null)
+  const [lbTouchStart, setLbTouchStart] = useState({ x: 0, y: 0 })
 
   if (!photos || photos.length === 0) return null
 
@@ -46,6 +46,25 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   function next(e: React.MouseEvent) {
     e.stopPropagation()
     setIdx((i) => (i + 1) % photos.length)
+  }
+
+  function handleLbTouchStart(e: React.TouchEvent) {
+    setLbTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+  }
+
+  function handleLbTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - lbTouchStart.x
+    const dy = e.changedTouches[0].clientY - lbTouchStart.y
+    const adx = Math.abs(dx)
+    const ady = Math.abs(dy)
+    if (ady > 60 && ady > adx) {
+      // Swipe up or down → close
+      setLightbox(false)
+    } else if (adx > 50 && adx > ady && photos.length > 1) {
+      // Swipe left/right → navigate
+      if (dx < 0) setIdx((i) => (i + 1) % photos.length)
+      else setIdx((i) => (i - 1 + photos.length) % photos.length)
+    }
   }
 
   return (
@@ -115,19 +134,21 @@ function PhotoGallery({ photos }: { photos: string[] }) {
         <div
           className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
           onClick={() => setLightbox(false)}
+          onTouchStart={handleLbTouchStart}
+          onTouchEnd={handleLbTouchEnd}
         >
           <button
-            onClick={() => setLightbox(false)}
+            onClick={(e) => { e.stopPropagation(); setLightbox(false) }}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
             <X size={20} />
           </button>
           {photos.length > 1 && (
             <>
-              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+              <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
                 <ChevronLeft size={24} />
               </button>
-              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+              <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
                 <ChevronRight size={24} />
               </button>
             </>
@@ -137,12 +158,13 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             alt=""
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
+            style={{ touchAction: 'none' }}
           />
           {photos.length > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
               {photos.map((_, i) => (
                 <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i) }}
-                  className={cn('w-2 h-2 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/40')}
+                  className={cn('w-2.5 h-2.5 rounded-full transition-colors', i === idx ? 'bg-white' : 'bg-white/40')}
                 />
               ))}
             </div>
