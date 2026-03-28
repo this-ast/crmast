@@ -35,17 +35,24 @@ import toast from 'react-hot-toast'
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [idx, setIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
   const [lbTouchStart, setLbTouchStart] = useState({ x: 0, y: 0 })
+  const stripRef = useState<HTMLDivElement | null>(null)
 
   if (!photos || photos.length === 0) return null
 
+  function goTo(newIdx: number, dir: 'left' | 'right') {
+    setSlideDir(dir)
+    setIdx(newIdx)
+  }
+
   function prev(e: React.MouseEvent) {
     e.stopPropagation()
-    setIdx((i) => (i - 1 + photos.length) % photos.length)
+    goTo((idx - 1 + photos.length) % photos.length, 'right')
   }
   function next(e: React.MouseEvent) {
     e.stopPropagation()
-    setIdx((i) => (i + 1) % photos.length)
+    goTo((idx + 1) % photos.length, 'left')
   }
 
   function handleLbTouchStart(e: React.TouchEvent) {
@@ -58,21 +65,30 @@ function PhotoGallery({ photos }: { photos: string[] }) {
     const adx = Math.abs(dx)
     const ady = Math.abs(dy)
     if (ady > 60 && ady > adx) {
-      // Swipe up or down → close
       setLightbox(false)
     } else if (adx > 50 && adx > ady && photos.length > 1) {
-      // Swipe left/right → navigate
-      if (dx < 0) setIdx((i) => (i + 1) % photos.length)
-      else setIdx((i) => (i - 1 + photos.length) % photos.length)
+      if (dx < 0) goTo((idx + 1) % photos.length, 'left')
+      else goTo((idx - 1 + photos.length) % photos.length, 'right')
     }
   }
+
+  function scrollThumbIntoView(i: number) {
+    const el = stripRef[0]
+    if (!el) return
+    const thumb = el.children[i] as HTMLElement
+    if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }
+
+  const photoAnimClass = slideDir === 'left' ? 'lb-photo-from-right'
+    : slideDir === 'right' ? 'lb-photo-from-left'
+    : lightbox ? 'lb-photo-in' : ''
 
   return (
     <>
       {/* Main scrollable strip */}
       <div
-        className="flex overflow-x-auto snap-x snap-mandatory gap-2 bg-slate-900 scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex overflow-x-auto snap-x snap-mandatory bg-slate-900 scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
       >
         {photos.map((src, i) => (
           <div key={src} className="relative w-full shrink-0 snap-center group" style={{ minWidth: '100%' }}>
@@ -80,19 +96,19 @@ function PhotoGallery({ photos }: { photos: string[] }) {
               src={src}
               alt=""
               className="w-full h-52 object-cover cursor-zoom-in"
-              onClick={() => { setIdx(i); setLightbox(true) }}
+              onClick={() => { setSlideDir(null); setIdx(i); setLightbox(true) }}
               loading="lazy"
             />
             {photos.length > 1 && (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setIdx((i - 1 + photos.length) % photos.length) }}
+                  onClick={(e) => { e.stopPropagation(); goTo((i - 1 + photos.length) % photos.length, 'right'); scrollThumbIntoView((i - 1 + photos.length) % photos.length) }}
                   className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setIdx((i + 1) % photos.length) }}
+                  onClick={(e) => { e.stopPropagation(); goTo((i + 1) % photos.length, 'left'); scrollThumbIntoView((i + 1) % photos.length) }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <ChevronRight size={16} />
@@ -110,16 +126,17 @@ function PhotoGallery({ photos }: { photos: string[] }) {
       {/* Thumbnail strip */}
       {photos.length > 1 && (
         <div
+          ref={(el) => { stripRef[1](el) }}
           className="flex gap-2 overflow-x-auto px-4 py-2 bg-slate-900"
-          style={{ scrollbarWidth: 'thin' }}
+          style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
         >
           {photos.map((src, i) => (
             <button
               key={src}
-              onClick={() => setIdx(i)}
+              onClick={() => { goTo(i, i > idx ? 'left' : 'right'); scrollThumbIntoView(i) }}
               className={cn(
-                'w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all',
-                i === idx ? 'border-blue-400' : 'border-transparent hover:border-slate-400'
+                'w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200',
+                i === idx ? 'border-blue-400 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:border-slate-400'
               )}
             >
               <img src={src} alt="" className="w-full h-full object-cover" />
@@ -131,7 +148,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
       {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center lb-overlay-in"
           onClick={() => setLightbox(false)}
           onTouchStart={handleLbTouchStart}
           onTouchEnd={handleLbTouchEnd}
@@ -153,9 +170,10 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             </>
           )}
           <img
+            key={idx}
             src={photos[idx]}
             alt=""
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            className={`max-w-[90vw] max-h-[90vh] object-contain rounded-lg ${photoAnimClass}`}
             onClick={(e) => e.stopPropagation()}
             style={{ touchAction: 'none' }}
           />

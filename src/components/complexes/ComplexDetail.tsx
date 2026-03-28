@@ -129,9 +129,21 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [activePhotoIdx, setActivePhotoIdx] = useState(0)
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
   const [lightbox, setLightbox] = useState(false)
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchStartY, setTouchStartY] = useState(0)
+  const thumbStripRef = useState<HTMLDivElement | null>(null)
+
+  const goToPhoto = (i: number, dir: 'left' | 'right') => {
+    setSlideDir(dir)
+    setActivePhotoIdx(i)
+    const el = thumbStripRef[0]
+    if (el) {
+      const thumb = el.children[i] as HTMLElement
+      if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }
 
   const handlePhotoTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX)
@@ -141,6 +153,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
     const dx = Math.abs(e.changedTouches[0].clientX - touchStartX)
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY)
     if (dx < 8 && dy < 8) {
+      setSlideDir(null)
       setActivePhotoIdx(i)
       setLightbox(true)
     }
@@ -283,8 +296,8 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           <div>
             {/* Main scrollable gallery */}
             <div
-              className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 scrollbar-hide"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
             >
               {complex.photos.map((url, i) => (
                 <div
@@ -295,7 +308,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                   <img
                     src={url}
                     alt={`${complex.name} ${i + 1}`}
-                    onClick={() => { setActivePhotoIdx(i); setLightbox(true) }}
+                    onClick={() => { setSlideDir(null); setActivePhotoIdx(i); setLightbox(true) }}
                     onTouchStart={handlePhotoTouchStart}
                     onTouchEnd={(e) => handlePhotoTouchEnd(e, i)}
                     className={`w-full h-48 rounded-xl object-cover cursor-zoom-in transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
@@ -311,13 +324,17 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             </div>
             {/* Thumbnail strip */}
             {complex.photos.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 mt-2" style={{ scrollbarWidth: 'thin' }}>
+              <div
+                ref={(el) => { thumbStripRef[1](el) }}
+                className="flex gap-2 overflow-x-auto pb-1 mt-2"
+                style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
+              >
                 {complex.photos.map((url, i) => (
                   <button
                     key={url}
-                    onClick={() => setActivePhotoIdx(i)}
-                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${
-                      activePhotoIdx === i ? 'border-blue-500' : 'border-transparent hover:border-slate-300'
+                    onClick={() => goToPhoto(i, i > activePhotoIdx ? 'left' : 'right')}
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200 ${
+                      activePhotoIdx === i ? 'border-blue-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:border-slate-300'
                     }`}
                   >
                     <img src={url} alt="" className="w-full h-full object-cover" />
@@ -329,9 +346,13 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         )}
 
         {/* Lightbox */}
-        {lightbox && complex.photos.length > 0 && (
+        {lightbox && complex.photos.length > 0 && (() => {
+          const animClass = slideDir === 'left' ? 'lb-photo-from-right'
+            : slideDir === 'right' ? 'lb-photo-from-left'
+            : 'lb-photo-in'
+          return (
           <div
-            className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center"
+            className="fixed inset-0 z-[10100] bg-black/95 flex items-center justify-center lb-overlay-in"
             onClick={() => setLightbox(false)}
             onTouchStart={(e) => {
               setTouchStartX(e.touches[0].clientX)
@@ -345,8 +366,8 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               if (ady > 60 && ady > adx) {
                 setLightbox(false)
               } else if (adx > 50 && adx > ady && complex.photos.length > 1) {
-                if (dx < 0) setActivePhotoIdx((i) => (i + 1) % complex.photos.length)
-                else setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length)
+                if (dx < 0) goToPhoto((activePhotoIdx + 1) % complex.photos.length, 'left')
+                else goToPhoto((activePhotoIdx - 1 + complex.photos.length) % complex.photos.length, 'right')
               }
             }}
           >
@@ -359,13 +380,13 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             {complex.photos.length > 1 && (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i - 1 + complex.photos.length) % complex.photos.length) }}
+                  onClick={(e) => { e.stopPropagation(); goToPhoto((activePhotoIdx - 1 + complex.photos.length) % complex.photos.length, 'right') }}
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setActivePhotoIdx((i) => (i + 1) % complex.photos.length) }}
+                  onClick={(e) => { e.stopPropagation(); goToPhoto((activePhotoIdx + 1) % complex.photos.length, 'left') }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronRight size={24} />
@@ -373,9 +394,10 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               </>
             )}
             <img
+              key={activePhotoIdx}
               src={complex.photos[activePhotoIdx]}
               alt=""
-              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+              className={`max-w-[90vw] max-h-[90vh] object-contain rounded-lg ${animClass}`}
               onClick={(e) => e.stopPropagation()}
               style={{ touchAction: 'none' }}
             />
@@ -384,7 +406,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                 {complex.photos.map((_, i) => (
                   <button
                     key={i}
-                    onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i) }}
+                    onClick={(e) => { e.stopPropagation(); goToPhoto(i, i > activePhotoIdx ? 'left' : 'right') }}
                     className={`w-2.5 h-2.5 rounded-full transition-colors ${i === activePhotoIdx ? 'bg-white' : 'bg-white/40'}`}
                   />
                 ))}
@@ -394,7 +416,8 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               {activePhotoIdx + 1} / {complex.photos.length}
             </div>
           </div>
-        )}
+          )
+        })()}
 
         {/* Structural building characteristics */}
         {(complex.floors_total || complex.building_type || complex.elevator ||
