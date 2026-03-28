@@ -9,6 +9,7 @@ import {
   useUploadPropertyPhoto, useDeletePropertyPhoto,
   useUploadFloorPlan, useDeleteFloorPlan,
 } from '@/hooks/useProperties'
+import { useCreateDeal } from '@/hooks/useDeals'
 import { useClients, useCreateClient } from '@/hooks/useClients'
 import { useComplexes } from '@/hooks/useComplexes'
 import { usePropertyStore } from '@/store/usePropertyStore'
@@ -573,6 +574,8 @@ export default function PropertyForm() {
   const navigate = useNavigate()
   const { closeForm, editingPropertyId, openDetail } = usePropertyStore()
   const [soldPrompt, setSoldPrompt] = useState<{ propertyId: string; sellerId: string } | null>(null)
+  const [creatingDeal, setCreatingDeal] = useState(false)
+  const createDeal = useCreateDeal()
   const { data: editingProperty } = useProperty(editingPropertyId ?? '')
   const createProperty = useCreateProperty()
   const updateProperty = useUpdateProperty()
@@ -769,6 +772,24 @@ export default function PropertyForm() {
 
   // ── Sold prompt overlay ────────────────────────────────────────────────────
   if (soldPrompt) {
+    const handleCreateDeal = async () => {
+      setCreatingDeal(true)
+      try {
+        await createDeal.mutateAsync({
+          status: 'active',
+          property_id: soldPrompt.propertyId || undefined,
+          seller_id: soldPrompt.sellerId || undefined,
+        })
+        toast.success('Сделка создана')
+        closeForm()
+        navigate('/deals')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Ошибка при создании сделки')
+      } finally {
+        setCreatingDeal(false)
+      }
+    }
+
     return (
       <div className="flex flex-col items-center justify-center gap-6 p-8 text-center min-h-[320px]">
         <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -781,21 +802,18 @@ export default function PropertyForm() {
         <div className="flex flex-col gap-2 w-full max-w-xs">
           <button
             type="button"
-            onClick={() => {
-              closeForm()
-              const params = new URLSearchParams({ new: '1', property_id: soldPrompt.propertyId })
-              if (soldPrompt.sellerId) params.set('seller_id', soldPrompt.sellerId)
-              navigate(`/deals?${params.toString()}`)
-            }}
-            className="w-full py-3 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 flex items-center justify-center gap-2"
+            onClick={handleCreateDeal}
+            disabled={creatingDeal}
+            className="w-full py-3 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            <HeartHandshake size={16} />
+            {creatingDeal ? <Loader2 size={16} className="animate-spin" /> : <HeartHandshake size={16} />}
             Создать сделку
           </button>
           <button
             type="button"
             onClick={() => closeForm()}
-            className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            disabled={creatingDeal}
+            className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
             Пропустить
           </button>
