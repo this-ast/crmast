@@ -578,7 +578,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('created_at')
+  const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('client_number')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [view, setView] = useState<'list' | 'funnel'>('list')
   const [isFormOpen, setIsFormOpen] = useState(false)
