@@ -268,7 +268,7 @@ function InfoRow({
 export default function PropertyDetail({ property, onClose }: PropertyDetailProps) {
   const [phoneRevealed, setPhoneRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [inlineClient, setInlineClient] = useState<(Client & { matchReasons?: string[] }) | null>(null)
+  const [inlineClient, setInlineClient] = useState<(Client & { matchReasons?: string[]; matchMismatches?: string[] }) | null>(null)
   const [showOwnerPopup, setShowOwnerPopup] = useState(false)
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const deleteProperty = useDeleteProperty()
@@ -821,10 +821,13 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                   <span className="text-xs font-medium text-slate-700">{inlineClient.status}</span>
                 </div>
               )}
-              {(inlineClient.matchReasons?.length ?? 0) > 0 && (
+              {((inlineClient.matchReasons?.length ?? 0) > 0 || (inlineClient.matchMismatches?.length ?? 0) > 0) && (
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {inlineClient.matchReasons!.map((r) => (
-                    <span key={r} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded border border-violet-100">{r}</span>
+                  {inlineClient.matchReasons?.map((r) => (
+                    <span key={r} className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">✓ {r}</span>
+                  ))}
+                  {inlineClient.matchMismatches?.map((m) => (
+                    <span key={m} className="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">✗ {m}</span>
                   ))}
                 </div>
               )}

@@ -22,6 +22,7 @@ const LEVEL_STYLES = {
 interface MatchedClient extends Client {
   matchScore: number
   matchReasons: string[]
+  matchMismatches: string[]
 }
 
 function ClientRow({ client, property, onClientClick }: { client: MatchedClient; property: Property; onClientClick?: (c: MatchedClient) => void }) {
@@ -79,11 +80,16 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
             {client.budget && <span>Бюджет: <span className="font-medium text-slate-700">{client.budget}</span></span>}
             {client.client_type && <span>· {client.client_type}</span>}
           </div>
-          {client.matchReasons.length > 0 && (
+          {(client.matchReasons.length > 0 || client.matchMismatches.length > 0) && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {client.matchReasons.map((r) => (
-                <span key={r} className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-100">
-                  {r}
+                <span key={r} className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">
+                  ✓ {r}
+                </span>
+              ))}
+              {client.matchMismatches.map((m) => (
+                <span key={m} className="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">
+                  ✗ {m}
                 </span>
               ))}
             </div>
