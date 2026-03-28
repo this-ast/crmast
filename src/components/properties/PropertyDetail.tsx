@@ -110,7 +110,6 @@ function PhotoGallery({ photos }: { photos: string[] }) {
       {/* Thumbnail strip */}
       {photos.length > 1 && (
         <div
-          ref={(el) => { scrollRef[1](el) }}
           className="flex gap-2 overflow-x-auto px-4 py-2 bg-slate-900"
           style={{ scrollbarWidth: 'thin' }}
         >
