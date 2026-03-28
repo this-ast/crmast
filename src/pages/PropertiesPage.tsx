@@ -23,8 +23,12 @@ function filterProperties(
     if (marketType !== 'all' && p.market_type !== marketType) return false
     if (dealType !== 'all' && p.deal_type !== dealType) return false
 
-    // Status
-    if (filters.status !== 'all' && p.status !== filters.status) return false
+    // Status — by default hide sold/withdrawn; show them only when explicitly selected
+    if (filters.status === 'all') {
+      if (p.status === 'sold' || p.status === 'withdrawn') return false
+    } else {
+      if (p.status !== filters.status) return false
+    }
 
     // Text search (address, complex, article)
     if (filters.search) {

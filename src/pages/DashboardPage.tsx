@@ -41,10 +41,17 @@ function isToday(deadline?: string) {
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({
-  icon: Icon, label, value, sub, color,
-}: { icon: React.ElementType; label: string; value: string | number; sub?: string; color: string }) {
+  icon: Icon, label, value, sub, color, href,
+}: { icon: React.ElementType; label: string; value: string | number; sub?: string; color: string; href?: string }) {
+  const navigate = useNavigate()
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5">
+    <div
+      onClick={() => href && navigate(href)}
+      className={cn(
+        'bg-white rounded-2xl border border-slate-100 p-5 transition-all duration-200',
+        href && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]'
+      )}
+    >
       <div className="flex items-center gap-3 mb-3">
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', color)}>
           <Icon size={18} />
@@ -926,10 +933,10 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <StatCard icon={Building2} label="Активных объектов" value={activeProps} sub={`${properties.length} всего в базе`} color="bg-blue-50 text-blue-600" />
-        <StatCard icon={TrendingUp} label="Сумма активных" value={formatPrice(totalValue)} sub={`${properties.filter(p=>p.status==='sold').length} продано`} color="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={Users} label="Горячих клиентов" value={hotClients} sub={`${clients.length} всего в базе`} color="bg-orange-50 text-orange-600" />
-        <StatCard icon={Clock} label="Активных задач" value={pendingTasks} sub={overdueTasksCount > 0 ? `⏰ ${overdueTasksCount} просрочено` : 'Всё в срок'} color="bg-purple-50 text-purple-600" />
+        <StatCard icon={Building2} label="Активных объектов" value={activeProps} sub={`${properties.length} всего в базе`} color="bg-blue-50 text-blue-600" href="/properties" />
+        <StatCard icon={TrendingUp} label="Сумма активных" value={formatPrice(totalValue)} sub={`${properties.filter(p=>p.status==='sold').length} продано`} color="bg-emerald-50 text-emerald-600" href="/properties" />
+        <StatCard icon={Users} label="Горячих клиентов" value={hotClients} sub={`${clients.length} всего в базе`} color="bg-orange-50 text-orange-600" href="/clients" />
+        <StatCard icon={Clock} label="Активных задач" value={pendingTasks} sub={overdueTasksCount > 0 ? `⏰ ${overdueTasksCount} просрочено` : 'Всё в срок'} color="bg-purple-50 text-purple-600" href="/tasks" />
       </div>
 
       {/* Notifications + Calendar */}
