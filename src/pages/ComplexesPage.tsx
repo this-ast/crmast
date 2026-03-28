@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight, Settings } from 'lucide-react'
 import { useComplexes } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useComplexStore } from '@/store/useComplexStore'
@@ -12,6 +12,7 @@ import ComplexDetail from '@/components/complexes/ComplexDetail'
 import ComplexForm from '@/components/complexes/ComplexForm'
 import Modal from '@/components/ui/Modal'
 import ComplexFilters, { ComplexFilterState, defaultComplexFilters } from '@/components/complexes/ComplexFilters'
+import OptionsManager from '@/components/settings/OptionsManager'
 import { cn } from '@/utils/cn'
 
 export default function ComplexesPage() {
@@ -22,6 +23,7 @@ export default function ComplexesPage() {
   const [filters, setFilters] = useState<ComplexFilterState>(defaultComplexFilters)
   const [showFilters, setShowFilters] = useState(false)
   const [propertiesModalComplexId, setPropertiesModalComplexId] = useState<string | null>(null)
+  const [showOptionsManager, setShowOptionsManager] = useState(false)
   const navigate = useNavigate()
 
   const {
@@ -102,6 +104,49 @@ export default function ComplexesPage() {
       })
     }
 
+    // District filter
+    if (filters.district) {
+      result = result.filter((c) => c.district === filters.district)
+    }
+
+    // Price per m² (cash) filter
+    if (filters.priceMin) {
+      const min = Number(filters.priceMin)
+      result = result.filter((c) => {
+        const p = c.pricing?.cash?.price_per_sqm
+        return p != null && p >= min
+      })
+    }
+    if (filters.priceMax) {
+      const max = Number(filters.priceMax)
+      result = result.filter((c) => {
+        const p = c.pricing?.cash?.price_per_sqm
+        return p != null && p <= max
+      })
+    }
+
+    // Payment type filter
+    if (filters.paymentTypes.length > 0) {
+      result = result.filter((c) => {
+        if (!c.pricing) return false
+        return filters.paymentTypes.some((pt) => {
+          if (pt === 'cash') return !!c.pricing?.cash?.price_per_sqm
+          if (pt === 'family_mortgage') return !!c.pricing?.family_mortgage?.price_per_sqm
+          if (pt === 'escrow') return !!c.pricing?.escrow?.price_per_sqm
+          if (pt === 'installment') return (
+            !!c.pricing?.installment_6m?.price_per_sqm ||
+            !!c.pricing?.installment_12m?.price_per_sqm ||
+            !!c.pricing?.installment_18m?.price_per_sqm ||
+            !!c.pricing?.installment_24m?.price_per_sqm ||
+            !!c.pricing?.installment_36m?.price_per_sqm ||
+            !!c.pricing?.installment_48m?.price_per_sqm ||
+            !!c.pricing?.installment_60m?.price_per_sqm
+          )
+          return false
+        })
+      })
+    }
+
     return result
   }, [complexes, search, filters])
 
@@ -127,13 +172,22 @@ export default function ComplexesPage() {
             {filtered.length !== complexes.length && ` · ${filtered.length} найдено`}
           </p>
         </div>
-        <button
-          onClick={() => openForm()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          Добавить ЖК
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowOptionsManager(true)}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:border-slate-300 hover:bg-slate-50 transition-colors"
+            title="Настройки справочников"
+          >
+            <Settings size={15} />
+          </button>
+          <button
+            onClick={() => openForm()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={16} />
+            Добавить ЖК
+          </button>
+        </div>
       </div>
 
       {/* Search + Filters toggle */}
@@ -169,6 +223,7 @@ export default function ComplexesPage() {
           onReset={() => setFilters(defaultComplexFilters)}
           resultCount={filtered.length}
           totalCount={complexes.length}
+          onOpenSettings={() => setShowOptionsManager(true)}
         />
       )}
 
@@ -276,6 +331,12 @@ export default function ComplexesPage() {
           </Modal>
         )
       })()}
+
+      {/* Options Manager Modal */}
+      <OptionsManager
+        isOpen={showOptionsManager}
+        onClose={() => setShowOptionsManager(false)}
+      />
     </div>
   )
 }

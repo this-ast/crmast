@@ -1,6 +1,6 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2 } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Settings } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
 import PropertyCard from '@/components/properties/PropertyCard'
@@ -8,6 +8,7 @@ import PropertyFilters from '@/components/properties/PropertyFilters'
 import PropertyDetail from '@/components/properties/PropertyDetail'
 import PropertyForm from '@/components/properties/PropertyForm'
 import Modal from '@/components/ui/Modal'
+import OptionsManager from '@/components/settings/OptionsManager'
 import type { PropertyWithOwner } from '@/types'
 
 function filterProperties(
@@ -129,6 +130,7 @@ export default function PropertiesPage() {
   const activeCount = properties.filter((p) => p.status === 'active').length
   const totalCount = properties.length
 
+  const [showOptionsManager, setShowOptionsManager] = useState(false)
   const formTitle = editingPropertyId ? 'Редактировать объект' : 'Новый объект'
 
   return (
@@ -142,14 +144,23 @@ export default function PropertiesPage() {
             {filtered.length !== totalCount && ` · ${filtered.length} найдено`}
           </p>
         </div>
-        <button
-          data-tour="add-property"
-          onClick={() => openForm()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          Добавить объект
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowOptionsManager(true)}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
+            title="Настройки списков"
+          >
+            <Settings size={16} />
+          </button>
+          <button
+            data-tour="add-property"
+            onClick={() => openForm()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={16} />
+            Добавить объект
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -209,6 +220,11 @@ export default function PropertiesPage() {
       <Modal isOpen={isFormOpen} onClose={closeForm} title={formTitle} size="lg">
         <PropertyForm />
       </Modal>
+
+      <OptionsManager
+        isOpen={showOptionsManager}
+        onClose={() => setShowOptionsManager(false)}
+      />
     </div>
   )
 }
