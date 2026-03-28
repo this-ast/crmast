@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Building2, CalendarDays, FileText, MapPin, Phone, User, X,
+  Building2, CalendarDays, ClipboardList, FileText, MapPin, Phone, User, X,
   Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn,
 } from 'lucide-react'
+import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
@@ -686,6 +687,15 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             </div>
           </div>
         )}
+
+        {/* Tasks */}
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ClipboardList size={13} />
+            Задачи
+          </h3>
+          <LinkedTasksSection linkedType="complex" linkedId={complexId} />
+        </div>
 
         {/* Developer units */}
         <DeveloperUnitsView complexId={complexId} />

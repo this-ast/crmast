@@ -11,6 +11,7 @@ import {
 import { useProperties } from '@/hooks/useProperties'
 import { useClients } from '@/hooks/useClients'
 import { useDeals } from '@/hooks/useDeals'
+import { useComplexes } from '@/hooks/useComplexes'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -72,6 +73,7 @@ function TaskFormModal({
   clients,
   properties,
   deals,
+  complexes,
   onSave,
   onCancel,
   isSubmitting,
@@ -80,6 +82,7 @@ function TaskFormModal({
   clients: { id: string; name: string }[]
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
+  complexes: { id: string; name: string }[]
   onSave: (data: TaskFormData) => void
   onCancel: () => void
   isSubmitting: boolean
@@ -131,11 +134,12 @@ function TaskFormModal({
             <option value="client">Клиент</option>
             <option value="property">Объект</option>
             <option value="deal">Сделка</option>
+            <option value="complex">ЖК</option>
           </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            {linkedType === 'client' ? 'Клиент' : linkedType === 'property' ? 'Объект' : linkedType === 'deal' ? 'Сделка' : 'Запись'}
+            {linkedType === 'client' ? 'Клиент' : linkedType === 'property' ? 'Объект' : linkedType === 'deal' ? 'Сделка' : linkedType === 'complex' ? 'ЖК' : 'Запись'}
           </label>
           {linkedType === 'client' && (
             <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -153,6 +157,12 @@ function TaskFormModal({
             <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— выбрать —</option>
               {deals.map(d => <option key={d.id} value={d.id}>#{d.deal_number} {d.title || 'Сделка'}</option>)}
+            </select>
+          )}
+          {linkedType === 'complex' && (
+            <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— выбрать —</option>
+              {complexes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
           {!linkedType && (
@@ -277,11 +287,13 @@ function TasksWidget({
   clients,
   properties,
   deals,
+  complexes,
 }: {
   tasks: Task[]
   clients: { id: string; name: string }[]
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
+  complexes: { id: string; name: string }[]
 }) {
   const navigate = useNavigate()
   const createTask = useCreateTask()
@@ -342,6 +354,9 @@ function TasksWidget({
       const d = (deals as any[]).find(d => d.id === task.linked_id)
       return d ? `#${d.deal_number}` : undefined
     }
+    if (task.linked_type === 'complex') {
+      return complexes.find(c => c.id === task.linked_id)?.name
+    }
   }
 
   const linkedNavigate = (task: Task) => {
@@ -349,6 +364,7 @@ function TasksWidget({
     if (task.linked_type === 'client') return () => navigate(`/clients?highlight=${task.linked_id}`)
     if (task.linked_type === 'property') return () => navigate(`/properties?open=${task.linked_id}`)
     if (task.linked_type === 'deal') return () => navigate(`/deals?open=${task.linked_id}`)
+    if (task.linked_type === 'complex') return () => navigate(`/complexes?open=${task.linked_id}`)
   }
 
   const handleSave = async (data: TaskFormData) => {
@@ -413,6 +429,7 @@ function TasksWidget({
             clients={clients}
             properties={properties}
             deals={deals}
+            complexes={complexes}
             onSave={handleSave}
             onCancel={() => { setFormOpen(false); setEditingTask(null) }}
             isSubmitting={createTask.isPending || updateTask.isPending}
@@ -1115,6 +1132,7 @@ export default function DashboardPage() {
   const { data: properties = [], isLoading: propsLoading, error: propsError } = useProperties()
   const { data: clients = [], isLoading: clientsLoading, error: clientsError } = useClients()
   const { data: deals = [], isLoading: dealsLoading } = useDeals()
+  const { data: complexes = [] } = useComplexes()
   const { data: tasks = [], isLoading: tasksLoading } = useTasks()
   const [editLayout, setEditLayout] = useState(false)
   const { layout, move, reset } = useLayout()
@@ -1153,6 +1171,7 @@ export default function DashboardPage() {
   const taskProps = properties.map(p => ({ id: p.id, article: p.article, address: p.address }))
   const taskDeals = (deals as any[]).map(d => ({ id: d.id, title: d.title, deal_number: d.deal_number }))
   const taskClients = clients.map(c => ({ id: c.id, name: c.name }))
+  const taskComplexes = (complexes as any[]).map(c => ({ id: c.id, name: c.name }))
 
   const blocks: Record<string, React.ReactNode> = {
     money: <MoneyBlock deals={deals as any[]} />,
@@ -1176,7 +1195,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2"><MiniCalendar tasks={tasks} /></div>
       </div>
     ),
-    tasks: <TasksWidget tasks={tasks} clients={taskClients} properties={taskProps} deals={taskDeals} />,
+    tasks: <TasksWidget tasks={tasks} clients={taskClients} properties={taskProps} deals={taskDeals} complexes={taskComplexes} />,
     analytics: (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AnalyticsWidget tasks={tasks} clients={clients} deals={deals} />

@@ -53,7 +53,7 @@ export function useUpdateTask() {
   })
 }
 
-export function useTasksByLinked(linkedType: 'client' | 'property' | 'deal', linkedId: string | undefined) {
+export function useTasksByLinked(linkedType: 'client' | 'property' | 'deal' | 'complex', linkedId: string | undefined) {
   return useQuery({
     queryKey: [Q, 'linked', linkedType, linkedId],
     enabled: !!linkedId,
