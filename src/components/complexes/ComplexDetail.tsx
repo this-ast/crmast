@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, CalendarDays, FileText, MapPin, Phone, User, X,
-  Pencil, Trash2, ChevronRight, Download,
+  Pencil, Trash2, ChevronRight, Download, Plus, Loader2,
 } from 'lucide-react'
-import { useComplex, useComplexUnits, useDeleteComplex } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
@@ -26,12 +26,77 @@ const DOC_TYPE_LABELS = {
 
 function DeveloperUnitsView({ complexId }: { complexId: string }) {
   const { data: units = [] } = useComplexUnits(complexId)
-  if (units.length === 0) return null
+  const createUnit = useCreateComplexUnit()
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' })
+
+  const handleAdd = async () => {
+    try {
+      await createUnit.mutateAsync({
+        complexId,
+        data: {
+          title: form.title || undefined,
+          rooms: form.rooms ? Number(form.rooms) : undefined,
+          area: form.area ? Number(form.area) : undefined,
+          floor: form.floor ? Number(form.floor) : undefined,
+          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
+          price: form.price ? Number(form.price) : undefined,
+          notes: form.notes || undefined,
+        },
+      })
+      setForm({ title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' })
+      setShowAdd(false)
+      toast.success('Объект добавлен')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка')
+    }
+  }
+
+  const inputCls = 'w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500'
+
   return (
     <div>
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-        Объекты от застройщика ({units.length})
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Объекты от застройщика{units.length > 0 && ` (${units.length})`}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowAdd((v) => !v)}
+          className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+        >
+          <Plus size={12} />
+          Добавить
+        </button>
+      </div>
+
+      {showAdd && (
+        <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2">
+          <input className={inputCls} placeholder="Название (2-комн. кв., студия...)" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inputCls} type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
+            <input className={inputCls} type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inputCls} type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
+            <input className={inputCls} type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
+          </div>
+          <input className={inputCls} type="number" placeholder="Цена (наличный) ₽" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+          <input className={inputCls} placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50">Отмена</button>
+            <button type="button" onClick={handleAdd} disabled={createUnit.isPending} className="flex-1 py-1.5 rounded-lg bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-1">
+              {createUnit.isPending && <Loader2 size={11} className="animate-spin" />}
+              Сохранить
+            </button>
+          </div>
+        </div>
+      )}
+
+      {units.length === 0 && !showAdd && (
+        <p className="text-xs text-slate-400">Нет объектов от застройщика</p>
+      )}
+
       <div className="space-y-2">
         {units.map((unit) => (
           <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2, Upload, X, ChevronDown, Search, Check } from 'lucide-react'
 import {
   useCreateComplex,
   useUpdateComplex,
@@ -28,6 +28,113 @@ const ELEVATOR_OPTIONS = ['нет', '1', '2', '3+']
 const YARD_OPTIONS = ['закрытая территория', 'детская площадка', 'спортивная площадка']
 const PARKING_OPTIONS = ['подземная', 'наземная', 'многоуровневая', 'открытая во дворе', 'за шлагбаумом']
 const BUILDING_TYPE_OPTIONS = ['кирпичный', 'монолитно-кирпичный', 'блочный', 'монолитно-блочный']
+
+// ─── District Selector ────────────────────────────────────────────────────────
+
+const DEFAULT_DISTRICTS = [
+  'Центр', 'Северный', 'Южный', 'Западный', 'Восточный',
+  'Новый город', 'Старый город', 'Микрорайон', 'ПМР',
+  'Левый берег', 'Правый берег',
+]
+const DISTRICTS_KEY = 'crm_districts'
+
+function getDistricts(): string[] {
+  try {
+    const saved: string[] = JSON.parse(localStorage.getItem(DISTRICTS_KEY) ?? '[]')
+    return Array.from(new Set([...DEFAULT_DISTRICTS, ...saved]))
+  } catch { return [...DEFAULT_DISTRICTS] }
+}
+
+function saveCustomDistrict(name: string) {
+  try {
+    const saved: string[] = JSON.parse(localStorage.getItem(DISTRICTS_KEY) ?? '[]')
+    if (!saved.includes(name)) localStorage.setItem(DISTRICTS_KEY, JSON.stringify([...saved, name]))
+  } catch { /* ignore */ }
+}
+
+function DistrictSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [districts, setDistricts] = useState<string[]>(() => getDistricts())
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const filtered = districts.filter((d) => !search.trim() || d.toLowerCase().includes(search.toLowerCase()))
+  const canAdd = search.trim().length > 0 && !districts.some((d) => d.toLowerCase() === search.trim().toLowerCase())
+
+  const handleSelect = (d: string) => { onChange(d); setOpen(false); setSearch('') }
+  const handleAdd = () => {
+    const name = search.trim()
+    saveCustomDistrict(name)
+    setDistricts(getDistricts())
+    onChange(name)
+    setOpen(false)
+    setSearch('')
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 bg-white border rounded-lg text-sm text-left transition-all',
+          open ? 'border-blue-500 ring-2 ring-blue-500' : 'border-slate-200 hover:border-slate-300'
+        )}
+      >
+        <span className={value ? 'text-slate-900' : 'text-slate-400'}>
+          {value || 'Выберите район...'}
+        </span>
+        <ChevronDown size={14} className={cn('text-slate-400 shrink-0 ml-2 transition-transform', open && 'rotate-180')} />
+      </button>
+      {value && (
+        <button type="button" onClick={() => onChange('')} className="text-xs text-slate-400 hover:text-red-500 mt-1 flex items-center gap-1">
+          <X size={11} /> Убрать район
+        </button>
+      )}
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Поиск или новый район..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); canAdd ? handleAdd() : filtered[0] && handleSelect(filtered[0]) } }}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {canAdd && (
+              <button type="button" onClick={handleAdd} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-blue-600 hover:bg-blue-50 border-b border-slate-100">
+                <Plus size={13} /> Добавить «{search.trim()}»
+              </button>
+            )}
+            {filtered.map((d) => (
+              <button key={d} type="button" onClick={() => handleSelect(d)}
+                className={cn('w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50', d === value && 'bg-blue-50 text-blue-700')}
+              >
+                <span className="flex-1">{d}</span>
+                {d === value && <Check size={12} className="text-blue-600 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── FieldLabel ────────────────────────────────────────────────────────────────
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -471,11 +578,7 @@ export default function ComplexForm() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel>Район</FieldLabel>
-            <Input
-              placeholder="Центр, Северный..."
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-            />
+            <DistrictSelector value={district} onChange={setDistrict} />
           </div>
           <div>
             <FieldLabel>Адрес</FieldLabel>
@@ -511,46 +614,54 @@ export default function ComplexForm() {
           />
         </div>
 
-        {/* Pricing / Deal conditions */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Условия сделки (цена за м²)</p>
-          {[
-            { key: 'cash', label: 'Наличный расчёт' },
-            { key: 'installment_6m', label: 'Рассрочка 6 мес' },
-            { key: 'installment_12m', label: 'Рассрочка 12 мес (1 год)' },
-            { key: 'installment_18m', label: 'Рассрочка 18 мес' },
-            { key: 'installment_24m', label: 'Рассрочка 24 мес (2 года)' },
-            { key: 'installment_36m', label: 'Рассрочка 36 мес (3 года)' },
-            { key: 'installment_48m', label: 'Рассрочка 48 мес (4 года)' },
-            { key: 'installment_60m', label: 'Рассрочка 60 мес (5 лет)' },
-            { key: 'family_mortgage', label: 'Семейная ипотека 6%' },
-            { key: 'escrow', label: 'Эскроу счета' },
-          ].map(({ key, label }) => {
-            const entry = (pricing as Record<string, { price_per_sqm?: number; updated_at?: string }>)[key] ?? {}
-            return (
-              <div key={key} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                <span className="text-xs text-slate-600 truncate">{label}</span>
-                <Input
-                  type="number"
-                  placeholder="руб/м²"
-                  className="w-28 text-xs"
-                  value={entry.price_per_sqm ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : undefined
-                    setPricing((p) => ({ ...p, [key]: { ...entry, price_per_sqm: val } }))
-                  }}
-                />
-                <Input
-                  type="date"
-                  className="w-36 text-xs"
-                  value={entry.updated_at ?? ''}
-                  onChange={(e) => {
-                    setPricing((p) => ({ ...p, [key]: { ...entry, updated_at: e.target.value || undefined } }))
-                  }}
-                />
-              </div>
-            )
-          })}
+        {/* Pricing / Deal conditions — compact table */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Условия сделки (цена за м²)</p>
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[1fr_110px_120px] gap-0 bg-slate-50 border-b border-slate-200 px-3 py-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Тип</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">₽/м²</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Дата изменения</span>
+            </div>
+            {[
+              { key: 'cash',            label: '💵 Наличный расчёт',     bg: 'bg-emerald-50/50' },
+              { key: 'family_mortgage', label: '🏦 Семейная ипотека 6%', bg: '' },
+              { key: 'escrow',          label: '🔒 Эскроу счета',        bg: '' },
+              { key: 'installment_6m',  label: '📅 Рассрочка 6 мес',     bg: 'bg-slate-50/80' },
+              { key: 'installment_12m', label: '📅 Рассрочка 12 мес',    bg: '' },
+              { key: 'installment_18m', label: '📅 Рассрочка 18 мес',    bg: 'bg-slate-50/80' },
+              { key: 'installment_24m', label: '📅 Рассрочка 24 мес',    bg: '' },
+              { key: 'installment_36m', label: '📅 Рассрочка 36 мес',    bg: 'bg-slate-50/80' },
+              { key: 'installment_48m', label: '📅 Рассрочка 48 мес',    bg: '' },
+              { key: 'installment_60m', label: '📅 Рассрочка 60 мес',    bg: 'bg-slate-50/80' },
+            ].map(({ key, label, bg }, idx, arr) => {
+              const entry = (pricing as Record<string, { price_per_sqm?: number; updated_at?: string }>)[key] ?? {}
+              return (
+                <div key={key} className={cn('grid grid-cols-[1fr_110px_120px] items-center gap-0 px-3 py-1', bg, idx < arr.length - 1 && 'border-b border-slate-100')}>
+                  <span className="text-xs text-slate-700 pr-2">{label}</span>
+                  <input
+                    type="number"
+                    placeholder="—"
+                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-2"
+                    value={entry.price_per_sqm ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : undefined
+                      setPricing((p) => ({ ...p, [key]: { ...entry, price_per_sqm: val } }))
+                    }}
+                  />
+                  <input
+                    type="date"
+                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={entry.updated_at ?? ''}
+                    onChange={(e) => {
+                      setPricing((p) => ({ ...p, [key]: { ...entry, updated_at: e.target.value || undefined } }))
+                    }}
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Building characteristics */}
