@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
@@ -144,6 +144,8 @@ function AgentFooter({ agent }: { agent: AgentSettings }) {
 
 export default function PropertyPublicPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const autoPdf = searchParams.get('pdf') === '1'
   const [lbIdx, setLbIdx] = useState<number | null>(null)
   const [generating, setGenerating] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -158,6 +160,14 @@ export default function PropertyPublicPage() {
       setGenerating(false)
     }
   }
+
+  // Auto-download when opened with ?pdf=1 (from PropertyDetail button)
+  useEffect(() => {
+    if (!autoPdf || !property || !contentRef.current || generating) return
+    // Wait for images to render
+    const t = setTimeout(() => { handleDownload() }, 1200)
+    return () => clearTimeout(t)
+  }, [autoPdf, property])
 
   const { data: property, isLoading } = useQuery({
     queryKey: ['public-property', id],

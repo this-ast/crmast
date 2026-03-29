@@ -20,9 +20,8 @@ import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
 import { useDeleteProperty } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
-import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { useDealsByProperty } from '@/hooks/useDeals'
-import PropertyPdfButton from '@/components/pdf/PropertyPdfButton'
+import { FileDown } from 'lucide-react'
 import Timeline from '@/components/timeline/Timeline'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import MatchingClientsSection from './MatchingClientsSection'
@@ -273,7 +272,6 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
-  const { data: agentSettings } = useAgentSettings()
   const { data: deals = [] } = useDealsByProperty(property.id)
   const navigate = useNavigate()
 
@@ -374,7 +372,13 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <PropertyPdfButton property={property} agentSettings={agentSettings ?? {}} />
+          <button
+            onClick={() => window.open(`/p/${id}?pdf=1`, '_blank')}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            title="Скачать PDF презентацию"
+          >
+            <FileDown size={16} />
+          </button>
           <button
             onClick={() => {
               const url = `${window.location.origin}/p/${id}`
