@@ -9,12 +9,14 @@ import TemplatesPage from '@/pages/TemplatesPage'
 import SettingsPage from '@/pages/SettingsPage'
 import CollectionsPage from '@/pages/CollectionsPage'
 import CollectionPublicPage from '@/pages/CollectionPublicPage'
+import PropertyPublicPage from '@/pages/PropertyPublicPage'
 
 export default function App() {
   return (
     <Routes>
-      {/* Public share page — no auth, no layout */}
+      {/* Public pages — no auth, no layout */}
       <Route path="/share/:slug" element={<CollectionPublicPage />} />
+      <Route path="/p/:id" element={<PropertyPublicPage />} />
 
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />

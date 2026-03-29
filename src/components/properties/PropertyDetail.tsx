@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
   ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, HeartHandshake,
-  ChevronLeft, ZoomIn, LayoutDashboard,
+  ChevronLeft, ZoomIn, LayoutDashboard, Share2,
   type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
@@ -375,6 +375,16 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <PropertyPdfButton property={property} agentSettings={agentSettings ?? {}} />
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/p/${id}`
+              navigator.clipboard.writeText(url).then(() => toast.success('Ссылка скопирована'))
+            }}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+            title="Поделиться презентацией"
+          >
+            <Share2 size={16} />
+          </button>
           <button
             onClick={handleEdit}
             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
