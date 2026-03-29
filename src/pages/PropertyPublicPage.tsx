@@ -150,6 +150,18 @@ export default function PropertyPublicPage() {
   const [generating, setGenerating] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
+  const { data: property, isLoading } = useQuery({
+    queryKey: ['public-property', id],
+    queryFn: async (): Promise<Property | null> => {
+      if (!id) return null
+      const { data, error } = await supabase
+        .from('properties').select('*').eq('id', id).maybeSingle()
+      if (error) throw new Error(error.message)
+      return data as Property | null
+    },
+    enabled: !!id,
+  })
+
   async function handleDownload() {
     if (!contentRef.current || generating) return
     setGenerating(true)
@@ -164,22 +176,9 @@ export default function PropertyPublicPage() {
   // Auto-download when opened with ?pdf=1 (from PropertyDetail button)
   useEffect(() => {
     if (!autoPdf || !property || !contentRef.current || generating) return
-    // Wait for images to render
     const t = setTimeout(() => { handleDownload() }, 1200)
     return () => clearTimeout(t)
   }, [autoPdf, property])
-
-  const { data: property, isLoading } = useQuery({
-    queryKey: ['public-property', id],
-    queryFn: async (): Promise<Property | null> => {
-      if (!id) return null
-      const { data, error } = await supabase
-        .from('properties').select('*').eq('id', id).maybeSingle()
-      if (error) throw new Error(error.message)
-      return data as Property | null
-    },
-    enabled: !!id,
-  })
 
   const { data: agent } = useAgentSettings()
 
