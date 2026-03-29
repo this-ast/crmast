@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -7,7 +7,8 @@ import type { Property, AgentSettings } from '@/types'
 import { PROPERTY_TYPE_LABELS, DEAL_TYPE_LABELS } from '@/types'
 import { formatPriceShort, formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import { MapPin, Phone, MessageCircle, Send, ChevronLeft, ChevronRight, X, Building2, Printer } from 'lucide-react'
+import { MapPin, Phone, MessageCircle, Send, ChevronLeft, ChevronRight, X, Building2, Printer, Loader2 } from 'lucide-react'
+import { downloadElementAsPdf } from '@/utils/downloadPdf'
 
 // ─── Gold accent ───────────────────────────────────────────────────────────────
 const GOLD = '#C5A059'
@@ -144,6 +145,19 @@ function AgentFooter({ agent }: { agent: AgentSettings }) {
 export default function PropertyPublicPage() {
   const { id } = useParams<{ id: string }>()
   const [lbIdx, setLbIdx] = useState<number | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  async function handleDownload() {
+    if (!contentRef.current || generating) return
+    setGenerating(true)
+    try {
+      const filename = property ? `${property.article} — ${property.address}` : 'presentation'
+      await downloadElementAsPdf(contentRef.current, filename)
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const { data: property, isLoading } = useQuery({
     queryKey: ['public-property', id],
@@ -210,7 +224,7 @@ export default function PropertyPublicPage() {
   if (property.heated_floor) tags.push('Тёплый пол')
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white" ref={contentRef}>
       {lbIdx !== null && (
         <Lightbox photos={photos} startIdx={lbIdx} onClose={() => setLbIdx(null)} />
       )}
@@ -421,15 +435,18 @@ export default function PropertyPublicPage() {
         {agent && <AgentFooter agent={agent} />}
       </div>
 
-      {/* ── Print Button ──────────────────────────────────────────────────────── */}
+      {/* ── Download Button ───────────────────────────────────────────────────── */}
       <div className="no-print flex justify-center mt-8 mb-20">
         <button
-          onClick={() => window.print()}
-          className="text-white px-10 py-4 font-bold uppercase text-xs tracking-[0.2em] hover:opacity-90 transition-all shadow-lg"
+          onClick={handleDownload}
+          disabled={generating}
+          className="flex items-center gap-2 text-white px-10 py-4 font-bold uppercase text-xs tracking-[0.2em] hover:opacity-90 transition-all shadow-lg disabled:opacity-60"
           style={{ background: GOLD }}
         >
-          <Printer size={14} className="inline mr-2 -mt-0.5" />
-          Сформировать PDF
+          {generating
+            ? <><Loader2 size={14} className="animate-spin" /> Подготовка...</>
+            : <><Printer size={14} /> Скачать PDF</>
+          }
         </button>
       </div>
     </div>

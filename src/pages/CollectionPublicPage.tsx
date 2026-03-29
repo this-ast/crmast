@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCollectionBySlug } from '@/hooks/useCollections'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
@@ -10,8 +10,9 @@ import { formatPriceShort, formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import {
   Phone, MessageCircle, Send, MapPin,
-  ChevronLeft, ChevronRight, Building2, ArrowRight, Printer,
+  ChevronLeft, ChevronRight, Building2, ArrowRight, Printer, Loader2,
 } from 'lucide-react'
+import { downloadElementAsPdf } from '@/utils/downloadPdf'
 
 const GOLD = '#C5A059'
 
@@ -223,8 +224,20 @@ function AgentFooter({ agent }: { agent: AgentSettings }) {
 export default function CollectionPublicPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [generating, setGenerating] = useState(false)
   const { data: collection, isLoading: loadingCollection } = useCollectionBySlug(slug ?? '')
   const { data: agent } = useAgentSettings()
+
+  async function handleDownload() {
+    if (!contentRef.current || generating) return
+    setGenerating(true)
+    try {
+      await downloadElementAsPdf(contentRef.current, collection?.title ?? 'подборка')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const { data: properties = [], isLoading: loadingProps } = useQuery({
     queryKey: ['public-collection-props', collection?.id],
@@ -271,7 +284,7 @@ export default function CollectionPublicPage() {
   const coverPhoto = properties[0]?.photos?.[0] ?? null
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white" ref={contentRef}>
 
       {/* ── Cover ──────────────────────────────────────────────────────────── */}
       <div className="relative bg-gray-900" style={{ height: 'min(60vh, 480px)', minHeight: 280 }}>
@@ -343,15 +356,18 @@ export default function CollectionPublicPage() {
         {agent && <AgentFooter agent={agent} />}
       </div>
 
-      {/* ── Print button ───────────────────────────────────────────────────── */}
+      {/* ── Download button ────────────────────────────────────────────────── */}
       <div className="no-print flex justify-center mt-4 mb-16">
         <button
-          onClick={() => window.print()}
-          className="text-white px-10 py-4 font-bold uppercase text-xs tracking-[0.2em] hover:opacity-90 transition shadow-lg"
+          onClick={handleDownload}
+          disabled={generating}
+          className="flex items-center gap-2 text-white px-10 py-4 font-bold uppercase text-xs tracking-[0.2em] hover:opacity-90 transition shadow-lg disabled:opacity-60"
           style={{ background: GOLD }}
         >
-          <Printer size={14} className="inline mr-2 -mt-0.5" />
-          Сформировать PDF
+          {generating
+            ? <><Loader2 size={14} className="animate-spin" /> Подготовка...</>
+            : <><Printer size={14} /> Скачать PDF</>
+          }
         </button>
       </div>
     </div>
