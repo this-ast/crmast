@@ -357,7 +357,7 @@ export default function CollectionPublicPage() {
       </div>
 
       {/* ── Download button ────────────────────────────────────────────────── */}
-      <div className="no-print flex justify-center mt-4 mb-16">
+      <div className="no-print flex flex-col items-center gap-2 mt-4 mb-16">
         <button
           onClick={handleDownload}
           disabled={generating}
@@ -365,10 +365,13 @@ export default function CollectionPublicPage() {
           style={{ background: GOLD }}
         >
           {generating
-            ? <><Loader2 size={14} className="animate-spin" /> Подготовка...</>
+            ? <><Loader2 size={14} className="animate-spin" /> Открываю...</>
             : <><Printer size={14} /> Скачать PDF</>
           }
         </button>
+        <p className="text-gray-400 text-[10px] uppercase tracking-widest">
+          В диалоге выбери «Сохранить как PDF»
+        </p>
       </div>
     </div>
   )

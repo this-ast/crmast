@@ -23,11 +23,28 @@
 /* ── Presentation / PDF typography ──────────────────────────────────────────── */
 .serif { font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; }
 
-/* ── Print utilities ─────────────────────────────────────────────────────────── */
+/* ── Print / PDF ─────────────────────────────────────────────────────────────── */
 @media print {
-  .no-print   { display: none !important; }
+  /* Page setup */
+  @page { size: A4 portrait; margin: 0; }
+
+  /* Hide UI chrome */
+  .no-print { display: none !important; }
+
+  /* Page breaks */
   .page-break { break-before: page; }
-  body        { background: white !important; }
+  section     { break-inside: avoid; }
+
+  /* Base */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white !important; margin: 0; padding: 0; }
+
+  /* Hero image — keep proportions, don't overflow */
+  div[style*="height: min(75vh"] { height: 60vh !important; min-height: 280px !important; }
+  div[style*="height: min(60vh"] { height: 50vh !important; min-height: 220px !important; }
+
+  /* Prevent last section from breaking weird */
+  footer { break-inside: avoid; }
 }
 
 /* ── Apple-style easing tokens ───────────────────────────────────────────────── */

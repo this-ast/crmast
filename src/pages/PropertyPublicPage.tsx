@@ -445,7 +445,7 @@ export default function PropertyPublicPage() {
       </div>
 
       {/* ── Download Button ───────────────────────────────────────────────────── */}
-      <div className="no-print flex justify-center mt-8 mb-20">
+      <div className="no-print flex flex-col items-center gap-2 mt-8 mb-20">
         <button
           onClick={handleDownload}
           disabled={generating}
@@ -453,10 +453,13 @@ export default function PropertyPublicPage() {
           style={{ background: GOLD }}
         >
           {generating
-            ? <><Loader2 size={14} className="animate-spin" /> Подготовка...</>
+            ? <><Loader2 size={14} className="animate-spin" /> Открываю...</>
             : <><Printer size={14} /> Скачать PDF</>
           }
         </button>
+        <p className="text-gray-400 text-[10px] uppercase tracking-widest">
+          В диалоге выбери «Сохранить как PDF»
+        </p>
       </div>
     </div>
   )
