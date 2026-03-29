@@ -20,6 +20,16 @@
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ── Presentation / PDF typography ──────────────────────────────────────────── */
+.serif { font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; }
+
+/* ── Print utilities ─────────────────────────────────────────────────────────── */
+@media print {
+  .no-print   { display: none !important; }
+  .page-break { break-before: page; }
+  body        { background: white !important; }
+}
+
 /* ── Apple-style easing tokens ───────────────────────────────────────────────── */
 :root {
   --ease-ios:    cubic-bezier(0.25, 0.46, 0.45, 0.94);

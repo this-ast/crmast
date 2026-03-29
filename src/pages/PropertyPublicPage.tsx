@@ -4,56 +4,46 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import type { Property, AgentSettings } from '@/types'
-import {
-  PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS, DEAL_TYPE_LABELS,
-} from '@/types'
-import { formatPriceShort } from '@/utils/format'
+import { PROPERTY_TYPE_LABELS, DEAL_TYPE_LABELS } from '@/types'
+import { formatPriceShort, formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import { MapPin, Phone, MessageCircle, Send, ChevronLeft, ChevronRight, X, Building2 } from 'lucide-react'
+import { MapPin, Phone, MessageCircle, Send, ChevronLeft, ChevronRight, X, Building2, Printer } from 'lucide-react'
+
+// ─── Gold accent ───────────────────────────────────────────────────────────────
+const GOLD = '#C5A059'
 
 // ─── Lightbox ──────────────────────────────────────────────────────────────────
 
-function Lightbox({ photos, startIdx, onClose }: {
-  photos: string[]
-  startIdx: number
-  onClose: () => void
-}) {
+function Lightbox({ photos, startIdx, onClose }: { photos: string[]; startIdx: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIdx)
-  const prev = () => setIdx(i => (i - 1 + photos.length) % photos.length)
-  const next = () => setIdx(i => (i + 1) % photos.length)
-
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col" onClick={onClose}>
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-        <span className="text-white/50 text-sm">{idx + 1} / {photos.length}</span>
-        <button onClick={onClose} className="p-2 text-white/70 hover:text-white transition-colors">
-          <X size={22} />
+    <div className="fixed inset-0 z-50 bg-black flex flex-col no-print" onClick={onClose}>
+      <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+        <span className="text-white/40 text-xs tracking-widest uppercase">{idx + 1} / {photos.length}</span>
+        <button onClick={onClose} className="p-2 text-white/60 hover:text-white">
+          <X size={20} />
         </button>
       </div>
-      <div
-        className="flex-1 relative flex items-center justify-center overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
         <img src={photos[idx]} alt="" className="max-h-full max-w-full object-contain select-none" draggable={false} />
         {photos.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+            <button onClick={() => setIdx(i => (i - 1 + photos.length) % photos.length)}
+              className="absolute left-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors">
               <ChevronLeft size={20} />
             </button>
-            <button onClick={next} className="absolute right-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+            <button onClick={() => setIdx(i => (i + 1) % photos.length)}
+              className="absolute right-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors">
               <ChevronRight size={20} />
             </button>
           </>
         )}
       </div>
-      <div className="flex gap-2 px-4 py-3 overflow-x-auto shrink-0">
+      <div className="flex gap-2 px-5 py-4 overflow-x-auto shrink-0">
         {photos.map((p, i) => (
-          <button
-            key={i}
-            onClick={e => { e.stopPropagation(); setIdx(i) }}
-            className={cn('shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all',
-              i === idx ? 'border-white scale-105' : 'border-transparent opacity-50 hover:opacity-80')}
-          >
+          <button key={i} onClick={e => { e.stopPropagation(); setIdx(i) }}
+            className={cn('shrink-0 w-14 h-14 rounded overflow-hidden border transition-all',
+              i === idx ? 'border-white' : 'border-transparent opacity-40 hover:opacity-70')}>
             <img src={p} alt="" className="w-full h-full object-cover" />
           </button>
         ))}
@@ -62,87 +52,90 @@ function Lightbox({ photos, startIdx, onClose }: {
   )
 }
 
-// ─── Spec Pill ────────────────────────────────────────────────────────────────
+// ─── Section Title ─────────────────────────────────────────────────────────────
 
-function SpecPill({ icon, label, value }: { icon: string; label: string; value: string }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-4 py-3 bg-slate-50 rounded-2xl min-w-fit shrink-0">
-      <span className="text-xl leading-none">{icon}</span>
-      <span className="text-sm font-bold text-slate-900 whitespace-nowrap">{value}</span>
-      <span className="text-[10px] text-slate-400 uppercase tracking-wide whitespace-nowrap">{label}</span>
-    </div>
-  )
-}
-
-// ─── Section ──────────────────────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="px-4 py-5 border-b border-slate-100">
-      <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">{title}</h2>
+    <h2 className="serif text-2xl md:text-3xl mb-8 pl-5 italic font-normal"
+      style={{ borderLeft: `4px solid ${GOLD}` }}>
       {children}
-    </div>
+    </h2>
   )
 }
 
-// ─── Char Grid Item ───────────────────────────────────────────────────────────
+// ─── Gold Divider ──────────────────────────────────────────────────────────────
 
-function CharItem({ label, value }: { label: string; value: string }) {
+function GoldLine() {
+  return <div className="h-px w-12 mb-6" style={{ background: GOLD }} />
+}
+
+// ─── Feature Row ──────────────────────────────────────────────────────────────
+
+function FeatureRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-slate-50 rounded-2xl px-3.5 py-3">
-      <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">{label}</p>
-      <p className="text-sm font-semibold text-slate-900">{value}</p>
-    </div>
+    <li className="flex justify-between items-center border-b border-gray-100 pb-2.5 pt-1 gap-4">
+      <span className="text-gray-400 uppercase text-[10px] tracking-widest shrink-0">{label}</span>
+      <span className="font-semibold text-sm text-right">{value}</span>
+    </li>
   )
 }
 
-// ─── Agent Bar ────────────────────────────────────────────────────────────────
+// ─── Agent Footer ─────────────────────────────────────────────────────────────
 
-function AgentBar({ agent }: { agent: AgentSettings }) {
+function AgentFooter({ agent }: { agent: AgentSettings }) {
   const phone = agent.phone?.replace(/\D/g, '')
   const wa = (agent.whatsapp ?? agent.phone)?.replace(/\D/g, '')
   const tg = agent.telegram?.replace('@', '')
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 px-4 pt-3 pb-5">
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center gap-3 mb-2.5">
-          {agent.logo_url ? (
-            <img src={agent.logo_url} alt={agent.name ?? ''} className="w-9 h-9 rounded-full object-cover border border-slate-100" />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-              {(agent.name ?? 'А')[0].toUpperCase()}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">{agent.name ?? 'Агент'}</p>
-            {agent.agency_name && (
-              <p className="text-xs text-slate-500 truncate">{agent.agency_name}</p>
-            )}
+    <footer className="border-t border-gray-100 pt-10 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="flex items-center gap-6">
+        {agent.logo_url ? (
+          <img src={agent.logo_url} alt={agent.name ?? ''} className="w-20 h-20 rounded-full object-cover grayscale" />
+        ) : (
+          <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold"
+            style={{ background: 'linear-gradient(135deg, #1a1a1a, #333)' }}>
+            {(agent.name ?? 'А')[0].toUpperCase()}
           </div>
+        )}
+        <div>
+          <p className="text-gray-400 uppercase text-[10px] tracking-widest mb-1">Ваш персональный эксперт</p>
+          <h3 className="serif text-2xl font-normal">{agent.name ?? 'Агент'}</h3>
+          {agent.agency_name && (
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: GOLD }}>
+              {agent.agency_name}
+            </p>
+          )}
         </div>
-        <div className="flex gap-2">
+      </div>
+      <div className="text-center md:text-right">
+        {agent.phone && (
+          <p className="text-xl font-bold mb-3">{agent.phone}</p>
+        )}
+        <div className="flex gap-2 justify-center md:justify-end no-print flex-wrap">
           {phone && (
             <a href={`tel:+${phone}`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold active:scale-[0.97] transition-transform">
-              <Phone size={15} /> Позвонить
+              className="flex items-center gap-1.5 px-5 py-2 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-800 transition">
+              <Phone size={12} /> Позвонить
             </a>
           )}
           {wa && (
             <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-emerald-500 text-white text-sm font-semibold active:scale-[0.97] transition-transform">
-              <MessageCircle size={15} /> WhatsApp
+              className="flex items-center gap-1.5 px-5 py-2 text-white text-[10px] font-bold uppercase tracking-widest transition"
+              style={{ background: '#25D366' }}>
+              <MessageCircle size={12} /> WhatsApp
             </a>
           )}
           {tg && (
             <a href={`https://t.me/${tg}`} target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-sky-500 text-white text-sm font-semibold active:scale-[0.97] transition-transform">
-              <Send size={15} /> Telegram
+              className="flex items-center gap-1.5 px-5 py-2 text-white text-[10px] font-bold uppercase tracking-widest transition"
+              style={{ background: '#229ED9' }}>
+              <Send size={12} /> Telegram
             </a>
           )}
         </div>
       </div>
-    </div>
+    </footer>
   )
 }
 
@@ -170,8 +163,8 @@ export default function PropertyPublicPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-slate-400 text-sm">Загрузка...</p>
+          <div className="w-6 h-6 border border-gray-300 border-t-gray-800 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-xs uppercase tracking-widest">Загрузка</p>
         </div>
       </div>
     )
@@ -182,8 +175,8 @@ export default function PropertyPublicPage() {
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <div className="text-center">
           <div className="text-5xl mb-4">🔍</div>
-          <h1 className="text-xl font-bold text-slate-900 mb-2">Объект не найден</h1>
-          <p className="text-slate-500 text-sm">Ссылка устарела или объект был удалён.</p>
+          <h1 className="serif text-2xl mb-2">Объект не найден</h1>
+          <p className="text-gray-400 text-sm">Ссылка устарела или объект был удалён.</p>
         </div>
       </div>
     )
@@ -191,28 +184,39 @@ export default function PropertyPublicPage() {
 
   const photos = property.photos ?? []
   const typeLabel = PROPERTY_TYPE_LABELS[property.type]
-  const typeIcon = PROPERTY_TYPE_ICONS[property.type]
   const dealLabel = DEAL_TYPE_LABELS[property.deal_type]
 
-  const specs: Array<{ icon: string; label: string; value: string }> = []
-  if (property.area) specs.push({ icon: '📐', label: 'Площадь', value: `${property.area} м²` })
-  if (property.rooms !== undefined) specs.push({ icon: '🛏', label: 'Комнаты', value: property.rooms === 0 ? 'Студия' : String(property.rooms) })
-  if (property.floor) specs.push({ icon: '📊', label: 'Этаж', value: property.total_floors ? `${property.floor} / ${property.total_floors}` : String(property.floor) })
-  if (property.renovation) specs.push({ icon: '🔨', label: 'Ремонт', value: property.renovation })
-  if (property.ceiling_height) specs.push({ icon: '↕️', label: 'Потолки', value: `${property.ceiling_height} м` })
-  if (property.market_type) specs.push({ icon: property.market_type === 'new_build' ? '🏗' : '🏘', label: 'Рынок', value: property.market_type === 'new_build' ? 'Новостройка' : 'Вторичка' })
+  // Features for the right column block
+  const features: Array<[string, string]> = []
+  if (property.rooms !== undefined) features.push(['Комнаты', property.rooms === 0 ? 'Студия' : String(property.rooms)])
+  if (property.area) features.push(['Площадь', `${property.area} м²`])
+  if (property.floor) features.push(['Этаж', property.total_floors ? `${property.floor} из ${property.total_floors}` : String(property.floor)])
+  if (property.ceiling_height) features.push(['Потолки', `${property.ceiling_height} м`])
+  if (property.renovation) features.push(['Ремонт', property.renovation])
+  if (property.bathroom_type) features.push(['Санузел', property.bathroom_type])
+  if (property.kitchen_area) features.push(['Кухня', `${property.kitchen_area} м²`])
+  if (property.room_type) features.push(['Тип комнат', property.room_type])
+  if (property.market_type) features.push(['Рынок', property.market_type === 'new_build' ? 'Новостройка' : 'Вторичка'])
+  if (property.sale_method) features.push(['Способ продажи', property.sale_method])
 
-  const hasPayOptions = property.has_mortgage || property.has_installment || property.has_trade_in || property.has_maternal_cap || property.has_military_mort
-  const hasCharacteristics = property.area || property.kitchen_area || property.living_area || property.ceiling_height || property.renovation || property.bathroom_type || property.window_views?.length || property.furniture?.length || property.heated_floor !== undefined
+  // Tags (extra_features + payment options)
+  const tags: string[] = [...(property.extra_features ?? [])]
+  if (property.has_mortgage) tags.push('Ипотека')
+  if (property.has_installment) tags.push('Рассрочка')
+  if (property.has_trade_in) tags.push('Трейд-ин')
+  if (property.has_maternal_cap) tags.push('Маткапитал')
+  if (property.has_military_mort) tags.push('Воен. ипотека')
+  if (property.has_parking) tags.push('Паркинг')
+  if (property.heated_floor) tags.push('Тёплый пол')
 
   return (
-    <div className="min-h-screen bg-white pb-36">
+    <div className="min-h-screen bg-white">
       {lbIdx !== null && (
         <Lightbox photos={photos} startIdx={lbIdx} onClose={() => setLbIdx(null)} />
       )}
 
       {/* ── Hero Cover ─────────────────────────────────────────────────────── */}
-      <div className="relative w-full" style={{ height: 'min(72vh, 540px)', minHeight: 320 }}>
+      <div className="relative w-full bg-gray-900" style={{ height: 'min(75vh, 580px)', minHeight: 340 }}>
         {photos.length > 0 ? (
           <img
             src={photos[0]}
@@ -221,237 +225,213 @@ export default function PropertyPublicPage() {
             onClick={() => setLbIdx(0)}
           />
         ) : (
-          <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
-            <Building2 size={64} className="text-slate-300" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Building2 size={64} className="text-gray-700" />
+          </div>
+        )}
+        {/* Gradient overlay */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.35) 100%)' }} />
+
+        {/* Agency top-right */}
+        {agent && (
+          <div className="absolute top-6 right-6 flex items-center gap-2">
+            {agent.logo_url ? (
+              <img src={agent.logo_url} alt={agent.agency_name ?? ''} className="h-8 w-auto opacity-80 brightness-0 invert" />
+            ) : agent.agency_name ? (
+              <span className="text-white/70 text-xs font-bold uppercase tracking-widest">{agent.agency_name}</span>
+            ) : null}
           </div>
         )}
 
-        {/* Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/35 pointer-events-none" />
-
-        {/* Top badges */}
-        <div className="absolute top-0 left-0 right-0 p-4 flex items-start justify-between">
-          <span className="bg-white/20 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
-            {typeIcon} {typeLabel}
+        {/* Type badge top-left */}
+        <div className="absolute top-6 left-6">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 text-white"
+            style={{ background: GOLD }}>
+            {typeLabel} · {dealLabel}
           </span>
-          {photos.length > 1 && (
-            <button
-              onClick={() => setLbIdx(0)}
-              className="bg-black/40 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-full flex items-center gap-1.5 border border-white/10"
-            >
-              <span className="text-xs">📷</span>
-              <span>{photos.length}</span>
-            </button>
-          )}
         </div>
 
         {/* Bottom content */}
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <div className="max-w-lg mx-auto">
-            {property.complex_name && (
-              <p className="text-white/65 text-xs font-medium mb-1.5 tracking-wide">
-                ЖК «{property.complex_name}»
-              </p>
-            )}
-            <div className="text-4xl font-black text-white tracking-tight leading-none">
-              {formatPriceShort(property.price)}
-            </div>
-            {property.area > 0 && (
-              <p className="text-white/55 text-xs mt-1">
-                {Math.round(property.price / property.area).toLocaleString('ru-RU')} ₽/м²
-              </p>
-            )}
-            <div className="flex items-center gap-1.5 mt-2.5 text-white/75 text-sm">
-              <MapPin size={13} className="shrink-0 text-white/60" />
-              <span className="leading-snug">
-                {property.address}
-                {property.district ? ` · ${property.district}` : ''}
-              </span>
-            </div>
-            <div className="flex gap-2 mt-3 flex-wrap">
-              <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full border border-white/15">
-                {dealLabel}
-              </span>
-              {property.market_type && (
-                <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full border border-white/15">
-                  {property.market_type === 'new_build' ? 'Новостройка' : 'Вторичка'}
-                </span>
-              )}
-            </div>
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 md:px-12">
+          {property.complex_name && (
+            <p className="text-white/50 text-xs uppercase tracking-widest mb-2">{property.complex_name}</p>
+          )}
+          <div className="serif text-4xl md:text-5xl text-white font-normal italic leading-tight mb-2">
+            {formatPriceShort(property.price)}
+          </div>
+          {property.area > 0 && (
+            <p className="text-white/50 text-xs mb-3">
+              {Math.round(property.price / property.area).toLocaleString('ru-RU')} ₽/м²
+            </p>
+          )}
+          <div className="flex items-center gap-1.5 text-white/65 text-sm">
+            <MapPin size={13} className="shrink-0" style={{ color: GOLD }} />
+            {property.address}
+            {property.district ? ` · ${property.district}` : ''}
           </div>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto">
-        {/* ── Specs Strip ─────────────────────────────────────────────────── */}
-        {specs.length > 0 && (
-          <div className="px-4 py-5 border-b border-slate-100">
-            <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {specs.map(s => (
-                <SpecPill key={s.label} icon={s.icon} label={s.label} value={s.value} />
-              ))}
-            </div>
+      {/* ── Main Content ───────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+
+        {/* ── Quick stats bar ──────────────────────────────────────────────── */}
+        {features.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mb-16 border border-gray-100 divide-x divide-y md:divide-y-0 divide-gray-100">
+            {features.slice(0, 4).map(([label, value]) => (
+              <div key={label} className="px-5 py-4 text-center">
+                <p className="text-gray-400 uppercase text-[9px] tracking-widest mb-1">{label}</p>
+                <p className="font-bold text-base">{value}</p>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* ── Photo Gallery ───────────────────────────────────────────────── */}
-        {photos.length > 1 && (
-          <Section title={`Фотографии · ${photos.length}`}>
-            <div className="grid grid-cols-3 gap-1.5">
-              {photos.slice(0, 6).map((p, i) => (
+        {/* ── Gallery ──────────────────────────────────────────────────────── */}
+        {photos.length > 0 && (
+          <section className="mb-16">
+            <SectionTitle>Интерьеры объекта</SectionTitle>
+            {photos.length === 1 ? (
+              <div className="h-96 rounded-sm overflow-hidden cursor-pointer" onClick={() => setLbIdx(0)}>
+                <img src={photos[0]} alt="" className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-12 gap-3">
+                {/* Main big photo */}
                 <button
-                  key={i}
-                  onClick={() => setLbIdx(i)}
-                  className={cn(
-                    'relative overflow-hidden rounded-xl bg-slate-100 transition-transform active:scale-[0.97]',
-                    i === 0 ? 'col-span-2 row-span-2' : ''
-                  )}
-                  style={{ aspectRatio: i === 0 ? '1/1' : '1/1' }}
+                  onClick={() => setLbIdx(0)}
+                  className="col-span-8 h-96 overflow-hidden rounded-sm block"
                 >
-                  <img src={p} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                  {i === 5 && photos.length > 6 && (
-                    <div className="absolute inset-0 bg-black/55 flex items-center justify-center text-white font-bold text-xl">
-                      +{photos.length - 6}
-                    </div>
-                  )}
+                  <img src={photos[0]} alt="" className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
                 </button>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* ── Characteristics ─────────────────────────────────────────────── */}
-        {hasCharacteristics && (
-          <Section title="Характеристики">
-            <div className="grid grid-cols-2 gap-2.5">
-              {property.area > 0 && <CharItem label="Общая площадь" value={`${property.area} м²`} />}
-              {property.rooms !== undefined && (
-                <CharItem label="Планировка" value={property.rooms === 0 ? 'Студия' : `${property.rooms}-комнатная`} />
-              )}
-              {property.floor && (
-                <CharItem label="Этаж" value={property.total_floors ? `${property.floor} из ${property.total_floors}` : String(property.floor)} />
-              )}
-              {property.kitchen_area && <CharItem label="Кухня" value={`${property.kitchen_area} м²`} />}
-              {property.living_area && <CharItem label="Жилая" value={`${property.living_area} м²`} />}
-              {property.ceiling_height && <CharItem label="Потолки" value={`${property.ceiling_height} м`} />}
-              {property.renovation && <CharItem label="Ремонт" value={property.renovation} />}
-              {property.bathroom_type && <CharItem label="Санузел" value={property.bathroom_type} />}
-              {property.room_type && <CharItem label="Тип комнат" value={property.room_type} />}
-              {property.heated_floor !== undefined && (
-                <CharItem label="Тёплый пол" value={property.heated_floor ? 'Есть' : 'Нет'} />
-              )}
-              {property.sale_method && <CharItem label="Способ продажи" value={property.sale_method} />}
-            </div>
-
-            {property.window_views && property.window_views.length > 0 && (
-              <div className="mt-3.5">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-2">Вид из окна</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {property.window_views.map(v => (
-                    <span key={v} className="text-xs bg-sky-50 text-sky-700 px-2.5 py-1 rounded-full font-medium">{v}</span>
+                {/* Right column — 2 photos */}
+                <div className="col-span-4 flex flex-col gap-3">
+                  {photos.slice(1, 3).map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setLbIdx(i + 1)}
+                      className="h-[186px] overflow-hidden rounded-sm relative block"
+                    >
+                      <img src={p} alt="" className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
+                      {i === 1 && photos.length > 3 && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="text-white text-2xl font-bold">+{photos.length - 3}</span>
+                        </div>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
             )}
-
-            {property.furniture && property.furniture.length > 0 && (
-              <div className="mt-3.5">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold mb-2">Мебель</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {property.furniture.map(f => (
-                    <span key={f} className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">{f}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Section>
+          </section>
         )}
 
-        {/* ── Description ─────────────────────────────────────────────────── */}
-        {property.description && (
-          <Section title="Описание">
-            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{property.description}</p>
-          </Section>
-        )}
-
-        {/* ── Payment Options ──────────────────────────────────────────────── */}
-        {hasPayOptions && (
-          <Section title="Условия покупки">
-            <div className="grid grid-cols-2 gap-2">
-              {property.has_mortgage && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">Ипотека</span>
-                </div>
-              )}
-              {property.has_installment && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">Рассрочка</span>
-                </div>
-              )}
-              {property.has_trade_in && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">Трейд-ин</span>
-                </div>
-              )}
-              {property.has_maternal_cap && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">Маткапитал</span>
-                </div>
-              )}
-              {property.has_military_mort && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                  <span className="text-sm text-emerald-800 font-medium">Воен. ипотека</span>
-                </div>
-              )}
-            </div>
-          </Section>
-        )}
-
-        {/* ── Extra Features ───────────────────────────────────────────────── */}
-        {property.extra_features && property.extra_features.length > 0 && (
-          <Section title="Особенности">
-            <div className="flex flex-wrap gap-2">
-              {property.extra_features.map(f => (
-                <span key={f} className="text-sm text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl font-medium">{f}</span>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* ── Location ─────────────────────────────────────────────────────── */}
-        <Section title="Местоположение">
-          <div className="bg-slate-50 rounded-2xl p-4 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-              <MapPin size={17} className="text-blue-600" />
-            </div>
+        {/* ── Description + Features ───────────────────────────────────────── */}
+        {(property.description || features.length > 0 || tags.length > 0) && (
+          <section className="grid md:grid-cols-2 gap-12 md:gap-16 mb-16 page-break pt-4">
+            {/* Left: description */}
             <div>
-              <p className="text-sm font-semibold text-slate-900 leading-snug">{property.address}</p>
-              {property.district && (
-                <p className="text-xs text-slate-500 mt-1">Район: {property.district}</p>
+              <h2 className="serif text-2xl md:text-3xl mb-4 font-normal">О проекте</h2>
+              <GoldLine />
+              {property.description ? (
+                <div className="text-gray-600 leading-relaxed space-y-4 text-sm whitespace-pre-line">
+                  {property.description.split('\n\n').map((p, i) => (
+                    <p key={i}>{p}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm italic">Описание не добавлено</p>
               )}
-              {property.complex_name && (
-                <p className="text-xs text-slate-500 mt-0.5">ЖК «{property.complex_name}»</p>
+
+              {/* Location */}
+              {(property.address || property.district) && (
+                <div className="mt-8">
+                  <h3 className="serif text-lg font-normal mb-3">Местоположение</h3>
+                  <GoldLine />
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <MapPin size={14} className="shrink-0 mt-0.5" style={{ color: GOLD }} />
+                    <div>
+                      <p>{property.address}</p>
+                      {property.district && <p className="text-gray-400 mt-0.5">Район: {property.district}</p>}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        </Section>
 
-        {/* ── Footer ────────────────────────────────────────────────────────── */}
-        <div className="px-4 py-5">
-          <p className="text-xs text-slate-400">
-            Артикул: <span className="font-mono font-semibold text-slate-500">{property.article}</span>
+            {/* Right: features block */}
+            <div className="bg-gray-50 p-7 rounded-sm">
+              <h2 className="serif text-2xl font-normal mb-6">Особенности</h2>
+              {features.length > 0 && (
+                <ul className="space-y-0 mb-5">
+                  {features.map(([label, value]) => (
+                    <FeatureRow key={label} label={label} value={value} />
+                  ))}
+                </ul>
+              )}
+              {/* Window views */}
+              {property.window_views && property.window_views.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-gray-400 uppercase text-[10px] tracking-widest mb-2">Вид из окна</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {property.window_views.map(v => (
+                      <span key={v} className="bg-white px-2.5 py-1 text-[9px] uppercase font-bold text-gray-400 border border-gray-200">
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Furniture */}
+              {property.furniture && property.furniture.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-gray-400 uppercase text-[10px] tracking-widest mb-2">Мебель</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {property.furniture.map(f => (
+                      <span key={f} className="bg-white px-2.5 py-1 text-[9px] uppercase font-bold text-gray-400 border border-gray-200">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Tags */}
+              {tags.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-1.5">
+                  {tags.map(t => (
+                    <span key={t}
+                      className="bg-white px-2.5 py-1 text-[9px] uppercase font-bold text-gray-400 border border-gray-200 rounded-full">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Article ───────────────────────────────────────────────────────── */}
+        <div className="mb-12 text-right">
+          <p className="text-gray-300 text-[10px] uppercase tracking-widest">
+            Артикул: <span className="font-mono font-bold text-gray-400">{property.article}</span>
           </p>
         </div>
+
+        {/* ── Agent Footer ──────────────────────────────────────────────────── */}
+        {agent && <AgentFooter agent={agent} />}
       </div>
 
-      {agent && (agent.phone || agent.whatsapp || agent.telegram) && (
-        <AgentBar agent={agent} />
-      )}
+      {/* ── Print Button ──────────────────────────────────────────────────────── */}
+      <div className="no-print flex justify-center mt-8 mb-20">
+        <button
+          onClick={() => window.print()}
+          className="text-white px-10 py-4 font-bold uppercase text-xs tracking-[0.2em] hover:opacity-90 transition-all shadow-lg"
+          style={{ background: GOLD }}
+        >
+          <Printer size={14} className="inline mr-2 -mt-0.5" />
+          Сформировать PDF
+        </button>
+      </div>
     </div>
   )
 }
