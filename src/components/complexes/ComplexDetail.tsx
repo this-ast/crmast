@@ -138,6 +138,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const [activePhotoIdx, setActivePhotoIdx] = useState(0)
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
   const [lightbox, setLightbox] = useState(false)
+  const [layoutLbIdx, setLayoutLbIdx] = useState<number | null>(null)
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchStartY, setTouchStartY] = useState(0)
   const [swipeDy, setSwipeDy] = useState(0)
@@ -678,28 +679,78 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               {uploadLayout.isPending ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
               Добавить
             </button>
-            <input ref={layoutInputRef} type="file" accept="image/*" className="hidden" onChange={handleLayoutUpload} />
+            <input ref={layoutInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleLayoutUpload} />
           </div>
           {complex.layouts.length === 0 && (
             <p className="text-xs text-slate-400">Нет планировок</p>
           )}
           {complex.layouts.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
-              {complex.layouts.map((url) => (
-                <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
-                  <img src={url} alt="Планировка" className="w-full h-full object-contain" />
-                  <button
-                    type="button"
-                    onClick={() => deleteLayout.mutate({ complexId, url })}
-                    className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 p-1 rounded opacity-0 group-hover/layout:opacity-100 transition-opacity"
-                  >
-                    <Trash2 size={12} className="text-white" />
-                  </button>
-                </div>
-              ))}
+              {complex.layouts.map((url, idx) => {
+                const isPdf = url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('application/pdf')
+                return (
+                  <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
+                    {isPdf ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
+                      >
+                        <FileText size={28} className="text-red-400" />
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wide">PDF</span>
+                        <Download size={11} className="text-slate-400" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const imgOnlyUrls = complex.layouts.filter(u => !u.toLowerCase().includes('.pdf'))
+                          setLayoutLbIdx(imgOnlyUrls.indexOf(url))
+                        }}
+                        className="w-full h-full block"
+                      >
+                        <img src={url} alt="Планировка" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-black/0 group-hover/layout:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn size={20} className="text-white opacity-0 group-hover/layout:opacity-100 transition-opacity drop-shadow" />
+                        </div>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => deleteLayout.mutate({ complexId, url })}
+                      className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 p-1 rounded opacity-0 group-hover/layout:opacity-100 transition-opacity z-10"
+                    >
+                      <Trash2 size={12} className="text-white" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
+
+        {/* Layout lightbox */}
+        {layoutLbIdx !== null && (() => {
+          const images = complex.layouts.filter(u => !u.toLowerCase().includes('.pdf'))
+          return (
+            <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={() => setLayoutLbIdx(null)}>
+              <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+                <span className="text-white/40 text-xs tracking-widest uppercase">{layoutLbIdx + 1} / {images.length}</span>
+                <button className="p-2 text-white/60 hover:text-white"><X size={20} /></button>
+              </div>
+              <div className="flex-1 flex items-center justify-center overflow-hidden px-4" onClick={e => e.stopPropagation()}>
+                <img src={images[layoutLbIdx]} alt="Планировка" className="max-h-full max-w-full object-contain select-none" draggable={false} />
+              </div>
+              {images.length > 1 && (
+                <div className="flex justify-center gap-3 py-4" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setLayoutLbIdx(i => i !== null ? (i - 1 + images.length) % images.length : 0)} className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><ChevronLeft size={20} /></button>
+                  <button onClick={() => setLayoutLbIdx(i => i !== null ? (i + 1) % images.length : 0)} className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><ChevronRight size={20} /></button>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Pricing conditions */}
         {complex.pricing_conditions && complex.pricing_conditions.length > 0 && (
