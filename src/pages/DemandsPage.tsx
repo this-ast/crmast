@@ -17,7 +17,8 @@ import { getOptionsWithDeletions } from '@/lib/customOptions'
 import toast from 'react-hot-toast'
 import type { Demand, DemandFormData, DemandFunnelStage, Client } from '@/types'
 import {
-  DEMAND_FUNNEL_STAGES, DEMAND_PROPERTY_TYPES, DEMAND_PAYMENT_TYPES, DEMAND_MARKET_TYPES,
+  DEMAND_FUNNEL_STAGES, DEMAND_PROPERTY_TYPES, DEMAND_PROPERTY_GROUPS,
+  DEMAND_PAYMENT_TYPES, DEMAND_MARKET_TYPES, getDemandCategory,
 } from '@/types'
 
 // ─── Funnel Bar ───────────────────────────────────────────────────────────────
@@ -228,6 +229,43 @@ function ClientSelector({
 
 // ─── Demand Form ──────────────────────────────────────────────────────────────
 
+function RangeInput({
+  label,
+  nameFrom,
+  nameTo,
+  placeholderFrom,
+  placeholderTo,
+  register,
+}: {
+  label: string
+  nameFrom: keyof DemandFormData
+  nameTo: keyof DemandFormData
+  placeholderFrom?: string
+  placeholderTo?: string
+  register: ReturnType<typeof useForm<DemandFormData>>['register']
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
+      <div className="flex gap-2 items-center">
+        <input
+          {...register(nameFrom, { valueAsNumber: true })}
+          type="number"
+          placeholder={placeholderFrom ?? 'от'}
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <span className="text-slate-400 text-sm">—</span>
+        <input
+          {...register(nameTo, { valueAsNumber: true })}
+          type="number"
+          placeholder={placeholderTo ?? 'до'}
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    </div>
+  )
+}
+
 function DemandForm({
   initial,
   clients,
@@ -250,19 +288,33 @@ function DemandForm({
   const [selectedComplexIds, setSelectedComplexIds] = useState<string[]>(initial?.complex_ids ?? [])
   const [clientId, setClientId] = useState(initial?.client_id ?? '')
 
-  const { register, handleSubmit, watch, setValue } = useForm<DemandFormData>({
+  const { register, handleSubmit } = useForm<DemandFormData>({
     defaultValues: {
       title: initial?.title ?? '',
       budget_min: initial?.budget_min,
       budget_max: initial?.budget_max,
       floor_min: initial?.floor_min,
       floor_max: initial?.floor_max,
+      area_min: initial?.area_min,
+      area_max: initial?.area_max,
+      area_sotki_min: initial?.area_sotki_min,
+      area_sotki_max: initial?.area_sotki_max,
       market_type: initial?.market_type ?? 'any',
       funnel_stage: initial?.funnel_stage ?? 'new',
       status: initial?.status ?? 'active',
       notes: initial?.notes ?? '',
     },
   })
+
+  // Determine what fields to show based on selected property types
+  const category = getDemandCategory(selectedPropTypes)
+  const showApartmentFields = category === 'apartment' || category === 'mixed' || category === 'none'
+  const showHouseFields     = category === 'house'     || category === 'mixed'
+  const showLandFields      = category === 'land'      || category === 'mixed'
+  const showCommercialFields = category === 'commercial' || category === 'mixed'
+  const showFloor = showApartmentFields || showCommercialFields
+  const showMarketType = showApartmentFields
+  const showComplexes = (showApartmentFields || showCommercialFields) && complexes.length > 0
 
   const handleSave = (data: DemandFormData) => {
     onSave({
@@ -277,7 +329,9 @@ function DemandForm({
 
   return (
     <form onSubmit={handleSubmit(handleSave)} className="flex flex-col max-h-[90vh]">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+        {/* Title */}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Название / описание</label>
           <input
@@ -287,92 +341,110 @@ function DemandForm({
           />
         </div>
 
+        {/* Client */}
         <ClientSelector clients={clients} value={clientId} onChange={setClientId} />
 
-        {/* Budget */}
+        {/* Funnel stage */}
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Бюджет (₽)</label>
-          <div className="flex gap-2 items-center">
-            <input
-              {...register('budget_min', { valueAsNumber: true })}
-              type="number"
-              placeholder="от"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-slate-400 text-sm">—</span>
-            <input
-              {...register('budget_max', { valueAsNumber: true })}
-              type="number"
-              placeholder="до"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Этап воронки</label>
+          <select
+            {...register('funnel_stage')}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {DEMAND_FUNNEL_STAGES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Property types */}
-        <ChipSelect
-          label="Тип квартиры"
-          options={DEMAND_PROPERTY_TYPES}
-          value={selectedPropTypes}
-          onChange={setSelectedPropTypes}
-        />
+        <hr className="border-slate-100" />
 
-        {/* Payment types */}
-        <ChipSelect
-          label="Форма оплаты"
-          options={DEMAND_PAYMENT_TYPES}
-          value={selectedPaymentTypes}
-          onChange={setSelectedPaymentTypes}
-        />
-
-        {/* Districts */}
-        <ChipSelect
-          label="Районы"
-          options={districts.map((d) => ({ value: d, label: d }))}
-          value={selectedDistricts}
-          onChange={setSelectedDistricts}
-        />
-
-        {/* Market type */}
+        {/* Property type groups */}
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
-          <div className="flex gap-2">
-            {DEMAND_MARKET_TYPES.map((m) => (
-              <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  value={m.value}
-                  {...register('market_type')}
-                  className="accent-blue-600"
-                />
-                <span className="text-sm text-slate-700">{m.label}</span>
-              </label>
+          <label className="block text-xs font-medium text-slate-600 mb-2">Тип объекта</label>
+          <div className="space-y-2">
+            {DEMAND_PROPERTY_GROUPS.map((group) => (
+              <div key={group.groupLabel}>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                  {group.icon} {group.groupLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.items.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => {
+                        if (selectedPropTypes.includes(o.value))
+                          setSelectedPropTypes(selectedPropTypes.filter((x) => x !== o.value))
+                        else
+                          setSelectedPropTypes([...selectedPropTypes, o.value])
+                      }}
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                        selectedPropTypes.includes(o.value)
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Floor */}
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Этаж</label>
-          <div className="flex gap-2 items-center">
-            <input
-              {...register('floor_min', { valueAsNumber: true })}
-              type="number"
-              placeholder="от"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-slate-400 text-sm">—</span>
-            <input
-              {...register('floor_max', { valueAsNumber: true })}
-              type="number"
-              placeholder="до"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+        <hr className="border-slate-100" />
 
-        {/* Linked complexes */}
-        {complexes.length > 0 && (
+        {/* Budget */}
+        <RangeInput label="Бюджет (₽)" nameFrom="budget_min" nameTo="budget_max" placeholderFrom="от" placeholderTo="до" register={register} />
+
+        {/* Apartment-specific: floor, market type, ЖК */}
+        {showFloor && (
+          <RangeInput label="Этаж" nameFrom="floor_min" nameTo="floor_max" placeholderFrom="от" placeholderTo="до" register={register} />
+        )}
+
+        {/* Area m² — apartments, houses, commercial */}
+        {(showApartmentFields || showHouseFields || showCommercialFields) && (
+          <RangeInput label="Площадь (м²)" nameFrom="area_min" nameTo="area_max" placeholderFrom="от" placeholderTo="до" register={register} />
+        )}
+
+        {/* Land area sotki — houses and land */}
+        {(showHouseFields || showLandFields) && (
+          <RangeInput label="Площадь участка (сот.)" nameFrom="area_sotki_min" nameTo="area_sotki_max" placeholderFrom="от" placeholderTo="до" register={register} />
+        )}
+
+        {/* Market type — apartments / commercial only */}
+        {showMarketType && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
+            <div className="flex gap-3">
+              {DEMAND_MARKET_TYPES.map((m) => (
+                <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" value={m.value} {...register('market_type')} className="accent-blue-600" />
+                  <span className="text-sm text-slate-700">{m.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Payment types */}
+        <ChipSelect label="Форма оплаты" options={DEMAND_PAYMENT_TYPES} value={selectedPaymentTypes} onChange={setSelectedPaymentTypes} />
+
+        {/* Districts */}
+        {districts.length > 0 && (
+          <ChipSelect
+            label="Районы"
+            options={districts.map((d) => ({ value: d, label: d }))}
+            value={selectedDistricts}
+            onChange={setSelectedDistricts}
+          />
+        )}
+
+        {/* Linked complexes — apartments / commercial only */}
+        {showComplexes && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">ЖК (интересующие)</label>
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
@@ -399,19 +471,6 @@ function DemandForm({
             </div>
           </div>
         )}
-
-        {/* Funnel stage */}
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Этап воронки</label>
-          <select
-            {...register('funnel_stage')}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {DEMAND_FUNNEL_STAGES.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </div>
 
         {/* Notes */}
         <div>

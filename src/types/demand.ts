@@ -9,10 +9,14 @@ export interface Demand {
   budget_min?: number
   budget_max?: number
   districts?: string[]
-  property_types?: string[]   // '1br','2br','3br','studio','commercial'
+  property_types?: string[]   // 'studio','1br','2br','3br','4br+','house','cottage','land','commercial'
   payment_types?: string[]    // 'cash','mortgage','installment'
   floor_min?: number
   floor_max?: number
+  area_min?: number
+  area_max?: number
+  area_sotki_min?: number
+  area_sotki_max?: number
   market_type?: string        // 'primary','secondary','any'
   complex_ids?: string[]
   funnel_stage?: DemandFunnelStage
@@ -34,6 +38,10 @@ export interface DemandFormData {
   payment_types?: string[]
   floor_min?: number
   floor_max?: number
+  area_min?: number
+  area_max?: number
+  area_sotki_min?: number
+  area_sotki_max?: number
   market_type?: string
   complex_ids?: string[]
   funnel_stage?: DemandFunnelStage
@@ -51,13 +59,56 @@ export const DEMAND_FUNNEL_STAGES: { value: DemandFunnelStage; label: string; co
   { value: 'deal',      label: 'Сделка',                 color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
 ]
 
+// Grouped for form display
+export const DEMAND_PROPERTY_GROUPS: { groupLabel: string; icon: string; items: { value: string; label: string }[] }[] = [
+  {
+    groupLabel: 'Квартиры',
+    icon: '🏢',
+    items: [
+      { value: 'studio', label: 'Студия' },
+      { value: '1br',    label: '1-комн.' },
+      { value: '2br',    label: '2-комн.' },
+      { value: '3br',    label: '3-комн.' },
+      { value: '4br+',   label: '4+ комн.' },
+    ],
+  },
+  {
+    groupLabel: 'Дома',
+    icon: '🏡',
+    items: [
+      { value: 'house',   label: 'Частный дом' },
+      { value: 'cottage', label: 'Коттедж'     },
+      { value: 'dacha',   label: 'Дача'        },
+    ],
+  },
+  {
+    groupLabel: 'Участки',
+    icon: '🌿',
+    items: [
+      { value: 'land', label: 'Участок' },
+    ],
+  },
+  {
+    groupLabel: 'Коммерция',
+    icon: '🏪',
+    items: [
+      { value: 'commercial', label: 'Коммерция' },
+    ],
+  },
+]
+
+// Flat list (for display badges, filters)
 export const DEMAND_PROPERTY_TYPES: { value: string; label: string }[] = [
-  { value: 'studio',     label: 'Студия'      },
-  { value: '1br',        label: '1-комнатная' },
-  { value: '2br',        label: '2-комнатная' },
-  { value: '3br',        label: '3-комнатная' },
-  { value: '4br+',       label: '4+ комнат'   },
-  { value: 'commercial', label: 'Коммерция'   },
+  { value: 'studio',     label: 'Студия'       },
+  { value: '1br',        label: '1-комнатная'  },
+  { value: '2br',        label: '2-комнатная'  },
+  { value: '3br',        label: '3-комнатная'  },
+  { value: '4br+',       label: '4+ комнат'    },
+  { value: 'house',      label: 'Частный дом'  },
+  { value: 'cottage',    label: 'Коттедж'      },
+  { value: 'dacha',      label: 'Дача'         },
+  { value: 'land',       label: 'Участок'      },
+  { value: 'commercial', label: 'Коммерция'    },
 ]
 
 export const DEMAND_PAYMENT_TYPES: { value: string; label: string }[] = [
@@ -71,3 +122,26 @@ export const DEMAND_MARKET_TYPES: { value: string; label: string }[] = [
   { value: 'primary',   label: 'Новостройка'},
   { value: 'secondary', label: 'Вторичка'  },
 ]
+
+// Helper: determine which category the selected types belong to
+export type DemandCategory = 'apartment' | 'house' | 'land' | 'commercial' | 'mixed' | 'none'
+
+const APARTMENT_TYPES = new Set(['studio', '1br', '2br', '3br', '4br+'])
+const HOUSE_TYPES = new Set(['house', 'cottage', 'dacha'])
+const LAND_TYPES = new Set(['land'])
+const COMMERCIAL_TYPES = new Set(['commercial'])
+
+export function getDemandCategory(types: string[]): DemandCategory {
+  if (!types || types.length === 0) return 'none'
+  const hasApt = types.some((t) => APARTMENT_TYPES.has(t))
+  const hasHouse = types.some((t) => HOUSE_TYPES.has(t))
+  const hasLand = types.some((t) => LAND_TYPES.has(t))
+  const hasCom = types.some((t) => COMMERCIAL_TYPES.has(t))
+  const cats = [hasApt, hasHouse, hasLand, hasCom].filter(Boolean).length
+  if (cats > 1) return 'mixed'
+  if (hasApt) return 'apartment'
+  if (hasHouse) return 'house'
+  if (hasLand) return 'land'
+  if (hasCom) return 'commercial'
+  return 'none'
+}
