@@ -13,6 +13,7 @@ const DEFAULT_SECTIONS: NavSection[] = [
   { id: 'complexes',   label: 'ЖК',        hidden: false },
   { id: 'clients',     label: 'Клиенты',   hidden: false },
   { id: 'deals',       label: 'Сделки',    hidden: false },
+  { id: 'demands',     label: 'Спрос',     hidden: false },
   { id: 'collections', label: 'Подборки',  hidden: false },
   { id: 'templates',   label: 'Шаблоны',   hidden: false },
 ]

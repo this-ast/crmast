@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, Users, HeartHandshake,
   Settings, Landmark, MessageSquare, BookMarked,
-  Eye, EyeOff,
+  Eye, EyeOff, ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useUISettings } from '@/store/useUISettings'
@@ -15,6 +15,7 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
   complexes:   Landmark,
   clients:     Users,
   deals:       HeartHandshake,
+  demands:     ArrowRight,
   collections: BookMarked,
   templates:   MessageSquare,
 }
@@ -25,6 +26,7 @@ const SECTION_ROUTES: Record<string, string> = {
   complexes:   '/complexes',
   clients:     '/clients',
   deals:       '/deals',
+  demands:     '/demands',
   collections: '/collections',
   templates:   '/templates',
 }

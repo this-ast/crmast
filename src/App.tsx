@@ -8,6 +8,7 @@ import DealsPage from '@/pages/DealsPage'
 import TemplatesPage from '@/pages/TemplatesPage'
 import SettingsPage from '@/pages/SettingsPage'
 import CollectionsPage from '@/pages/CollectionsPage'
+import DemandsPage from '@/pages/DemandsPage'
 import CollectionPublicPage from '@/pages/CollectionPublicPage'
 import PropertyPublicPage from '@/pages/PropertyPublicPage'
 import ComplexPublicPage from '@/pages/ComplexPublicPage'
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="complexes" element={<ComplexesPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="deals" element={<DealsPage />} />
+        <Route path="demands" element={<DemandsPage />} />
         <Route path="collections" element={<CollectionsPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="settings" element={<SettingsPage />} />
