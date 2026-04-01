@@ -629,6 +629,8 @@ export default function PropertyForm() {
       reset({
         status:          editingProperty.status,
         price:           editingProperty.price != null ? String(editingProperty.price) : '',
+        price_net:       editingProperty.price_net != null ? String(editingProperty.price_net) : '',
+        agent_commission: editingProperty.agent_commission != null ? String(editingProperty.agent_commission) : '',
         area:            editingProperty.area  != null ? String(editingProperty.area)  : '',
         rooms:           editingProperty.rooms ?? '',
         floor:           editingProperty.floor ?? '',
@@ -706,6 +708,8 @@ export default function PropertyForm() {
       has_maternal_cap: !!raw.has_maternal_cap,
       has_military_mort: !!raw.has_military_mort,
       price:         priceNum,
+      price_net:     floatOrUndef(raw.price_net),
+      agent_commission: floatOrUndef(raw.agent_commission),
       area:          areaNum,
       rooms:         intOrUndef(raw.rooms),
       floor:         intOrUndef(raw.floor),
@@ -945,6 +949,28 @@ export default function PropertyForm() {
               onChange={(e) => { register('area').onChange(e); clearErrors('area') }}
             />
             <FieldError message={errors.area?.message as string} />
+          </div>
+        </div>
+
+        {/* ── Net price and commission ────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Цена на руки ₽</label>
+            <input
+              type="number"
+              placeholder="Сумма собственнику"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {...register('price_net')}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Комиссия риэлтора ₽</label>
+            <input
+              type="number"
+              placeholder="Комиссия"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {...register('agent_commission')}
+            />
           </div>
         </div>
 

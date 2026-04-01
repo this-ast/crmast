@@ -2,9 +2,11 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, Users, HeartHandshake,
   Landmark, MessageSquare, Settings, BookMarked,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useUISettings } from '@/store/useUISettings'
+import { useClientMode } from '@/store/useClientMode'
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
   dashboard:   LayoutDashboard,
@@ -58,9 +60,16 @@ function NavItem({ id, label, to }: { id: string; label: string; to: string }) {
 export default function MobileBottomNav() {
   const { sections } = useUISettings()
   const visible = sections.filter((s) => !s.hidden)
+  const { isClientMode, toggle } = useClientMode()
 
   return (
+    <>
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-700">
+      {isClientMode && (
+        <div className="px-3 py-1.5 bg-amber-500 text-white text-xs font-bold text-center tracking-wide">
+          👁 РЕЖИМ КЛИЕНТА
+        </div>
+      )}
       {/* pb-8 — поднимает кнопки выше iOS home indicator, чтобы не срабатывал system swipe */}
       <div
         className="flex overflow-x-auto scrollbar-hide px-1 pb-8"
@@ -94,5 +103,18 @@ export default function MobileBottomNav() {
         </NavLink>
       </div>
     </nav>
+    <button
+      onClick={toggle}
+      className={cn(
+        'lg:hidden fixed bottom-20 right-4 z-50 p-3 rounded-full shadow-lg transition-colors',
+        isClientMode
+          ? 'bg-amber-500 text-white'
+          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+      )}
+      title={isClientMode ? 'Выйти из режима клиента' : 'Режим клиента'}
+    >
+      {isClientMode ? <EyeOff size={20} /> : <Eye size={20} />}
+    </button>
+    </>
   )
 }

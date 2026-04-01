@@ -20,6 +20,7 @@ import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
 import { useDeleteProperty } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
+import { useClientMode } from '@/store/useClientMode'
 import { useDealsByProperty } from '@/hooks/useDeals'
 import { FileDown } from 'lucide-react'
 import Timeline from '@/components/timeline/Timeline'
@@ -275,8 +276,10 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const { data: deals = [] } = useDealsByProperty(property.id)
   const navigate = useNavigate()
 
+  const { isClientMode } = useClientMode()
+
   const {
-    id, article, type, status, price, area, rooms, floor, total_floors,
+    id, article, type, status, price, price_net, agent_commission, area, rooms, floor, total_floors,
     complex_name, address, district, description, owner,
     area_sotki, communications, cadastral_number,
     is_active_business, has_wet_points, has_parking, entrance_groups,
@@ -448,6 +451,22 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
             {deal_type === 'rent' ? 'Аренда в месяц' : 'Цена'}
           </p>
           <p className="text-2xl font-bold text-blue-700">{formatPrice(price)}</p>
+          {!isClientMode && (price_net || agent_commission) && (
+            <div className="mt-2 pt-2 border-t border-blue-100 flex flex-wrap gap-3">
+              {price_net != null && (
+                <div>
+                  <p className="text-[10px] text-blue-400 uppercase tracking-wide">На руки</p>
+                  <p className="text-sm font-semibold text-blue-600">{formatPrice(price_net)}</p>
+                </div>
+              )}
+              {agent_commission != null && (
+                <div>
+                  <p className="text-[10px] text-blue-400 uppercase tracking-wide">Комиссия</p>
+                  <p className="text-sm font-semibold text-emerald-600">{formatPrice(agent_commission)}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Main info */}
@@ -621,7 +640,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
         )}
 
         {/* Owner — clickable */}
-        {owner && (
+        {owner && !isClientMode && (
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
               Собственник

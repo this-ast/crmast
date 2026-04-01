@@ -12,14 +12,49 @@ const GOLD = '#C5A059'
 
 function Lightbox({ photos, startIdx, onClose }: { photos: string[]; startIdx: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIdx)
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 })
+  const [swipeDy, setSwipeDy] = useState(0)
+  const [dismissing, setDismissing] = useState(false)
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStart.x
+    const dy = e.changedTouches[0].clientY - touchStart.y
+    if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) {
+      setDismissing(true)
+      setSwipeDy(dy > 0 ? 400 : -400)
+      setTimeout(() => { onClose(); setSwipeDy(0); setDismissing(false) }, 220)
+    } else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      setIdx(i => dx < 0 ? (i + 1) % photos.length : (i - 1 + photos.length) % photos.length)
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col no-print" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black flex flex-col no-print"
+      style={{ opacity: dismissing ? 0.6 : 1, transition: dismissing ? 'opacity 0.22s' : undefined }}
+      onClick={onClose}>
       <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
         <span className="text-white/40 text-xs tracking-widest uppercase">{idx + 1} / {photos.length}</span>
         <button onClick={onClose} className="p-2 text-white/60 hover:text-white"><X size={20} /></button>
       </div>
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
-        <img src={photos[idx]} alt="" className="max-h-full max-w-full object-contain select-none" draggable={false} />
+      <div
+        className="flex-1 relative flex items-center justify-center overflow-hidden"
+        onClick={e => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <img
+          src={photos[idx]}
+          alt=""
+          className="max-h-full max-w-full object-contain select-none"
+          draggable={false}
+          style={{
+            transform: `translateY(${swipeDy}px)`,
+            transition: dismissing ? 'transform 0.22s ease' : undefined,
+          }}
+        />
         {photos.length > 1 && (
           <>
             <button onClick={() => setIdx(i => (i - 1 + photos.length) % photos.length)}
@@ -402,7 +437,7 @@ export default function ComplexPublicPage() {
         )}
 
         {/* Contacts */}
-        {(complex.developer_phones.length > 0 || complex.manager_names.length > 0) && (
+        {complex.developer_phones.length > 0 && (
           <section>
             <SectionTitle>Контакты</SectionTitle>
             <div className="grid md:grid-cols-2 gap-4">
@@ -417,20 +452,6 @@ export default function ComplexPublicPage() {
                     <p className="font-semibold text-sm">{phone}</p>
                   </div>
                 </a>
-              ))}
-              {complex.manager_names.map((name, i) => (
-                <div key={i} className="flex items-center gap-4 p-5 border border-gray-100 rounded-2xl">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: `${GOLD}20` }}>
-                    <span className="text-sm font-bold" style={{ color: GOLD }}>{name[0]?.toUpperCase()}</span>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-[10px] uppercase tracking-widest">Менеджер</p>
-                    <p className="font-semibold text-sm">{name}</p>
-                    {complex.manager_phones[i] && (
-                      <p className="text-gray-400 text-xs font-mono">{complex.manager_phones[i]}</p>
-                    )}
-                  </div>
-                </div>
               ))}
             </div>
           </section>

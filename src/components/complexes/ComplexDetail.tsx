@@ -145,6 +145,13 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const [swipeDx, setSwipeDx] = useState(0)
   const [swipeAxis, setSwipeAxis] = useState<'x' | 'y' | null>(null)
   const [dismissing, setDismissing] = useState(false)
+  const [layoutSlideDir, setLayoutSlideDir] = useState<'left' | 'right' | null>(null)
+  const [layoutSwipeDy, setLayoutSwipeDy] = useState(0)
+  const [layoutSwipeDx, setLayoutSwipeDx] = useState(0)
+  const [layoutSwipeAxis, setLayoutSwipeAxis] = useState<'x' | 'y' | null>(null)
+  const [layoutDismissing, setLayoutDismissing] = useState(false)
+  const [layoutTouchStartX, setLayoutTouchStartX] = useState(0)
+  const [layoutTouchStartY, setLayoutTouchStartY] = useState(0)
   const thumbStripRef = useState<HTMLDivElement | null>(null)
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,6 +235,39 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
       }
     }
     setSwipeAxis(null)
+  }
+
+  const handleLayoutLbTouchStart = (e: React.TouchEvent) => {
+    setLayoutTouchStartX(e.touches[0].clientX)
+    setLayoutTouchStartY(e.touches[0].clientY)
+    setLayoutSwipeAxis(null)
+  }
+  const handleLayoutLbTouchMove = (e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - layoutTouchStartX
+    const dy = e.touches[0].clientY - layoutTouchStartY
+    const adx = Math.abs(dx), ady = Math.abs(dy)
+    const axis = layoutSwipeAxis ?? (adx > 8 || ady > 8 ? (ady > adx ? 'y' : 'x') : null)
+    if (axis && !layoutSwipeAxis) setLayoutSwipeAxis(axis)
+    if (axis === 'y') setLayoutSwipeDy(dy * 0.55)
+    if (axis === 'x') setLayoutSwipeDx(dx * 0.25)
+  }
+  const handleLayoutLbTouchEnd = (e: React.TouchEvent, images: string[]) => {
+    const dx = e.changedTouches[0].clientX - layoutTouchStartX
+    const dy = e.changedTouches[0].clientY - layoutTouchStartY
+    const adx = Math.abs(dx), ady = Math.abs(dy)
+    setLayoutSwipeDx(0)
+    if (ady > 60 && ady > adx) {
+      setLayoutDismissing(true)
+      setLayoutSwipeDy(dy > 0 ? 400 : -400)
+      setTimeout(() => { setLayoutLbIdx(null); setLayoutSwipeDy(0); setLayoutDismissing(false) }, 220)
+    } else {
+      setLayoutSwipeDy(0)
+      if (adx > 50 && adx > ady && images.length > 1) {
+        if (dx < 0) setLayoutLbIdx(i => i !== null ? (i + 1) % images.length : 0)
+        else setLayoutLbIdx(i => i !== null ? (i - 1 + images.length) % images.length : 0)
+      }
+    }
+    setLayoutSwipeAxis(null)
   }
 
   const handleEdit = () => {
@@ -734,18 +774,61 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         {layoutLbIdx !== null && (() => {
           const images = complex.layouts.filter(u => !u.toLowerCase().includes('.pdf'))
           return (
-            <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={() => setLayoutLbIdx(null)}>
+            <div
+              className="fixed inset-0 z-50 bg-black flex flex-col"
+              style={{ opacity: layoutDismissing ? 0.6 : 1, transition: layoutDismissing ? 'opacity 0.22s' : undefined }}
+              onClick={() => setLayoutLbIdx(null)}
+            >
               <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
                 <span className="text-white/40 text-xs tracking-widest uppercase">{layoutLbIdx + 1} / {images.length}</span>
-                <button className="p-2 text-white/60 hover:text-white"><X size={20} /></button>
+                <button className="p-2 text-white/60 hover:text-white" onClick={() => setLayoutLbIdx(null)}><X size={20} /></button>
               </div>
-              <div className="flex-1 flex items-center justify-center overflow-hidden px-4" onClick={e => e.stopPropagation()}>
-                <img src={images[layoutLbIdx]} alt="Планировка" className="max-h-full max-w-full object-contain select-none" draggable={false} />
+              <div
+                className="flex-1 relative flex items-center justify-center overflow-hidden select-none"
+                onClick={e => e.stopPropagation()}
+                onTouchStart={handleLayoutLbTouchStart}
+                onTouchMove={handleLayoutLbTouchMove}
+                onTouchEnd={e => handleLayoutLbTouchEnd(e, images)}
+              >
+                <div
+                  style={{
+                    transform: `translateY(${layoutSwipeDy}px) translateX(${layoutSwipeDx}px)`,
+                    transition: layoutDismissing ? 'transform 0.22s ease' : layoutSwipeDx === 0 ? 'transform 0.18s ease' : undefined,
+                    width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <img
+                    src={images[layoutLbIdx]}
+                    alt="Планировка"
+                    className={`max-h-full max-w-full object-contain select-none ${layoutSlideDir === 'left' ? 'animate-slide-left' : layoutSlideDir === 'right' ? 'animate-slide-right' : ''}`}
+                    draggable={false}
+                    onLoad={() => setLayoutSlideDir(null)}
+                  />
+                </div>
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={e => { e.stopPropagation(); setLayoutSlideDir('right'); setLayoutLbIdx(i => i !== null ? (i - 1 + images.length) % images.length : 0) }}
+                      className="absolute left-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors"
+                    ><ChevronLeft size={20} /></button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setLayoutSlideDir('left'); setLayoutLbIdx(i => i !== null ? (i + 1) % images.length : 0) }}
+                      className="absolute right-3 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors"
+                    ><ChevronRight size={20} /></button>
+                  </>
+                )}
               </div>
               {images.length > 1 && (
-                <div className="flex justify-center gap-3 py-4" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => setLayoutLbIdx(i => i !== null ? (i - 1 + images.length) % images.length : 0)} className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><ChevronLeft size={20} /></button>
-                  <button onClick={() => setLayoutLbIdx(i => i !== null ? (i + 1) % images.length : 0)} className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><ChevronRight size={20} /></button>
+                <div className="flex gap-2 px-5 py-4 overflow-x-auto shrink-0 justify-center">
+                  {images.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={e => { e.stopPropagation(); setLayoutSlideDir(i > layoutLbIdx ? 'left' : 'right'); setLayoutLbIdx(i) }}
+                      className={`shrink-0 w-14 h-14 rounded overflow-hidden border transition-all ${i === layoutLbIdx ? 'border-white' : 'border-transparent opacity-40 hover:opacity-70'}`}
+                    >
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

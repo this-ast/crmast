@@ -20,6 +20,8 @@ export interface Property {
 
   // Price & Area
   price: number
+  price_net?: number      // цена на руки (собственнику)
+  agent_commission?: number  // комиссия риэлтора
   area: number // sqm
 
   // Apartment specific
@@ -99,6 +101,8 @@ export interface PropertyFormData {
   has_maternal_cap: boolean
   has_military_mort: boolean
   price: number
+  price_net?: number
+  agent_commission?: number
   area: number
   rooms?: number
   floor?: number

@@ -2,10 +2,12 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, Users, HeartHandshake,
   Settings, Landmark, MessageSquare, BookMarked,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useUISettings } from '@/store/useUISettings'
 import { OnboardingRestartButton } from '@/components/onboarding/OnboardingTour'
+import { useClientMode } from '@/store/useClientMode'
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
   dashboard:   LayoutDashboard,
@@ -30,6 +32,7 @@ const SECTION_ROUTES: Record<string, string> = {
 export default function Sidebar() {
   const { sections } = useUISettings()
   const visibleSections = sections.filter((s) => !s.hidden)
+  const { isClientMode, toggle } = useClientMode()
 
   return (
     <aside className="w-56 bg-slate-900 flex flex-col h-full shrink-0">
@@ -42,6 +45,12 @@ export default function Sidebar() {
           <span className="text-white font-semibold text-sm">CRM Риэлтора</span>
         </div>
       </div>
+
+      {isClientMode && (
+        <div className="px-3 py-2 bg-amber-500 text-white text-xs font-bold text-center tracking-wide">
+          👁 РЕЖИМ КЛИЕНТА
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4 space-y-1">
@@ -72,6 +81,23 @@ export default function Sidebar() {
       {/* Onboarding restart */}
       <div className="px-2 pb-2">
         <OnboardingRestartButton variant="sidebar" />
+      </div>
+
+      {/* Client mode toggle */}
+      <div className="px-2 pb-1">
+        <button
+          onClick={toggle}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+            isClientMode
+              ? 'bg-amber-500 text-white'
+              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+          )}
+          title={isClientMode ? 'Режим клиента активен — нажмите для выхода' : 'Режим просмотра с клиентом'}
+        >
+          {isClientMode ? <EyeOff size={18} /> : <Eye size={18} />}
+          {isClientMode ? 'Режим клиента' : 'С клиентом'}
+        </button>
       </div>
 
       {/* Settings always visible */}
