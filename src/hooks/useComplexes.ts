@@ -167,6 +167,54 @@ export function useDeleteComplexPhoto() {
   })
 }
 
+export function useUploadComplexLayout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ complexId, file }: { complexId: string; file: File }) => {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${complexId}/layout-${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('complex-photos')
+        .upload(path, file, { upsert: true })
+      if (uploadError) throw new Error(uploadError.message)
+
+      const { data: urlData } = supabase.storage.from('complex-photos').getPublicUrl(path)
+      const url = urlData.publicUrl
+
+      const { data: current } = await supabase
+        .from('complexes').select('layouts').eq('id', complexId).single()
+      const layouts = [...((current?.layouts as string[]) ?? []), url]
+
+      const { error } = await supabase
+        .from('complexes').update({ layouts }).eq('id', complexId)
+      if (error) throw new Error(error.message)
+      return url
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, complexId] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
+  })
+}
+
+export function useDeleteComplexLayout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ complexId, url }: { complexId: string; url: string }) => {
+      const { data: current } = await supabase
+        .from('complexes').select('layouts').eq('id', complexId).single()
+      const layouts = ((current?.layouts as string[]) ?? []).filter((l: string) => l !== url)
+      const { error } = await supabase
+        .from('complexes').update({ layouts }).eq('id', complexId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, complexId] })
+    },
+  })
+}
+
 export function useUploadComplexDocument() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -181,8 +229,9 @@ export function useUploadComplexDocument() {
       docName: string
       docType: ComplexDocument['type']
     }) => {
-      const ext = file.name.split('.').pop()
-      const path = `${complexId}/${Date.now()}-${docName}.${ext}`
+      const ext = file.name.split('.').pop() ?? 'pdf'
+      const safeName = docName.replace(/[^\w\-_.]/g, '_').slice(0, 60)
+      const path = `${complexId}/${Date.now()}-${safeName}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from('complex-docs')
@@ -300,6 +349,7 @@ function normalizeComplex(row: Record<string, unknown>): Complex {
     manager_names: (row.manager_names as string[]) ?? [],
     manager_phones: (row.manager_phones as string[]) ?? [],
     photos: (row.photos as string[]) ?? [],
+    layouts: (row.layouts as string[]) ?? [],
     documents: (row.documents as ComplexDocument[]) ?? [],
     pricing: (row.pricing as ComplexPricing) ?? {},
     district: row.district as string | undefined,

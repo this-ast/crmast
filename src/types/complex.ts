@@ -30,6 +30,7 @@ export interface Complex {
   manager_names: string[]
   manager_phones: string[]
   photos: string[]
+  layouts: string[]
   documents: ComplexDocument[]
   created_at: string
   updated_at: string

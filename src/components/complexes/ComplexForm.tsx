@@ -8,6 +8,8 @@ import {
   useUploadComplexDocument,
   useDeleteComplexPhoto,
   useDeleteComplexDocument,
+  useUploadComplexLayout,
+  useDeleteComplexLayout,
   useComplexUnits,
   useCreateComplexUnit,
   useUpdateComplexUnit,
@@ -375,9 +377,12 @@ export default function ComplexForm() {
   const deletePhoto = useDeleteComplexPhoto()
   const uploadDoc = useUploadComplexDocument()
   const deleteDoc = useDeleteComplexDocument()
+  const uploadLayout = useUploadComplexLayout()
+  const deleteLayout = useDeleteComplexLayout()
 
   const photoInputRef = useRef<HTMLInputElement>(null)
   const docInputRef = useRef<HTMLInputElement>(null)
+  const layoutInputRef = useRef<HTMLInputElement>(null)
 
   // Form fields as plain state — no React Hook Form
   const [name, setName] = useState('')
@@ -489,6 +494,19 @@ export default function ComplexForm() {
     try {
       await uploadDoc.mutateAsync({ complexId: editingComplexId, file, docName, docType })
       toast.success('Документ загружен')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+    }
+    e.target.value = ''
+  }
+
+  // Layout upload
+  const handleLayoutUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingComplexId || !e.target.files?.[0]) return
+    const file = e.target.files[0]
+    try {
+      await uploadLayout.mutateAsync({ complexId: editingComplexId, file })
+      toast.success('Планировка загружена')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
     }
@@ -955,12 +973,55 @@ export default function ComplexForm() {
           </div>
         )}
 
+        {/* Layouts — only when editing */}
+        {editingComplexId && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <FieldLabel>Планировки</FieldLabel>
+              <button
+                type="button"
+                onClick={() => layoutInputRef.current?.click()}
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                disabled={uploadLayout.isPending}
+              >
+                {uploadLayout.isPending ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                Добавить
+              </button>
+              <input
+                ref={layoutInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLayoutUpload}
+              />
+            </div>
+            {(editingComplex?.layouts ?? []).length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {(editingComplex?.layouts ?? []).map((url) => (
+                  <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
+                    <img src={url} alt="Планировка" className="w-full h-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => deleteLayout.mutate({ complexId: editingComplexId!, url })}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover/layout:opacity-100 flex items-center justify-center transition-opacity"
+                    >
+                      <Trash2 size={16} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">Нет планировок</p>
+            )}
+          </div>
+        )}
+
         {/* Developer Units — only when editing */}
         {editingComplexId && <DeveloperUnitsSection complexId={editingComplexId} />}
 
         {!editingComplexId && (
           <p className="text-xs text-slate-400 bg-blue-50 rounded-lg p-3">
-            После сохранения можно добавить фото, документы, характеристики и контакты.
+            После сохранения можно добавить фото, планировки, документы, характеристики и контакты.
           </p>
         )}
       </div>

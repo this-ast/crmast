@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, CalendarDays, ClipboardList, FileText, MapPin, Phone, User, X,
   Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
@@ -126,6 +126,12 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const { data: complex, isLoading } = useComplex(complexId)
   const { data: agentSettings } = useAgentSettings()
   const deleteComplex = useDeleteComplex()
+  const uploadDoc = useUploadComplexDocument()
+  const deleteDoc = useDeleteComplexDocument()
+  const uploadLayout = useUploadComplexLayout()
+  const deleteLayout = useDeleteComplexLayout()
+  const docInputRef = useRef<HTMLInputElement>(null)
+  const layoutInputRef = useRef<HTMLInputElement>(null)
   const { openForm } = useComplexStore()
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -139,6 +145,32 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const [swipeAxis, setSwipeAxis] = useState<'x' | 'y' | null>(null)
   const [dismissing, setDismissing] = useState(false)
   const thumbStripRef = useState<HTMLDivElement | null>(null)
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !complexId) return
+    const docType = (e.target.dataset.doctype as 'permit' | 'developer' | 'other') ?? 'other'
+    const docName = file.name.replace(/\.[^.]+$/, '')
+    try {
+      await uploadDoc.mutateAsync({ complexId, file, docName, docType })
+      toast.success('Документ прикреплён')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+    }
+    e.target.value = ''
+  }
+
+  const handleLayoutUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !complexId) return
+    try {
+      await uploadLayout.mutateAsync({ complexId, file })
+      toast.success('Планировка добавлена')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+    }
+    e.target.value = ''
+  }
 
   const goToPhoto = (i: number, dir: 'left' | 'right') => {
     setSlideDir(dir)
@@ -620,32 +652,109 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           </div>
         )}
 
+        {/* Layouts */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Планировки
+            </h3>
+            <button
+              type="button"
+              onClick={() => layoutInputRef.current?.click()}
+              disabled={uploadLayout.isPending}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {uploadLayout.isPending ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
+              Добавить
+            </button>
+            <input ref={layoutInputRef} type="file" accept="image/*" className="hidden" onChange={handleLayoutUpload} />
+          </div>
+          {complex.layouts.length === 0 && (
+            <p className="text-xs text-slate-400">Нет планировок</p>
+          )}
+          {complex.layouts.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {complex.layouts.map((url) => (
+                <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
+                  <img src={url} alt="Планировка" className="w-full h-full object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => deleteLayout.mutate({ complexId, url })}
+                    className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 p-1 rounded opacity-0 group-hover/layout:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={12} className="text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Documents */}
-        {complex.documents.length > 0 && (
-          <div>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Документы
             </h3>
-            <div className="space-y-2">
-              {complex.documents.map((doc) => (
+            <div className="flex gap-2 flex-wrap">
+              {(['permit', 'developer', 'other'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    if (docInputRef.current) {
+                      docInputRef.current.dataset.doctype = type
+                      docInputRef.current.click()
+                    }
+                  }}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <Plus size={10} />
+                  {DOC_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+            <input
+              ref={docInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.png"
+              className="hidden"
+              onChange={handleDocUpload}
+            />
+          </div>
+          {complex.documents.length === 0 && (
+            <p className="text-xs text-slate-400">Нет документов</p>
+          )}
+          <div className="space-y-2">
+            {complex.documents.map((doc) => (
+              <div
+                key={doc.url}
+                className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg"
+              >
+                <FileText size={14} className="text-slate-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400">{DOC_TYPE_LABELS[doc.type]}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                </div>
                 <a
-                  key={doc.url}
                   href={doc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="shrink-0 p-1 text-blue-400 hover:text-blue-600"
                 >
-                  <FileText size={14} className="text-slate-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-400">{DOC_TYPE_LABELS[doc.type]}</p>
-                    <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                  </div>
-                  <Download size={14} className="text-blue-400 shrink-0" />
+                  <Download size={14} />
                 </a>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => deleteDoc.mutate({ complexId, url: doc.url })}
+                  className="shrink-0 p-1 text-slate-300 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Properties in this complex */}
         {(properties as unknown[]).length > 0 && (
