@@ -156,16 +156,17 @@ export default function ComplexPublicPage() {
         .from('complexes').select('*').eq('id', id).maybeSingle()
       if (error) throw new Error(error.message)
       if (!data) return null
+      const row = data as unknown as Record<string, unknown>
       return {
-        ...(data as Record<string, unknown> as Complex),
-        photos: (data.photos as string[]) ?? [],
-        layouts: (data.layouts as string[]) ?? [],
-        documents: (data.documents as never[]) ?? [],
-        characteristics: (data.characteristics as Record<string, string>) ?? {},
-        developer_phones: (data.developer_phones as string[]) ?? [],
-        manager_names: (data.manager_names as string[]) ?? [],
-        manager_phones: (data.manager_phones as string[]) ?? [],
-        pricing_conditions: (data.pricing_conditions as never[]) ?? [],
+        ...(row as unknown as Complex),
+        photos: (row.photos as string[]) ?? [],
+        layouts: (row.layouts as string[]) ?? [],
+        documents: (row.documents as never[]) ?? [],
+        characteristics: (row.characteristics as Record<string, string>) ?? {},
+        developer_phones: (row.developer_phones as string[]) ?? [],
+        manager_names: (row.manager_names as string[]) ?? [],
+        manager_phones: (row.manager_phones as string[]) ?? [],
+        pricing_conditions: (row.pricing_conditions as never[]) ?? [],
       }
     },
     enabled: !!id,
