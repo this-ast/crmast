@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, CalendarDays, ClipboardList, FileText, MapPin, Phone, User, X,
-  Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn,
+  Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout } from '@/hooks/useComplexes'
@@ -297,6 +297,17 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
 
         <div className="flex items-center gap-1 shrink-0 ml-2">
           <ComplexPdfButton complex={complex} properties={properties as never} agentSettings={agentSettings ?? {}} />
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/c/${complexId}`
+              navigator.clipboard.writeText(url)
+              toast.success('Ссылка на презентацию скопирована')
+            }}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            title="Скопировать ссылку на презентацию"
+          >
+            <Share2 size={16} />
+          </button>
           <button
             onClick={handleEdit}
             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -689,6 +700,45 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             </div>
           )}
         </div>
+
+        {/* Pricing conditions */}
+        {complex.pricing_conditions && complex.pricing_conditions.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Условия сделки
+            </h3>
+            <div className="space-y-2">
+              {complex.pricing_conditions.map((cond) => {
+                const typeColors: Record<string, string> = {
+                  cash: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                  installment: 'bg-blue-50 text-blue-700 border-blue-100',
+                  mortgage: 'bg-purple-50 text-purple-700 border-purple-100',
+                  escrow: 'bg-amber-50 text-amber-700 border-amber-100',
+                  other: 'bg-slate-50 text-slate-700 border-slate-100',
+                }
+                const typeLabels: Record<string, string> = {
+                  cash: 'Наличный', installment: 'Рассрочка', mortgage: 'Ипотека', escrow: 'Эскроу', other: 'Другое',
+                }
+                return (
+                  <div key={cond.id} className={`p-3 rounded-xl border ${typeColors[cond.payment_type] ?? typeColors.other}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate">{cond.label || typeLabels[cond.payment_type]}</p>
+                        {cond.notes && <p className="text-[11px] opacity-70 mt-0.5 truncate">{cond.notes}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {cond.price_per_sqm && (
+                          <p className="text-sm font-bold">{new Intl.NumberFormat('ru-RU').format(cond.price_per_sqm)} ₽/м²</p>
+                        )}
+                        {cond.updated_at && <p className="text-[10px] opacity-50 mt-0.5">{cond.updated_at}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Documents */}
         <div>

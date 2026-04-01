@@ -2,7 +2,7 @@ import type { PropertyWithOwner } from './property'
 
 export interface PricingEntry {
   price_per_sqm?: number
-  updated_at?: string  // ISO date string e.g. "2024-01-15"
+  updated_at?: string
 }
 
 export interface ComplexPricing {
@@ -16,6 +16,17 @@ export interface ComplexPricing {
   installment_60m?: PricingEntry
   family_mortgage?: PricingEntry
   escrow?: PricingEntry
+}
+
+export type PricingPaymentType = 'cash' | 'installment' | 'mortgage' | 'escrow' | 'other'
+
+export interface PricingCondition {
+  id: string
+  label: string
+  payment_type: PricingPaymentType
+  price_per_sqm?: number
+  notes?: string
+  updated_at?: string
 }
 
 export interface Complex {
@@ -39,10 +50,10 @@ export interface Complex {
   yard_features?: string[]
   parking?: string[]
   building_type?: string
-  // New fields
   district?: string
   address?: string
   pricing?: ComplexPricing
+  pricing_conditions: PricingCondition[]
 }
 
 export interface ComplexDocument {
@@ -70,10 +81,10 @@ export interface ComplexFormData {
   yard_features?: string[]
   parking?: string[]
   building_type?: string
-  // New fields
   district?: string
   address?: string
   pricing?: ComplexPricing
+  pricing_conditions?: PricingCondition[]
 }
 
 export interface ComplexUnit {

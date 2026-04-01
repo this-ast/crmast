@@ -109,10 +109,13 @@ export default function ComplexesPage() {
       result = result.filter((c) => c.district === filters.district)
     }
 
-    // Price per m² (cash) filter
+    // Price per m² filter
     if (filters.priceMin) {
       const min = Number(filters.priceMin)
       result = result.filter((c) => {
+        if (c.pricing_conditions && c.pricing_conditions.length > 0) {
+          return c.pricing_conditions.some((cond) => cond.price_per_sqm != null && cond.price_per_sqm >= min)
+        }
         const p = c.pricing?.cash?.price_per_sqm
         return p != null && p >= min
       })
@@ -120,6 +123,9 @@ export default function ComplexesPage() {
     if (filters.priceMax) {
       const max = Number(filters.priceMax)
       result = result.filter((c) => {
+        if (c.pricing_conditions && c.pricing_conditions.length > 0) {
+          return c.pricing_conditions.some((cond) => cond.price_per_sqm != null && cond.price_per_sqm <= max)
+        }
         const p = c.pricing?.cash?.price_per_sqm
         return p != null && p <= max
       })
@@ -128,10 +134,18 @@ export default function ComplexesPage() {
     // Payment type filter
     if (filters.paymentTypes.length > 0) {
       result = result.filter((c) => {
+        // Check new pricing_conditions array first
+        if (c.pricing_conditions && c.pricing_conditions.length > 0) {
+          return filters.paymentTypes.some((pt) =>
+            c.pricing_conditions.some((cond) => cond.payment_type === pt && cond.price_per_sqm != null)
+          )
+        }
+        // Fallback to legacy pricing object
         if (!c.pricing) return false
         return filters.paymentTypes.some((pt) => {
           if (pt === 'cash') return !!c.pricing?.cash?.price_per_sqm
           if (pt === 'family_mortgage') return !!c.pricing?.family_mortgage?.price_per_sqm
+          if (pt === 'mortgage') return !!c.pricing?.family_mortgage?.price_per_sqm
           if (pt === 'escrow') return !!c.pricing?.escrow?.price_per_sqm
           if (pt === 'installment') return (
             !!c.pricing?.installment_6m?.price_per_sqm ||

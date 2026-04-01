@@ -10,6 +10,7 @@ import SettingsPage from '@/pages/SettingsPage'
 import CollectionsPage from '@/pages/CollectionsPage'
 import CollectionPublicPage from '@/pages/CollectionPublicPage'
 import PropertyPublicPage from '@/pages/PropertyPublicPage'
+import ComplexPublicPage from '@/pages/ComplexPublicPage'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
       {/* Public pages — no auth, no layout */}
       <Route path="/share/:slug" element={<CollectionPublicPage />} />
       <Route path="/p/:id" element={<PropertyPublicPage />} />
+      <Route path="/c/:id" element={<ComplexPublicPage />} />
 
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />

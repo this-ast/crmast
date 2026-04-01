@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Complex, ComplexFormData, ComplexDocument, ComplexUnit, ComplexUnitFormData, ComplexPricing } from '@/types'
+import type { Complex, ComplexFormData, ComplexDocument, ComplexUnit, ComplexUnitFormData, ComplexPricing, PricingCondition } from '@/types'
 
 const QUERY_KEY = 'complexes'
 
@@ -352,6 +352,7 @@ function normalizeComplex(row: Record<string, unknown>): Complex {
     layouts: (row.layouts as string[]) ?? [],
     documents: (row.documents as ComplexDocument[]) ?? [],
     pricing: (row.pricing as ComplexPricing) ?? {},
+    pricing_conditions: (row.pricing_conditions as PricingCondition[]) ?? [],
     district: row.district as string | undefined,
     address: row.address as string | undefined,
   }

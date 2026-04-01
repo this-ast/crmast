@@ -36,6 +36,7 @@ const BUILDING_TYPE_OPTIONS = ['кирпичный', 'монолитно-кир�
 const PAYMENT_OPTIONS = [
   { label: 'Наличный', value: 'cash' },
   { label: 'Рассрочка', value: 'installment' },
+  { label: 'Ипотека', value: 'mortgage' },
   { label: 'Семейная ипотека', value: 'family_mortgage' },
   { label: 'Эскроу', value: 'escrow' },
 ]

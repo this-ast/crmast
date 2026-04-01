@@ -18,7 +18,7 @@ import {
 import { useComplexStore } from '@/store/useComplexStore'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
-import type { ComplexPricing, ComplexUnit } from '@/types'
+import type { ComplexPricing, ComplexUnit, PricingCondition, PricingPaymentType } from '@/types'
 
 const DOC_TYPE_LABELS = {
   permit: 'Разрешение на строительство',
@@ -398,6 +398,7 @@ export default function ComplexForm() {
   const [district, setDistrict] = useState('')
   const [address, setAddress] = useState('')
   const [pricing, setPricing] = useState<ComplexPricing>({})
+  const [pricingConditions, setPricingConditions] = useState<PricingCondition[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -417,6 +418,7 @@ export default function ComplexForm() {
       setDistrict(editingComplex.district ?? '')
       setAddress(editingComplex.address ?? '')
       setPricing(editingComplex.pricing ?? {})
+      setPricingConditions(editingComplex.pricing_conditions ?? [])
     }
   }, [editingComplex])
 
@@ -449,6 +451,7 @@ export default function ComplexForm() {
       district: district.trim() || undefined,
       address: address.trim() || undefined,
       pricing: Object.keys(pricing).length > 0 ? pricing : undefined,
+      pricing_conditions: pricingConditions,
     }
 
     console.log('[ComplexForm] Отправка данных:', data)
@@ -632,54 +635,106 @@ export default function ComplexForm() {
           />
         </div>
 
-        {/* Pricing / Deal conditions — compact table */}
+        {/* Pricing conditions — dynamic list */}
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Условия сделки (цена за м²)</p>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            {/* Header */}
-            <div className="grid grid-cols-[1fr_110px_120px] gap-0 bg-slate-50 border-b border-slate-200 px-3 py-1.5">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Тип</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">₽/м²</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Дата изменения</span>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Условия сделки</p>
+            <div className="flex flex-wrap gap-1">
+              {([
+                { type: 'cash' as PricingPaymentType, label: 'Наличный' },
+                { type: 'installment' as PricingPaymentType, label: 'Рассрочка' },
+                { type: 'mortgage' as PricingPaymentType, label: 'Ипотека' },
+                { type: 'escrow' as PricingPaymentType, label: 'Эскроу' },
+              ] as { type: PricingPaymentType; label: string }[]).map((preset) => (
+                <button
+                  key={preset.type}
+                  type="button"
+                  onClick={() => setPricingConditions((prev) => [
+                    ...prev,
+                    { id: crypto.randomUUID(), label: preset.label, payment_type: preset.type, price_per_sqm: undefined, notes: '', updated_at: '' },
+                  ])}
+                  className="text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors"
+                >
+                  + {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPricingConditions((prev) => [
+                  ...prev,
+                  { id: crypto.randomUUID(), label: '', payment_type: 'other', price_per_sqm: undefined, notes: '', updated_at: '' },
+                ])}
+                className="text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-colors"
+              >
+                + Своё
+              </button>
             </div>
-            {[
-              { key: 'cash',            label: '💵 Наличный расчёт',     bg: 'bg-emerald-50/50' },
-              { key: 'family_mortgage', label: '🏦 Семейная ипотека 6%', bg: '' },
-              { key: 'escrow',          label: '🔒 Эскроу счета',        bg: '' },
-              { key: 'installment_6m',  label: '📅 Рассрочка 6 мес',     bg: 'bg-slate-50/80' },
-              { key: 'installment_12m', label: '📅 Рассрочка 12 мес',    bg: '' },
-              { key: 'installment_18m', label: '📅 Рассрочка 18 мес',    bg: 'bg-slate-50/80' },
-              { key: 'installment_24m', label: '📅 Рассрочка 24 мес',    bg: '' },
-              { key: 'installment_36m', label: '📅 Рассрочка 36 мес',    bg: 'bg-slate-50/80' },
-              { key: 'installment_48m', label: '📅 Рассрочка 48 мес',    bg: '' },
-              { key: 'installment_60m', label: '📅 Рассрочка 60 мес',    bg: 'bg-slate-50/80' },
-            ].map(({ key, label, bg }, idx, arr) => {
-              const entry = (pricing as Record<string, { price_per_sqm?: number; updated_at?: string }>)[key] ?? {}
-              return (
-                <div key={key} className={cn('grid grid-cols-[1fr_110px_120px] items-center gap-0 px-3 py-1', bg, idx < arr.length - 1 && 'border-b border-slate-100')}>
-                  <span className="text-xs text-slate-700 pr-2">{label}</span>
+          </div>
+
+          {pricingConditions.length === 0 && (
+            <p className="text-xs text-slate-400">Нет условий. Нажмите + чтобы добавить.</p>
+          )}
+
+          {pricingConditions.length > 0 && (
+            <div className="space-y-2">
+              {pricingConditions.map((cond) => (
+                <div key={cond.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Название условия (напр. Рассрочка 24 мес, вид на горы)"
+                      value={cond.label}
+                      onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, label: e.target.value } : c))}
+                      className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <select
+                      value={cond.payment_type}
+                      onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, payment_type: e.target.value as PricingPaymentType } : c))}
+                      className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="cash">Наличный</option>
+                      <option value="installment">Рассрочка</option>
+                      <option value="mortgage">Ипотека</option>
+                      <option value="escrow">Эскроу</option>
+                      <option value="other">Другое</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setPricingConditions((prev) => prev.filter((c) => c.id !== cond.id))}
+                      className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">₽/м²</span>
+                      <input
+                        type="number"
+                        placeholder="Цена за м²"
+                        value={cond.price_per_sqm ?? ''}
+                        onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, price_per_sqm: e.target.value ? Number(e.target.value) : undefined } : c))}
+                        className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <input
+                      type="date"
+                      value={cond.updated_at ?? ''}
+                      onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, updated_at: e.target.value || undefined } : c))}
+                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
                   <input
-                    type="number"
-                    placeholder="—"
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-2"
-                    value={entry.price_per_sqm ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : undefined
-                      setPricing((p) => ({ ...p, [key]: { ...entry, price_per_sqm: val } }))
-                    }}
-                  />
-                  <input
-                    type="date"
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    value={entry.updated_at ?? ''}
-                    onChange={(e) => {
-                      setPricing((p) => ({ ...p, [key]: { ...entry, updated_at: e.target.value || undefined } }))
-                    }}
+                    type="text"
+                    placeholder="Примечание (этажи 1-5, вид на горы, первоначальный взнос...)"
+                    value={cond.notes ?? ''}
+                    onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, notes: e.target.value } : c))}
+                    className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300"
                   />
                 </div>
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Building characteristics */}
