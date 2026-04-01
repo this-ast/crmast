@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form'
 import {
   Search, Plus, X, Loader2, AlertCircle, Pencil, Trash2,
   ChevronDown, ChevronUp, User, TrendingUp, SlidersHorizontal,
-  Banknote, MapPin, Home, ArrowRight, Filter,
+  Banknote, MapPin, Home, ArrowRight, Filter, ClipboardList,
 } from 'lucide-react'
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
+import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useClients } from '@/hooks/useClients'
 import { useComplexes } from '@/hooks/useComplexes'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
@@ -453,12 +454,14 @@ function DemandCard({
   onEdit,
   onDelete,
   onStageChange,
+  taskCount = 0,
 }: {
   demand: Demand
   complexesMap: Record<string, string>
   onEdit: (d: Demand) => void
   onDelete: (id: string) => void
   onStageChange: (id: string, stage: DemandFunnelStage) => void
+  taskCount?: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const stage = DEMAND_FUNNEL_STAGES.find((s) => s.value === demand.funnel_stage) ?? DEMAND_FUNNEL_STAGES[0]
@@ -496,6 +499,12 @@ function DemandCard({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {taskCount > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 mr-1">
+                <ClipboardList size={11} />
+                {taskCount}
+              </span>
+            )}
             <button
               onClick={() => onEdit(demand)}
               className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -606,6 +615,7 @@ export default function DemandsPage() {
   const { data: demands = [], isLoading, error } = useDemands()
   const { data: clients = [] } = useClients()
   const { data: complexesData = [] } = useComplexes()
+  const taskCounts = useActiveTaskCounts()
   const createDemand = useCreateDemand()
   const updateDemand = useUpdateDemand()
   const deleteDemand = useDeleteDemand()
@@ -879,6 +889,7 @@ export default function DemandsPage() {
             onEdit={setEditDemand}
             onDelete={handleDelete}
             onStageChange={handleStageChange}
+            taskCount={taskCounts[d.id] ?? 0}
           />
         ))}
       </div>

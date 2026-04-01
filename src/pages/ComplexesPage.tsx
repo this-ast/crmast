@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight, Settings } from 'lucide-react'
 import { useComplexes } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
+import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useComplexStore } from '@/store/useComplexStore'
 import { PROPERTY_TYPE_LABELS, PROPERTY_STATUS_COLORS, PROPERTY_STATUS_LABELS } from '@/types'
 import { formatPriceShort } from '@/utils/format'
@@ -18,6 +19,7 @@ import { cn } from '@/utils/cn'
 export default function ComplexesPage() {
   const { data: complexes = [], isLoading, error } = useComplexes()
   const { data: properties = [] } = useProperties()
+  const taskCounts = useActiveTaskCounts()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<ComplexFilterState>(defaultComplexFilters)
@@ -279,6 +281,7 @@ export default function ComplexesPage() {
               propertyCount={propCountByComplex[complex.id] ?? 0}
               onClick={() => openDetail(complex.id)}
               onShowProperties={(e) => { e.stopPropagation(); setPropertiesModalComplexId(complex.id) }}
+              taskCount={taskCounts[complex.id] ?? 0}
             />
           ))}
         </div>

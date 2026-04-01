@@ -1,4 +1,4 @@
-import { Building2, CalendarDays, Phone, Layers } from 'lucide-react'
+import { Building2, CalendarDays, Phone, Layers, ClipboardList } from 'lucide-react'
 import type { Complex } from '@/types'
 
 interface ComplexCardProps {
@@ -6,9 +6,10 @@ interface ComplexCardProps {
   propertyCount?: number
   onClick: () => void
   onShowProperties?: (e: React.MouseEvent) => void
+  taskCount?: number
 }
 
-export default function ComplexCard({ complex, propertyCount = 0, onClick, onShowProperties }: ComplexCardProps) {
+export default function ComplexCard({ complex, propertyCount = 0, onClick, onShowProperties, taskCount = 0 }: ComplexCardProps) {
   return (
     <div
       onClick={onClick}
@@ -75,6 +76,15 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
           </div>
         )
       })()}
+
+      {taskCount > 0 && (
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+            <ClipboardList size={11} />
+            {taskCount} {taskCount === 1 ? 'задача' : taskCount < 5 ? 'задачи' : 'задач'}
+          </span>
+        </div>
+      )}
 
       {propertyCount > 0 && onShowProperties && (
         <button

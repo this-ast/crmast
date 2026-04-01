@@ -73,6 +73,18 @@ export function useTasksByLinked(linkedType: 'client' | 'property' | 'deal' | 'c
   })
 }
 
+/** Returns a map of entityId → count of active (pending) tasks */
+export function useActiveTaskCounts(): Record<string, number> {
+  const { data: tasks = [] } = useTasks()
+  const map: Record<string, number> = {}
+  tasks.forEach((t) => {
+    if (t.status === 'pending' && t.linked_id) {
+      map[t.linked_id] = (map[t.linked_id] ?? 0) + 1
+    }
+  })
+  return map
+}
+
 export function useDeleteTask() {
   const qc = useQueryClient()
   return useMutation({

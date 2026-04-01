@@ -4,9 +4,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
-  ArrowUp, ArrowDown, List, GitMerge,
+  ArrowUp, ArrowDown, List, GitMerge, ClipboardList, Bookmark,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
+import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
 import { useCustomStatuses } from '@/hooks/useCustomStatuses'
@@ -14,7 +15,6 @@ import { useSavedFilters, useCreateSavedFilter } from '@/hooks/useSavedFilters'
 import Timeline from '@/components/timeline/Timeline'
 import SalesFunnel from '@/components/clients/SalesFunnel'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { ClipboardList, Bookmark } from 'lucide-react'
 import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
@@ -350,11 +350,13 @@ function ClientRow({
   highlighted,
   onEdit,
   onDelete,
+  taskCount = 0,
 }: {
   client: Client
   highlighted: boolean
   onEdit: (c: Client) => void
   onDelete: (c: Client) => void
+  taskCount?: number
 }) {
   const [expanded, setExpanded] = useState(highlighted)
   const [phoneRevealed, setPhoneRevealed] = useState(false)
@@ -424,6 +426,12 @@ function ClientRow({
         <div className="flex items-center gap-2 shrink-0">
           {client.budget && (
             <span className="text-xs text-emerald-600 font-medium hidden sm:block">{client.budget}</span>
+          )}
+          {taskCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+              <ClipboardList size={11} />
+              {taskCount}
+            </span>
           )}
           {expanded ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
         </div>
@@ -565,6 +573,7 @@ const TYPE_TABS = [
 
 export default function ClientsPage() {
   const { data: clients = [], isLoading, error } = useClients()
+  const taskCounts = useActiveTaskCounts()
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
@@ -912,6 +921,7 @@ export default function ClientsPage() {
               highlighted={client.id === highlightId}
               onEdit={openEdit}
               onDelete={setDeletingClient}
+              taskCount={taskCounts[client.id] ?? 0}
             />
           ))}
         </div>

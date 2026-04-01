@@ -1,4 +1,4 @@
-import { MapPin, User, Maximize2 } from 'lucide-react'
+import { MapPin, User, Maximize2, ClipboardList } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
 import {
   PROPERTY_TYPE_LABELS,
@@ -12,9 +12,10 @@ import PropertyTypeIcon from './PropertyTypeIcon'
 interface PropertyCardProps {
   property: PropertyWithOwner
   onClick: () => void
+  taskCount?: number
 }
 
-export default function PropertyCard({ property, onClick }: PropertyCardProps) {
+export default function PropertyCard({ property, onClick, taskCount = 0 }: PropertyCardProps) {
   const { type, status, price, area, rooms, floor, total_floors, complex_name, address, owner, article, district } =
     property
 
@@ -122,16 +123,27 @@ export default function PropertyCard({ property, onClick }: PropertyCardProps) {
         {formatPriceShort(price)}
       </div>
 
-      {/* Owner */}
-      {owner && (
-        <div className="flex items-center gap-1.5 pt-3 border-t border-slate-50">
-          <User size={13} className="text-slate-400 shrink-0" />
-          <span className="text-xs text-slate-600">
-            {owner.name}{' '}
-            <span className="text-slate-400 font-mono">(#{owner.client_number})</span>
+      {/* Owner + task badge */}
+      <div className={cn('flex items-center gap-1.5', owner ? 'pt-3 border-t border-slate-50' : '')}>
+        {owner && (
+          <>
+            <User size={13} className="text-slate-400 shrink-0" />
+            <span className="text-xs text-slate-600 flex-1 truncate">
+              {owner.name}{' '}
+              <span className="text-slate-400 font-mono">(#{owner.client_number})</span>
+            </span>
+          </>
+        )}
+        {taskCount > 0 && (
+          <span className={cn(
+            'flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 shrink-0',
+            !owner && 'mt-1'
+          )}>
+            <ClipboardList size={11} />
+            {taskCount}
           </span>
-        </div>
-      )}
+        )}
+      </div>
       </div>
     </div>
   )

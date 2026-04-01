@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Building2, AlertCircle, Loader2, Settings } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
+import { useActiveTaskCounts } from '@/hooks/useTasks'
 import PropertyCard from '@/components/properties/PropertyCard'
 import PropertyFilters from '@/components/properties/PropertyFilters'
 import PropertyDetail from '@/components/properties/PropertyDetail'
@@ -102,6 +103,7 @@ function filterProperties(
 
 export default function PropertiesPage() {
   const { data: properties = [], isLoading, error } = useProperties()
+  const taskCounts = useActiveTaskCounts()
   const [searchParams, setSearchParams] = useSearchParams()
   const {
     filters,
@@ -208,6 +210,7 @@ export default function PropertiesPage() {
               key={property.id}
               property={property}
               onClick={() => openDetail(property.id)}
+              taskCount={taskCounts[property.id] ?? 0}
             />
           ))}
         </div>
