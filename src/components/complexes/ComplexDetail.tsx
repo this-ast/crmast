@@ -139,6 +139,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
   const [lightbox, setLightbox] = useState(false)
   const [layoutLbIdx, setLayoutLbIdx] = useState<number | null>(null)
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null)
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchStartY, setTouchStartY] = useState(0)
   const [swipeDy, setSwipeDy] = useState(0)
@@ -613,18 +614,6 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           </div>
         )}
 
-        {/* Purchase conditions */}
-        {complex.purchase_conditions && (
-          <div className="bg-emerald-50 rounded-xl p-4">
-            <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-              Условия покупки
-            </h3>
-            <p className="text-sm text-emerald-800" style={{ whiteSpace: 'pre-wrap' }}>
-              {complex.purchase_conditions}
-            </p>
-          </div>
-        )}
-
         {/* Pricing / Deal conditions */}
         {complex.pricing && Object.values(complex.pricing).some((e) => e?.price_per_sqm) && (
           <div>
@@ -731,16 +720,15 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                 return (
                   <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
                     {isPdf ? (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => setPdfViewerUrl(url)}
                         className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
                       >
                         <FileText size={28} className="text-red-400" />
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wide">PDF</span>
-                        <Download size={11} className="text-slate-400" />
-                      </a>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">PDF</span>
+                        <span className="text-[9px] text-slate-400">Открыть</span>
+                      </button>
                     ) : (
                       <button
                         type="button"
@@ -993,6 +981,39 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         {/* Developer units */}
         <DeveloperUnitsView complexId={complexId} />
       </div>
+
+      {/* PDF Viewer Modal */}
+      {pdfViewerUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-black/60">
+            <span className="text-white/60 text-xs uppercase tracking-widest">PDF документ</span>
+            <div className="flex items-center gap-2">
+              <a
+                href={pdfViewerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
+              >
+                <Download size={13} />
+                Скачать
+              </a>
+              <button
+                onClick={() => setPdfViewerUrl(null)}
+                className="p-2 text-white/60 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <iframe
+              src={pdfViewerUrl}
+              className="w-full h-full border-0"
+              title="PDF документ"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -61,14 +61,20 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
         )}
       </div>
 
-      {/* Cash price badge */}
-      {complex.pricing?.cash?.price_per_sqm && (
-        <div className="mt-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-            💵 {new Intl.NumberFormat('ru-RU').format(complex.pricing.cash.price_per_sqm)} ₽/м²
-          </span>
-        </div>
-      )}
+      {/* Cash price badge — from pricing_conditions or legacy pricing */}
+      {(() => {
+        const fromConditions = complex.pricing_conditions?.find(c => c.payment_type === 'cash' && c.price_per_sqm != null)?.price_per_sqm
+        const fromLegacy = complex.pricing?.cash?.price_per_sqm
+        const cashPrice = fromConditions ?? fromLegacy
+        if (!cashPrice) return null
+        return (
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+              💵 {new Intl.NumberFormat('ru-RU').format(cashPrice)} ₽/м²
+            </span>
+          </div>
+        )
+      })()}
 
       {propertyCount > 0 && onShowProperties && (
         <button
