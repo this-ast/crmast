@@ -52,6 +52,7 @@ export interface Property {
   // Media
   photos: string[]
   videos: string[]
+  documents?: { name: string; url: string }[]
 
   // Owner reference (nullable — can be saved without owner)
   owner_id: string | null

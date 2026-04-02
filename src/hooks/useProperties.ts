@@ -243,6 +243,23 @@ export function useReorderPropertyPhotos() {
   })
 }
 
+function getMimeType(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    pdf:  'application/pdf',
+    jpg:  'image/jpeg', jpeg: 'image/jpeg',
+    png:  'image/png',   gif: 'image/gif',
+    webp: 'image/webp',  svg: 'image/svg+xml',
+    heic: 'image/heic',  heif: 'image/heif',
+    doc:  'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls:  'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    zip:  'application/zip', txt: 'text/plain',
+  }
+  return map[ext] ?? (file.type || 'application/octet-stream')
+}
+
 export function useDeletePropertyPhoto() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -263,6 +280,48 @@ export function useDeletePropertyPhoto() {
           await supabase.storage.from('property-photos').remove([pathParts[1]])
         }
       } catch { /* ignore storage delete errors */ }
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useUploadPropertyDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, file, docName }: { propertyId: string; file: File; docName: string }) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+      const safeName = docName.replace(/[^\w\-_.]/g, '_').slice(0, 60)
+      const path = `${propertyId}/${Date.now()}-${safeName}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('property-docs')
+        .upload(path, file, { upsert: true, contentType: getMimeType(file) })
+      if (uploadError) throw new Error(uploadError.message)
+      const { data: urlData } = supabase.storage.from('property-docs').getPublicUrl(path)
+      const url = urlData.publicUrl
+      const { data: current } = await supabase.from('properties').select('documents').eq('id', propertyId).single()
+      const documents = [...((current?.documents as { name: string; url: string }[]) ?? []), { name: docName, url }]
+      const { error } = await supabase.from('properties').update({ documents }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+      return { name: docName, url }
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
+export function useDeletePropertyDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, url }: { propertyId: string; url: string }) => {
+      const { data: current } = await supabase.from('properties').select('documents').eq('id', propertyId).single()
+      const documents = ((current?.documents as { name: string; url: string }[]) ?? []).filter((d) => d.url !== url)
+      const { error } = await supabase.from('properties').update({ documents }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
     },
     onSuccess: (_, { propertyId }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })

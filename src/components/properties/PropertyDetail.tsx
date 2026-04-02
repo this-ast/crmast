@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   MapPin, User, Phone, Hash, Maximize2, Layers, Eye, FileText,
   ChevronRight, Building2, X, Pencil, Trash2, ExternalLink, HeartHandshake,
-  ChevronLeft, ZoomIn, LayoutDashboard, Share2,
+  ChevronLeft, ZoomIn, LayoutDashboard, Share2, Plus, Download, Loader2,
   type LucideIcon
 } from 'lucide-react'
 import type { PropertyWithOwner } from '@/types'
@@ -18,7 +18,7 @@ import {
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
-import { useDeleteProperty, useDeletePropertyPhoto, useReorderPropertyPhotos } from '@/hooks/useProperties'
+import { useDeleteProperty, useDeletePropertyPhoto, useReorderPropertyPhotos, useUploadPropertyDocument, useDeletePropertyDocument } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { useClientMode } from '@/store/useClientMode'
 import { useDealsByProperty } from '@/hooks/useDeals'
@@ -337,7 +337,13 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const deletePhoto = useDeletePropertyPhoto()
   const reorderPhotos = useReorderPropertyPhotos()
+  const uploadDoc = useUploadPropertyDocument()
+  const deleteDoc = useDeletePropertyDocument()
   const deleteProperty = useDeleteProperty()
+  const docFileInputRef = useRef<HTMLInputElement>(null)
+  const [docUploadPending, setDocUploadPending] = useState<File | null>(null)
+  const [docUploadName, setDocUploadName] = useState('')
+  const [propPdfViewerUrl, setPropPdfViewerUrl] = useState<string | null>(null)
   const { openForm } = usePropertyStore()
   const { data: deals = [] } = useDealsByProperty(property.id)
   const navigate = useNavigate()
@@ -761,6 +767,111 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           <MatchingClientsSection property={property} onClientClick={(c) => setInlineClient(c)} />
         </div>
 
+        {/* Documents */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Документы{(property.documents?.length ?? 0) > 0 && ` (${property.documents!.length})`}
+            </h3>
+            <button
+              type="button"
+              onClick={() => docFileInputRef.current?.click()}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+            >
+              <Plus size={10} />
+              Прикрепить файл
+            </button>
+            <input
+              ref={docFileInputRef}
+              type="file"
+              accept="*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setDocUploadPending(file)
+                setDocUploadName(file.name.replace(/\.[^.]+$/, ''))
+                e.target.value = ''
+              }}
+            />
+          </div>
+          {docUploadPending && (
+            <div className="mb-3 flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+              <FileText size={14} className="text-blue-400 shrink-0" />
+              <input
+                type="text"
+                value={docUploadName}
+                onChange={(e) => setDocUploadName(e.target.value)}
+                placeholder="Название файла"
+                className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!docUploadPending) return
+                  const name = docUploadName.trim() || docUploadPending.name.replace(/\.[^.]+$/, '')
+                  try {
+                    await uploadDoc.mutateAsync({ propertyId: id, file: docUploadPending, docName: name })
+                    toast.success('Файл прикреплён')
+                    setDocUploadPending(null)
+                    setDocUploadName('')
+                  } catch (err) { toast.error(err instanceof Error ? err.message : 'Ошибка загрузки') }
+                }}
+                disabled={uploadDoc.isPending}
+                className="shrink-0 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                {uploadDoc.isPending ? <Loader2 size={10} className="animate-spin" /> : null}
+                Прикрепить
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDocUploadPending(null); setDocUploadName('') }}
+                className="shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          {(property.documents?.length ?? 0) === 0 && !docUploadPending && (
+            <p className="text-xs text-slate-400">Нет прикреплённых файлов</p>
+          )}
+          <div className="space-y-2">
+            {(property.documents ?? []).map((doc) => {
+              const isPdf = /\.pdf(\?|$)/i.test(doc.url) || doc.url.includes('/property-docs/')
+              return (
+                <div key={doc.url} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg group/doc">
+                  <button
+                    type="button"
+                    onClick={() => isPdf ? setPropPdfViewerUrl(doc.url) : window.open(doc.url, '_blank', 'noopener,noreferrer')}
+                    className="shrink-0 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                    title="Открыть"
+                  >
+                    <FileText size={14} className={isPdf ? 'text-red-400' : 'text-slate-400'} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => isPdf ? setPropPdfViewerUrl(doc.url) : window.open(doc.url, '_blank', 'noopener,noreferrer')}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <p className="text-sm font-medium text-slate-800 truncate group-hover/doc:text-blue-600 transition-colors">{doc.name}</p>
+                    <p className="text-xs text-slate-400">{isPdf ? 'PDF' : 'Файл'} · Нажмите чтобы открыть</p>
+                  </button>
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 text-blue-400 hover:text-blue-600" title="Скачать">
+                    <Download size={14} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => deleteDoc.mutate({ propertyId: id, url: doc.url })}
+                    className="shrink-0 p-1 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         {/* Tasks */}
         <div>
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -817,6 +928,32 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
         )}
         </div>{/* /px-6 */}
       </div>
+
+      {/* ── Property PDF/File viewer ─────────────────────────────────────── */}
+      {propPdfViewerUrl && (
+        <div className="fixed inset-0 z-[10300] bg-black/85 flex flex-col" onClick={() => setPropPdfViewerUrl(null)}>
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <span className="text-white/60 text-xs uppercase tracking-widest">Документ</span>
+            <div className="flex items-center gap-3">
+              <a href={propPdfViewerUrl} target="_blank" rel="noopener noreferrer" download
+                className="text-xs text-white/60 hover:text-white flex items-center gap-1 transition-colors"
+                onClick={(e) => e.stopPropagation()}>
+                <Download size={14} /> Скачать
+              </a>
+              <button onClick={() => setPropPdfViewerUrl(null)} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+            <iframe
+              src={propPdfViewerUrl}
+              className="w-full h-full rounded-xl bg-white"
+              title="Документ"
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Floor plan lightbox ──────────────────────────────────────────── */}
       {showFloorPlan && floor_plan && (

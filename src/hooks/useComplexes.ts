@@ -4,6 +4,24 @@ import type { Complex, ComplexFormData, ComplexDocument, ComplexUnit, ComplexUni
 
 const QUERY_KEY = 'complexes'
 
+// Detect MIME type from file extension — browser detection is unreliable on some devices
+function getMimeType(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    pdf:  'application/pdf',
+    jpg:  'image/jpeg', jpeg: 'image/jpeg',
+    png:  'image/png',   gif: 'image/gif',
+    webp: 'image/webp',  svg: 'image/svg+xml',
+    heic: 'image/heic',  heif: 'image/heif',
+    doc:  'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls:  'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    zip:  'application/zip', txt: 'text/plain',
+  }
+  return map[ext] ?? (file.type || 'application/octet-stream')
+}
+
 export function useComplexes() {
   return useQuery({
     queryKey: [QUERY_KEY],
@@ -206,7 +224,7 @@ export function useUploadComplexLayout() {
 
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(path, file, { upsert: true, contentType: file.type || undefined })
+        .upload(path, file, { upsert: true, contentType: getMimeType(file) })
       if (uploadError) throw new Error(uploadError.message)
 
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
@@ -265,7 +283,7 @@ export function useUploadComplexDocument() {
 
       const { error: uploadError } = await supabase.storage
         .from('complex-docs')
-        .upload(path, file, { upsert: true })
+        .upload(path, file, { upsert: true, contentType: getMimeType(file) })
       if (uploadError) throw new Error(uploadError.message)
 
       const { data: urlData } = supabase.storage.from('complex-docs').getPublicUrl(path)
