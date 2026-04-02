@@ -837,24 +837,27 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           )}
           <div className="space-y-2">
             {(property.documents ?? []).map((doc) => {
-              const isPdf = /\.pdf(\?|$)/i.test(doc.url) || doc.url.includes('/property-docs/')
+              const ext = doc.url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+              const isImage = ['jpg','jpeg','png','gif','webp','svg'].includes(ext)
+              const isPdf = ext === 'pdf'
+              const typeLabel = isPdf ? 'PDF' : isImage ? 'Изображение' : ext ? ext.toUpperCase() : 'Файл'
               return (
                 <div key={doc.url} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg group/doc">
                   <button
                     type="button"
-                    onClick={() => isPdf ? setPropPdfViewerUrl(doc.url) : window.open(doc.url, '_blank', 'noopener,noreferrer')}
+                    onClick={() => setPropPdfViewerUrl(doc.url)}
                     className="shrink-0 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
                     title="Открыть"
                   >
-                    <FileText size={14} className={isPdf ? 'text-red-400' : 'text-slate-400'} />
+                    <FileText size={14} className={isPdf ? 'text-red-400' : isImage ? 'text-emerald-400' : 'text-slate-400'} />
                   </button>
                   <button
                     type="button"
-                    onClick={() => isPdf ? setPropPdfViewerUrl(doc.url) : window.open(doc.url, '_blank', 'noopener,noreferrer')}
+                    onClick={() => setPropPdfViewerUrl(doc.url)}
                     className="flex-1 min-w-0 text-left"
                   >
                     <p className="text-sm font-medium text-slate-800 truncate group-hover/doc:text-blue-600 transition-colors">{doc.name}</p>
-                    <p className="text-xs text-slate-400">{isPdf ? 'PDF' : 'Файл'} · Нажмите чтобы открыть</p>
+                    <p className="text-xs text-slate-400">{typeLabel} · Нажмите чтобы открыть</p>
                   </button>
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 text-blue-400 hover:text-blue-600" title="Скачать">
                     <Download size={14} />
@@ -929,31 +932,58 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
         </div>{/* /px-6 */}
       </div>
 
-      {/* ── Property PDF/File viewer ─────────────────────────────────────── */}
-      {propPdfViewerUrl && (
-        <div className="fixed inset-0 z-[10300] bg-black/85 flex flex-col" onClick={() => setPropPdfViewerUrl(null)}>
-          <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-            <span className="text-white/60 text-xs uppercase tracking-widest">Документ</span>
-            <div className="flex items-center gap-3">
-              <a href={propPdfViewerUrl} target="_blank" rel="noopener noreferrer" download
-                className="text-xs text-white/60 hover:text-white flex items-center gap-1 transition-colors"
-                onClick={(e) => e.stopPropagation()}>
-                <Download size={14} /> Скачать
-              </a>
-              <button onClick={() => setPropPdfViewerUrl(null)} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
-                <X size={18} />
-              </button>
+      {/* ── Property File viewer ─────────────────────────────────────────── */}
+      {propPdfViewerUrl && (() => {
+        const vExt = propPdfViewerUrl.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+        const vIsImage = ['jpg','jpeg','png','gif','webp','svg'].includes(vExt)
+        const vIsPdf = vExt === 'pdf'
+        const vIsOffice = ['doc','docx','xls','xlsx','ppt','pptx'].includes(vExt)
+        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(propPdfViewerUrl)}&embedded=true`
+        return (
+          <div className="fixed inset-0 z-[10300] bg-black/85 flex flex-col" onClick={() => setPropPdfViewerUrl(null)}>
+            <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <span className="text-white/60 text-xs uppercase tracking-widest">Документ</span>
+              <div className="flex items-center gap-3">
+                <a href={propPdfViewerUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-white/60 hover:text-white flex items-center gap-1 transition-colors"
+                  onClick={(e) => e.stopPropagation()}>
+                  <ExternalLink size={14} /> Открыть в браузере
+                </a>
+                <a href={propPdfViewerUrl} target="_blank" rel="noopener noreferrer" download
+                  className="text-xs text-white/60 hover:text-white flex items-center gap-1 transition-colors"
+                  onClick={(e) => e.stopPropagation()}>
+                  <Download size={14} /> Скачать
+                </a>
+                <button onClick={() => setPropPdfViewerUrl(null)} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+              {vIsImage ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <img src={propPdfViewerUrl} alt="Документ" className="max-w-full max-h-full object-contain rounded-xl" />
+                </div>
+              ) : vIsPdf ? (
+                <object data={propPdfViewerUrl} type="application/pdf" className="w-full h-full rounded-xl bg-white">
+                  <iframe src={googleViewerUrl} className="w-full h-full rounded-xl bg-white" title="Документ" />
+                </object>
+              ) : vIsOffice ? (
+                <iframe src={googleViewerUrl} className="w-full h-full rounded-xl bg-white" title="Документ" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/60">
+                  <FileText size={48} />
+                  <p className="text-sm">Предпросмотр недоступен для этого типа файла</p>
+                  <a href={propPdfViewerUrl} target="_blank" rel="noopener noreferrer" download
+                    className="text-sm text-white bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-colors flex items-center gap-2">
+                    <Download size={16} /> Скачать файл
+                  </a>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex-1 overflow-hidden px-2 pb-2" onClick={(e) => e.stopPropagation()}>
-            <iframe
-              src={propPdfViewerUrl}
-              className="w-full h-full rounded-xl bg-white"
-              title="Документ"
-            />
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── Floor plan lightbox ──────────────────────────────────────────── */}
       {showFloorPlan && floor_plan && (

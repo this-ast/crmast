@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, CalendarDays, ClipboardList, FileText, MapPin, Phone, User, X,
-  Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2,
+  Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2, ExternalLink,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import { useComplex, useComplexUnits, useCreateComplexUnit, useUpdateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout, useDeleteComplexPhoto, useReorderComplexPhotos, useReorderComplexLayouts } from '@/hooks/useComplexes'
@@ -928,7 +928,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           {complex.layouts.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {complex.layouts.map((url, idx) => {
-                const isPdf = /\.pdf(\?|$)/i.test(url) || url.includes('/complex-docs/')
+                const isPdf = /\.pdf(\?|$)/i.test(url)
                 return (
                   <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
                     {isPdf ? (
@@ -1155,8 +1155,9 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           )}
           <div className="space-y-2">
             {complex.documents.map((doc) => {
-              const isPdf = /\.pdf(\?|$)/i.test(doc.url)
-              const isImage = /\.(jpe?g|png|gif|webp|svg)(\?|$)/i.test(doc.url)
+              const docExt = doc.url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+              const isPdf = docExt === 'pdf'
+              const isImage = ['jpg','jpeg','png','gif','webp','svg'].includes(docExt)
               return (
                 <div
                   key={doc.url}
@@ -1164,10 +1165,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      if (isPdf) setPdfViewerUrl(doc.url)
-                      else window.open(doc.url, '_blank', 'noopener,noreferrer')
-                    }}
+                    onClick={() => setPdfViewerUrl(doc.url)}
                     className="shrink-0 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
                     title="Открыть"
                   >
@@ -1175,10 +1173,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (isPdf) setPdfViewerUrl(doc.url)
-                      else window.open(doc.url, '_blank', 'noopener,noreferrer')
-                    }}
+                    onClick={() => setPdfViewerUrl(doc.url)}
                     className="flex-1 min-w-0 text-left"
                   >
                     <p className="text-xs text-slate-400">{DOC_TYPE_LABELS[doc.type]}</p>
@@ -1261,37 +1256,57 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
       </div>
 
       {/* PDF Viewer Modal */}
-      {pdfViewerUrl && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-black/60">
-            <span className="text-white/60 text-xs uppercase tracking-widest">PDF документ</span>
-            <div className="flex items-center gap-2">
-              <a
-                href={pdfViewerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
-              >
-                <Download size={13} />
-                Скачать
-              </a>
-              <button
-                onClick={() => setPdfViewerUrl(null)}
-                className="p-2 text-white/60 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
+      {pdfViewerUrl && (() => {
+        const vExt = pdfViewerUrl.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+        const vIsImage = ['jpg','jpeg','png','gif','webp','svg'].includes(vExt)
+        const vIsPdf = vExt === 'pdf'
+        const vIsOffice = ['doc','docx','xls','xlsx','ppt','pptx'].includes(vExt)
+        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfViewerUrl)}&embedded=true`
+        return (
+          <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setPdfViewerUrl(null)}>
+            <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-black/60" onClick={(e) => e.stopPropagation()}>
+              <span className="text-white/60 text-xs uppercase tracking-widest">Документ</span>
+              <div className="flex items-center gap-2">
+                <a href={pdfViewerUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
+                  onClick={(e) => e.stopPropagation()}>
+                  <ExternalLink size={13} /> Открыть в браузере
+                </a>
+                <a href={pdfViewerUrl} target="_blank" rel="noopener noreferrer" download
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
+                  onClick={(e) => e.stopPropagation()}>
+                  <Download size={13} /> Скачать
+                </a>
+                <button onClick={() => setPdfViewerUrl(null)} className="p-2 text-white/60 hover:text-white transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+              {vIsImage ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <img src={pdfViewerUrl} alt="Документ" className="max-w-full max-h-full object-contain rounded-xl" />
+                </div>
+              ) : vIsPdf ? (
+                <object data={pdfViewerUrl} type="application/pdf" className="w-full h-full border-0 rounded-xl bg-white">
+                  <iframe src={googleViewerUrl} className="w-full h-full border-0 rounded-xl bg-white" title="Документ" />
+                </object>
+              ) : vIsOffice ? (
+                <iframe src={googleViewerUrl} className="w-full h-full border-0 rounded-xl bg-white" title="Документ" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/60">
+                  <FileText size={48} />
+                  <p className="text-sm">Предпросмотр недоступен для этого типа файла</p>
+                  <a href={pdfViewerUrl} target="_blank" rel="noopener noreferrer" download
+                    className="text-sm text-white bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-colors flex items-center gap-2">
+                    <Download size={16} /> Скачать файл
+                  </a>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <iframe
-              src={pdfViewerUrl}
-              className="w-full h-full border-0"
-              title="PDF документ"
-            />
-          </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
