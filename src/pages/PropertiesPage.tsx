@@ -1,16 +1,20 @@
 import { useMemo, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Settings } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Settings, Search } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
+import { useAllComplexUnits } from '@/hooks/useComplexes'
 import PropertyCard from '@/components/properties/PropertyCard'
 import PropertyFilters from '@/components/properties/PropertyFilters'
 import PropertyDetail from '@/components/properties/PropertyDetail'
 import PropertyForm from '@/components/properties/PropertyForm'
 import Modal from '@/components/ui/Modal'
 import OptionsManager from '@/components/settings/OptionsManager'
-import type { PropertyWithOwner } from '@/types'
+import UnitDetailModal from '@/components/complexes/UnitDetailModal'
+import type { PropertyWithOwner, ComplexUnit } from '@/types'
+import { formatPriceShort } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 function filterProperties(
   properties: PropertyWithOwner[],
@@ -103,8 +107,12 @@ function filterProperties(
 
 export default function PropertiesPage() {
   const { data: properties = [], isLoading, error } = useProperties()
+  const { data: allUnits = [], isLoading: unitsLoading } = useAllComplexUnits()
   const taskCounts = useActiveTaskCounts()
   const [searchParams, setSearchParams] = useSearchParams()
+  const [tab, setTab] = useState<'all' | 'developer'>('all')
+  const [unitSearch, setUnitSearch] = useState('')
+  const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string }) | null>(null)
   const {
     filters,
     selectedPropertyId,
@@ -117,7 +125,6 @@ export default function PropertiesPage() {
     closeForm,
   } = usePropertyStore()
 
-  // Auto-open detail when navigated from client page via ?open={id}
   useEffect(() => {
     const openId = searchParams.get('open')
     if (openId && properties.length > 0) {
@@ -131,11 +138,23 @@ export default function PropertiesPage() {
 
   const filtered = useMemo(() => filterProperties(properties, filters), [properties, filters])
 
-  const selectedProperty = properties.find((p) => p.id === selectedPropertyId)
+  const filteredUnits = useMemo(() => {
+    const q = unitSearch.toLowerCase().trim()
+    if (!q) return allUnits
+    return allUnits.filter((u) => {
+      const label = u.title || (u.rooms ? `${u.rooms}-комн. кв.` : '')
+      return (
+        label.toLowerCase().includes(q) ||
+        (u.complex_name ?? '').toLowerCase().includes(q) ||
+        String(u.price ?? '').includes(q) ||
+        String(u.area ?? '').includes(q)
+      )
+    })
+  }, [allUnits, unitSearch])
 
+  const selectedProperty = properties.find((p) => p.id === selectedPropertyId)
   const activeCount = properties.filter((p) => p.status === 'active').length
   const totalCount = properties.length
-
   const [showOptionsManager, setShowOptionsManager] = useState(false)
   const formTitle = editingPropertyId ? 'Редактировать объект' : 'Новый объект'
 
@@ -147,7 +166,7 @@ export default function PropertiesPage() {
           <h1 className="text-xl font-bold text-slate-900">Объекты</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {activeCount} активных · {totalCount} всего
-            {filtered.length !== totalCount && ` · ${filtered.length} найдено`}
+            {tab === 'all' && filtered.length !== totalCount && ` · ${filtered.length} найдено`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -158,62 +177,162 @@ export default function PropertiesPage() {
           >
             <Settings size={16} />
           </button>
-          <button
-            data-tour="add-property"
-            onClick={() => openForm()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Добавить объект
-          </button>
+          {tab === 'all' && (
+            <button
+              data-tour="add-property"
+              onClick={() => openForm()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Добавить объект
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="mb-5 bg-slate-50 rounded-2xl p-4">
-        <PropertyFilters />
+      {/* Tabs */}
+      <div className="flex gap-2 mb-5">
+        <button
+          onClick={() => setTab('all')}
+          className={cn(
+            'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+            tab === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          )}
+        >
+          Все объекты
+        </button>
+        <button
+          onClick={() => setTab('developer')}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+            tab === 'developer' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          )}
+        >
+          <Building2 size={15} />
+          От застройщика {allUnits.length > 0 && `(${allUnits.length})`}
+        </button>
       </div>
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 size={24} className="animate-spin text-blue-500" />
-        </div>
+      {/* ─── All properties tab ─── */}
+      {tab === 'all' && (
+        <>
+          <div className="mb-5 bg-slate-50 rounded-2xl p-4">
+            <PropertyFilters />
+          </div>
+
+          {isLoading && (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 size={24} className="animate-spin text-blue-500" />
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl text-red-700 text-sm">
+              <AlertCircle size={18} />
+              Ошибка загрузки данных.
+            </div>
+          )}
+          {!isLoading && !error && filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <Building2 size={40} className="text-slate-300 mb-3" />
+              <p className="text-slate-500 font-medium">Объекты не найдены</p>
+              <p className="text-slate-400 text-sm mt-1">
+                {properties.length === 0 ? 'Добавьте первый объект' : 'Попробуйте изменить фильтры'}
+              </p>
+            </div>
+          )}
+          {!isLoading && filtered.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  onClick={() => openDetail(property.id)}
+                  taskCount={taskCounts[property.id] ?? 0}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl text-red-700 text-sm">
-          <AlertCircle size={18} />
-          Ошибка загрузки данных. Проверьте подключение к базе данных.
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && !error && filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-48 text-center">
-          <Building2 size={40} className="text-slate-300 mb-3" />
-          <p className="text-slate-500 font-medium">Объекты не найдены</p>
-          <p className="text-slate-400 text-sm mt-1">
-            {properties.length === 0
-              ? 'Добавьте первый объект'
-              : 'Попробуйте изменить фильтры'}
-          </p>
-        </div>
-      )}
-
-      {/* Grid */}
-      {!isLoading && filtered.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((property) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              onClick={() => openDetail(property.id)}
-              taskCount={taskCounts[property.id] ?? 0}
+      {/* ─── Developer units tab ─── */}
+      {tab === 'developer' && (
+        <>
+          <div className="relative mb-4">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={unitSearch}
+              onChange={(e) => setUnitSearch(e.target.value)}
+              placeholder="Поиск по ЖК, типу, площади, цене..."
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
             />
-          ))}
-        </div>
+          </div>
+
+          {unitsLoading && (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 size={24} className="animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {!unitsLoading && filteredUnits.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <Building2 size={40} className="text-slate-300 mb-3" />
+              <p className="text-slate-500 font-medium">
+                {allUnits.length === 0 ? 'Нет объектов от застройщика' : 'Ничего не найдено'}
+              </p>
+              <p className="text-slate-400 text-sm mt-1">
+                {allUnits.length === 0
+                  ? 'Добавьте объекты в разделе ЖК'
+                  : 'Попробуйте изменить поиск'}
+              </p>
+            </div>
+          )}
+
+          {!unitsLoading && filteredUnits.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredUnits.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setSelectedUnit(u)}
+                  className="bg-white rounded-2xl border border-slate-100 p-4 text-left hover:shadow-md hover:border-emerald-200 transition-all group"
+                >
+                  <div className="w-full h-24 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-100 mb-3 flex items-center justify-center">
+                    <Building2 size={28} className="text-emerald-300" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm group-hover:text-emerald-700 line-clamp-1">
+                    {u.title || (u.rooms ? `${u.rooms}-комн. квартира` : 'Объект')}
+                    {u.area ? ` · ${u.area} м²` : ''}
+                  </p>
+                  {u.complex_name && (
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                      <Building2 size={10} />{u.complex_name}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {u.floor != null && (
+                      <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
+                        {u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.
+                      </span>
+                    )}
+                    {u.price != null && (
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {formatPriceShort(u.price)}
+                      </span>
+                    )}
+                  </div>
+                  {taskCounts[u.id] > 0 && (
+                    <div className="mt-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                        {taskCounts[u.id]} {taskCounts[u.id] === 1 ? 'задача' : taskCounts[u.id] < 5 ? 'задачи' : 'задач'}
+                      </span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Detail Modal */}
@@ -226,6 +345,13 @@ export default function PropertiesPage() {
       {/* Form Modal */}
       <Modal isOpen={isFormOpen} onClose={closeForm} title={formTitle} size="lg">
         <PropertyForm />
+      </Modal>
+
+      {/* Unit Detail Modal */}
+      <Modal isOpen={!!selectedUnit} onClose={() => setSelectedUnit(null)} size="md">
+        {selectedUnit && (
+          <UnitDetailModal unit={selectedUnit} onClose={() => setSelectedUnit(null)} />
+        )}
       </Modal>
 
       <OptionsManager

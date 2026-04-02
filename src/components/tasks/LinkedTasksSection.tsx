@@ -23,6 +23,7 @@ const TYPE_LABELS: Record<TaskLinkedType, string> = {
   deal:     'Сделка',
   complex:  'ЖК',
   demand:   'Спрос',
+  unit:     'От застройщика',
 }
 
 type PickerTab = 'client' | 'property' | 'complex' | 'demand'

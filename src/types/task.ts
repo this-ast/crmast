@@ -1,6 +1,6 @@
 export type TaskPriority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'pending' | 'done' | 'cancelled'
-export type TaskLinkedType = 'client' | 'property' | 'deal' | 'complex' | 'demand'
+export type TaskLinkedType = 'client' | 'property' | 'deal' | 'complex' | 'demand' | 'unit'
 
 export interface TaskAlsoLink {
   type: TaskLinkedType

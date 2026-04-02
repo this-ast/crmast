@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight, Settings } from 'lucide-react'
-import { useComplexes } from '@/hooks/useComplexes'
+import { useComplexes, useComplexUnitCounts } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useComplexStore } from '@/store/useComplexStore'
@@ -20,6 +20,7 @@ export default function ComplexesPage() {
   const { data: complexes = [], isLoading, error } = useComplexes()
   const { data: properties = [] } = useProperties()
   const taskCounts = useActiveTaskCounts()
+  const unitCounts = useComplexUnitCounts()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<ComplexFilterState>(defaultComplexFilters)
@@ -279,6 +280,7 @@ export default function ComplexesPage() {
               key={complex.id}
               complex={complex}
               propertyCount={propCountByComplex[complex.id] ?? 0}
+              unitCount={unitCounts[complex.id] ?? 0}
               onClick={() => openDetail(complex.id)}
               onShowProperties={(e) => { e.stopPropagation(); setPropertiesModalComplexId(complex.id) }}
               taskCount={taskCounts[complex.id] ?? 0}

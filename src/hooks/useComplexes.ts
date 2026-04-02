@@ -297,6 +297,14 @@ export function useComplexUnits(complexId: string) {
   })
 }
 
+export function useComplexUnitCounts(): Record<string, number> {
+  const { data: allUnits = [] } = useAllComplexUnits()
+  return allUnits.reduce((acc, u) => {
+    acc[u.complex_id] = (acc[u.complex_id] ?? 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+}
+
 export function useAllComplexUnits() {
   return useQuery({
     queryKey: ['complex_units_all'],

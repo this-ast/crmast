@@ -1,19 +1,31 @@
 import { useState } from 'react'
 import { Building2, CalendarDays, Phone, Layers, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
-import type { Complex } from '@/types'
+import type { Complex, ComplexUnit } from '@/types'
 import { useComplexUnits } from '@/hooks/useComplexes'
 import { formatPriceShort } from '@/utils/format'
+import Modal from '@/components/ui/Modal'
+import UnitDetailModal from './UnitDetailModal'
 
 interface ComplexCardProps {
   complex: Complex
   propertyCount?: number
+  unitCount?: number
   onClick: () => void
   onShowProperties?: (e: React.MouseEvent) => void
   taskCount?: number
 }
 
-function UnitsDropdown({ complexId, onStop }: { complexId: string; onStop: (e: React.MouseEvent) => void }) {
+function UnitCards({
+  complexId,
+  complexName,
+  onStop,
+}: {
+  complexId: string
+  complexName: string
+  onStop: (e: React.MouseEvent) => void
+}) {
   const { data: units = [], isLoading } = useComplexUnits(complexId)
+  const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string }) | null>(null)
 
   if (isLoading) return (
     <div className="mt-2 pt-2 border-t border-slate-100">
@@ -28,27 +40,40 @@ function UnitsDropdown({ complexId, onStop }: { complexId: string; onStop: (e: R
   )
 
   return (
-    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1" onClick={onStop}>
+    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5" onClick={onStop}>
       {units.map((u) => (
-        <div key={u.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-lg">
+        <button
+          key={u.id}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setSelectedUnit({ ...u, complex_name: complexName }) }}
+          className="w-full flex items-center justify-between px-2.5 py-2 bg-slate-50 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-xl transition-colors text-left"
+        >
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-slate-700 truncate">
+            <p className="text-xs font-semibold text-slate-700 truncate">
               {u.title || (u.rooms ? `${u.rooms}-комн. кв.` : 'Объект')}
               {u.area ? ` · ${u.area} м²` : ''}
-              {u.floor ? ` · ${u.floor} эт.` : ''}
             </p>
-            {u.notes && <p className="text-[10px] text-slate-400 truncate">{u.notes}</p>}
+            <p className="text-[10px] text-slate-400">
+              {u.floor ? `${u.floor}${u.total_floors ? `/${u.total_floors}` : ''} эт.` : ''}
+              {u.notes ? (u.floor ? ` · ${u.notes}` : u.notes) : ''}
+            </p>
           </div>
           {u.price != null && (
             <span className="text-xs font-bold text-emerald-600 shrink-0 ml-2">{formatPriceShort(u.price)}</span>
           )}
-        </div>
+        </button>
       ))}
+
+      {selectedUnit && (
+        <Modal isOpen={true} onClose={() => setSelectedUnit(null)} size="md">
+          <UnitDetailModal unit={selectedUnit} onClose={() => setSelectedUnit(null)} />
+        </Modal>
+      )}
     </div>
   )
 }
 
-export default function ComplexCard({ complex, propertyCount = 0, onClick, onShowProperties, taskCount = 0 }: ComplexCardProps) {
+export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0, onClick, onShowProperties, taskCount = 0 }: ComplexCardProps) {
   const [showUnits, setShowUnits] = useState(false)
 
   return (
@@ -82,7 +107,7 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
       )}
 
       {/* Badges */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {complex.completion_date && (
           <span className="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full">
             <CalendarDays size={11} />
@@ -95,6 +120,17 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
             {propertyCount} {propertyCount === 1 ? 'объект' : propertyCount < 5 ? 'объекта' : 'объектов'}
           </span>
         )}
+        {/* Developer unit count badge — clickable */}
+        {unitCount > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowUnits((v) => !v) }}
+            className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full transition-colors font-semibold"
+          >
+            <Building2 size={11} />
+            {unitCount} от застройщика
+          </button>
+        )}
         {complex.developer_phones.length > 0 && (
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Phone size={11} />
@@ -103,7 +139,7 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
         )}
       </div>
 
-      {/* Cash price badge — from pricing_conditions or legacy pricing */}
+      {/* Cash price badge */}
       {(() => {
         const fromConditions = complex.pricing_conditions?.find(c => c.payment_type === 'cash' && c.price_per_sqm != null)?.price_per_sqm
         const fromLegacy = complex.pricing?.cash?.price_per_sqm
@@ -138,20 +174,28 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
         </button>
       )}
 
-      {/* Developer units toggle */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setShowUnits((v) => !v) }}
-        className="mt-2 w-full flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-lg hover:bg-slate-50 text-slate-500 text-xs font-medium transition-colors"
-      >
-        <span className="flex items-center gap-1.5">
-          <Building2 size={12} />
-          Объекты от застройщика
-        </span>
-        {showUnits ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-      </button>
+      {/* Expand toggle for no-badge case (unitCount = 0 but still shown) */}
+      {unitCount === 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowUnits((v) => !v) }}
+          className="mt-2 w-full flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-lg hover:bg-slate-50 text-slate-400 text-xs font-medium transition-colors"
+        >
+          <span className="flex items-center gap-1.5">
+            <Building2 size={11} />
+            Объекты от застройщика
+          </span>
+          {showUnits ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+        </button>
+      )}
 
-      {showUnits && <UnitsDropdown complexId={complex.id} onStop={(e) => e.stopPropagation()} />}
+      {showUnits && (
+        <UnitCards
+          complexId={complex.id}
+          complexName={complex.name}
+          onStop={(e) => e.stopPropagation()}
+        />
+      )}
     </div>
   )
 }

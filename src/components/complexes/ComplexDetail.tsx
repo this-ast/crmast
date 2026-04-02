@@ -227,6 +227,9 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const deleteLayout = useDeleteComplexLayout()
   const docInputRef = useRef<HTMLInputElement>(null)
   const layoutInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [fileUploadName, setFileUploadName] = useState('')
+  const [fileUploadPending, setFileUploadPending] = useState<File | null>(null)
   const { openForm } = useComplexStore()
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -262,6 +265,28 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
       toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
     }
     e.target.value = ''
+  }
+
+  // Free file upload: user picks file first, then enters name, then confirms
+  const handleFreeFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFileUploadPending(file)
+    setFileUploadName(file.name.replace(/\.[^.]+$/, ''))
+    e.target.value = ''
+  }
+
+  const handleFreeFileConfirm = async () => {
+    if (!fileUploadPending || !complexId) return
+    const name = fileUploadName.trim() || fileUploadPending.name.replace(/\.[^.]+$/, '')
+    try {
+      await uploadDoc.mutateAsync({ complexId, file: fileUploadPending, docName: name, docType: 'other' })
+      toast.success('Файл прикреплён')
+      setFileUploadPending(null)
+      setFileUploadName('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+    }
   }
 
   const handleLayoutUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -803,7 +828,7 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
               {uploadLayout.isPending ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
               Добавить
             </button>
-            <input ref={layoutInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleLayoutUpload} />
+            <input ref={layoutInputRef} type="file" accept="*" className="hidden" onChange={handleLayoutUpload} />
           </div>
           {complex.layouts.length === 0 && (
             <p className="text-xs text-slate-400">Нет планировок</p>
@@ -963,32 +988,50 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Документы
             </h3>
-            <div className="flex gap-2 flex-wrap">
-              {(['permit', 'developer', 'other'] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => {
-                    if (docInputRef.current) {
-                      docInputRef.current.dataset.doctype = type
-                      docInputRef.current.click()
-                    }
-                  }}
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
-                >
-                  <Plus size={10} />
-                  {DOC_TYPE_LABELS[type]}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+            >
+              <Plus size={10} />
+              Загрузить файл
+            </button>
             <input
-              ref={docInputRef}
+              ref={fileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx,.jpg,.png"
+              accept="*"
               className="hidden"
-              onChange={handleDocUpload}
+              onChange={handleFreeFilePick}
             />
           </div>
+          {fileUploadPending && (
+            <div className="mb-3 flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+              <FileText size={14} className="text-blue-400 shrink-0" />
+              <input
+                type="text"
+                value={fileUploadName}
+                onChange={(e) => setFileUploadName(e.target.value)}
+                placeholder="Название файла"
+                className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                onClick={handleFreeFileConfirm}
+                disabled={uploadDoc.isPending}
+                className="shrink-0 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Прикрепить
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFileUploadPending(null); setFileUploadName('') }}
+                className="shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {complex.documents.length === 0 && (
             <p className="text-xs text-slate-400">Нет документов</p>
           )}
