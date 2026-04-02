@@ -167,19 +167,49 @@ export function useDeleteComplexPhoto() {
   })
 }
 
+export function useReorderComplexPhotos() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ complexId, photos }: { complexId: string; photos: string[] }) => {
+      const { error } = await supabase.from('complexes').update({ photos }).eq('id', complexId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, complexId] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+    },
+  })
+}
+
+export function useReorderComplexLayouts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ complexId, layouts }: { complexId: string; layouts: string[] }) => {
+      const { error } = await supabase.from('complexes').update({ layouts }).eq('id', complexId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, complexId] })
+    },
+  })
+}
+
 export function useUploadComplexLayout() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ complexId, file }: { complexId: string; file: File }) => {
-      const ext = file.name.split('.').pop() ?? 'jpg'
+      // Route images to complex-photos, everything else (PDF etc.) to complex-docs
+      const isImage = file.type.startsWith('image/')
+      const bucket = isImage ? 'complex-photos' : 'complex-docs'
+      const ext = file.name.split('.').pop() ?? (isImage ? 'jpg' : 'bin')
       const path = `${complexId}/layout-${Date.now()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
-        .from('complex-photos')
-        .upload(path, file, { upsert: true })
+        .from(bucket)
+        .upload(path, file, { upsert: true, contentType: file.type || undefined })
       if (uploadError) throw new Error(uploadError.message)
 
-      const { data: urlData } = supabase.storage.from('complex-photos').getPublicUrl(path)
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
       const url = urlData.publicUrl
 
       const { data: current } = await supabase

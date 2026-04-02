@@ -229,6 +229,20 @@ export function useUploadPropertyPhoto() {
   })
 }
 
+export function useReorderPropertyPhotos() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ propertyId, photos }: { propertyId: string; photos: string[] }) => {
+      const { error } = await supabase.from('properties').update({ photos }).eq('id', propertyId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, propertyId] })
+    },
+  })
+}
+
 export function useDeletePropertyPhoto() {
   const queryClient = useQueryClient()
   return useMutation({

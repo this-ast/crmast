@@ -1,11 +1,12 @@
 import { useRef, useState, useCallback } from 'react'
-import { Upload, Trash2, ImagePlus, Loader2, ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
+import { Trash2, ImagePlus, Loader2, ChevronLeft, ChevronRight, X, ZoomIn, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 interface MediaUploaderProps {
   photos: string[]
   onUpload: (files: File[]) => Promise<void>
   onDelete: (url: string) => void
+  onReorder?: (photos: string[]) => void
   uploading?: boolean
   className?: string
 }
@@ -121,12 +122,21 @@ export default function MediaUploader({
   photos,
   onUpload,
   onDelete,
+  onReorder,
   uploading = false,
   className,
 }: MediaUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+
+  const movePhoto = useCallback((fromIdx: number, toIdx: number) => {
+    if (!onReorder || toIdx < 0 || toIdx >= photos.length) return
+    const next = [...photos]
+    const [item] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, item)
+    onReorder(next)
+  }, [onReorder, photos])
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -160,23 +170,47 @@ export default function MediaUploader({
                 loading="lazy"
               />
               {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover/photo:opacity-100">
-                <button
-                  type="button"
-                  onClick={() => setLightboxIdx(i)}
-                  className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
-                  title="Просмотр"
-                >
-                  <ZoomIn size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(url)}
-                  className="p-1.5 rounded-full bg-red-500/80 text-white hover:bg-red-600 transition-colors"
-                  title="Удалить"
-                >
-                  <Trash2 size={14} />
-                </button>
+              <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/50 transition-colors flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover/photo:opacity-100">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setLightboxIdx(i) }}
+                    className="p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                    title="Просмотр"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(url) }}
+                    className="p-1.5 rounded-full bg-red-500/80 text-white hover:bg-red-600 transition-colors"
+                    title="Удалить"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {onReorder && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); movePhoto(i, i - 1) }}
+                      disabled={i === 0}
+                      className="p-1 rounded bg-white/20 text-white hover:bg-white/30 disabled:opacity-30 transition-colors"
+                      title="Переместить влево"
+                    >
+                      <ArrowLeft size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); movePhoto(i, i + 1) }}
+                      disabled={i === photos.length - 1}
+                      className="p-1 rounded bg-white/20 text-white hover:bg-white/30 disabled:opacity-30 transition-colors"
+                      title="Переместить вправо"
+                    >
+                      <ArrowRight size={11} />
+                    </button>
+                  </div>
+                )}
               </div>
               {/* Photo index badge */}
               <div className="absolute top-1 left-1 text-[10px] bg-black/50 text-white px-1 rounded">

@@ -5,7 +5,7 @@ import {
   Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { useComplex, useComplexUnits, useCreateComplexUnit, useUpdateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useCreateComplexUnit, useUpdateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout, useDeleteComplexPhoto, useReorderComplexPhotos, useReorderComplexLayouts } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
@@ -225,11 +225,16 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   const deleteDoc = useDeleteComplexDocument()
   const uploadLayout = useUploadComplexLayout()
   const deleteLayout = useDeleteComplexLayout()
+  const deletePhoto = useDeleteComplexPhoto()
+  const reorderPhotos = useReorderComplexPhotos()
+  const reorderLayouts = useReorderComplexLayouts()
   const docInputRef = useRef<HTMLInputElement>(null)
   const layoutInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [fileUploadName, setFileUploadName] = useState('')
   const [fileUploadPending, setFileUploadPending] = useState<File | null>(null)
+  const [editingPhotos, setEditingPhotos] = useState(false)
+  const [editingLayouts, setEditingLayouts] = useState(false)
   const { openForm } = useComplexStore()
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -391,6 +396,26 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
     setLayoutSwipeAxis(null)
   }
 
+  const movePhoto = (idx: number, dir: -1 | 1) => {
+    if (!complex) return
+    const photos = [...complex.photos]
+    const to = idx + dir
+    if (to < 0 || to >= photos.length) return
+    ;[photos[idx], photos[to]] = [photos[to], photos[idx]]
+    reorderPhotos.mutate({ complexId, photos })
+    setActivePhotoIdx(to)
+  }
+
+  const moveLayout = (url: string, dir: -1 | 1) => {
+    if (!complex) return
+    const layouts = [...complex.layouts]
+    const idx = layouts.indexOf(url)
+    const to = idx + dir
+    if (to < 0 || to >= layouts.length) return
+    ;[layouts[idx], layouts[to]] = [layouts[to], layouts[idx]]
+    reorderLayouts.mutate({ complexId, layouts })
+  }
+
   const handleEdit = () => {
     onClose()
     setTimeout(() => openForm(complexId), 150)
@@ -537,53 +562,109 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         {/* Photos gallery */}
         {complex.photos.length > 0 && (
           <div>
-            {/* Main scrollable gallery */}
-            <div
-              className="flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
-            >
-              {complex.photos.map((url, i) => (
-                <div
-                  key={url}
-                  className="relative w-full shrink-0 snap-center group"
-                  style={{ minWidth: '100%' }}
-                >
-                  <img
-                    src={url}
-                    alt={`${complex.name} ${i + 1}`}
-                    onClick={() => { setSlideDir(null); setActivePhotoIdx(i); setLightbox(true) }}
-                    onTouchStart={handlePhotoTouchStart}
-                    onTouchEnd={(e) => handlePhotoTouchEnd(e, i)}
-                    className={`w-full h-48 rounded-xl object-cover cursor-zoom-in transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
-                    style={{ touchAction: 'pan-x' }}
-                    loading="lazy"
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
-                    <ZoomIn size={10} />
-                    {i + 1}/{complex.photos.length}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Thumbnail strip */}
-            {complex.photos.length > 1 && (
-              <div
-                ref={(el) => { thumbStripRef[1](el) }}
-                className="flex gap-2 overflow-x-auto pb-1 mt-2"
-                style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Фотографии ({complex.photos.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditingPhotos(v => !v)}
+                className={`text-xs px-2 py-1 rounded-lg transition-colors font-medium ${editingPhotos ? 'bg-blue-600 text-white' : 'text-blue-600 bg-blue-50 hover:bg-blue-100'}`}
               >
+                {editingPhotos ? 'Готово' : 'Редактировать'}
+              </button>
+            </div>
+            {editingPhotos ? (
+              /* Edit mode — grid with delete + reorder */
+              <div className="grid grid-cols-3 gap-2">
                 {complex.photos.map((url, i) => (
-                  <button
-                    key={url}
-                    onClick={() => goToPhoto(i, i > activePhotoIdx ? 'left' : 'right')}
-                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200 ${
-                      activePhotoIdx === i ? 'border-blue-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:border-slate-300'
-                    }`}
-                  >
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                  </button>
+                  <div key={url} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group/p">
+                    <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover/p:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => deletePhoto.mutate({ complexId, url })}
+                        className="p-1.5 rounded-full bg-red-500/90 text-white hover:bg-red-600 transition-colors"
+                        title="Удалить"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => movePhoto(i, -1)}
+                          disabled={i === 0}
+                          className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30 transition-colors"
+                          title="Влево"
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => movePhoto(i, 1)}
+                          disabled={i === complex.photos.length - 1}
+                          className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30 transition-colors"
+                          title="Вправо"
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="absolute top-1 left-1 text-[10px] bg-black/50 text-white px-1 rounded pointer-events-none">{i + 1}</div>
+                  </div>
                 ))}
               </div>
+            ) : (
+              <>
+                {/* Main scrollable gallery */}
+                <div
+                  className="flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
+                >
+                  {complex.photos.map((url, i) => (
+                    <div
+                      key={url}
+                      className="relative w-full shrink-0 snap-center group"
+                      style={{ minWidth: '100%' }}
+                    >
+                      <img
+                        src={url}
+                        alt={`${complex.name} ${i + 1}`}
+                        onClick={() => { setSlideDir(null); setActivePhotoIdx(i); setLightbox(true) }}
+                        onTouchStart={handlePhotoTouchStart}
+                        onTouchEnd={(e) => handlePhotoTouchEnd(e, i)}
+                        className={`w-full h-48 rounded-xl object-cover cursor-zoom-in transition-all ${activePhotoIdx === i ? 'ring-2 ring-blue-500' : ''}`}
+                        style={{ touchAction: 'pan-x' }}
+                        loading="lazy"
+                      />
+                      <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+                        <ZoomIn size={10} />
+                        {i + 1}/{complex.photos.length}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Thumbnail strip */}
+                {complex.photos.length > 1 && (
+                  <div
+                    ref={(el) => { thumbStripRef[1](el) }}
+                    className="flex gap-2 overflow-x-auto pb-1 mt-2"
+                    style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
+                  >
+                    {complex.photos.map((url, i) => (
+                      <button
+                        key={url}
+                        onClick={() => goToPhoto(i, i > activePhotoIdx ? 'left' : 'right')}
+                        className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all duration-200 ${
+                          activePhotoIdx === i ? 'border-blue-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:border-slate-300'
+                        }`}
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -817,17 +898,28 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Планировки
+              Планировки{complex.layouts.length > 0 && ` (${complex.layouts.length})`}
             </h3>
-            <button
-              type="button"
-              onClick={() => layoutInputRef.current?.click()}
-              disabled={uploadLayout.isPending}
-              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {uploadLayout.isPending ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
-              Добавить
-            </button>
+            <div className="flex items-center gap-2">
+              {complex.layouts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setEditingLayouts(v => !v)}
+                  className={`text-xs px-2 py-1 rounded-lg transition-colors font-medium ${editingLayouts ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  {editingLayouts ? 'Готово' : 'Изменить'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => layoutInputRef.current?.click()}
+                disabled={uploadLayout.isPending}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {uploadLayout.isPending ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
+                Добавить
+              </button>
+            </div>
             <input ref={layoutInputRef} type="file" accept="*" className="hidden" onChange={handleLayoutUpload} />
           </div>
           {complex.layouts.length === 0 && (
@@ -836,41 +928,67 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           {complex.layouts.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {complex.layouts.map((url, idx) => {
-                const isPdf = url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('application/pdf')
+                const isPdf = /\.pdf(\?|$)/i.test(url) || url.includes('/complex-docs/')
                 return (
                   <div key={url} className="relative group/layout aspect-video rounded-lg overflow-hidden bg-slate-100">
                     {isPdf ? (
                       <button
                         type="button"
-                        onClick={() => setPdfViewerUrl(url)}
+                        onClick={() => !editingLayouts && setPdfViewerUrl(url)}
                         className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
                       >
                         <FileText size={28} className="text-red-400" />
                         <span className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">PDF</span>
-                        <span className="text-[9px] text-slate-400">Открыть</span>
+                        <span className="text-[9px] text-slate-400">{editingLayouts ? '' : 'Открыть'}</span>
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={() => {
-                          const imgOnlyUrls = complex.layouts.filter(u => !u.toLowerCase().includes('.pdf'))
+                          if (editingLayouts) return
+                          const imgOnlyUrls = complex.layouts.filter(u => !/\.pdf(\?|$)/i.test(u) && !u.includes('/complex-docs/'))
                           setLayoutLbIdx(imgOnlyUrls.indexOf(url))
                         }}
                         className="w-full h-full block"
                       >
                         <img src={url} alt="Планировка" className="w-full h-full object-contain" />
-                        <div className="absolute inset-0 bg-black/0 group-hover/layout:bg-black/20 transition-colors flex items-center justify-center">
-                          <ZoomIn size={20} className="text-white opacity-0 group-hover/layout:opacity-100 transition-opacity drop-shadow" />
-                        </div>
+                        {!editingLayouts && (
+                          <div className="absolute inset-0 bg-black/0 group-hover/layout:bg-black/20 transition-colors flex items-center justify-center">
+                            <ZoomIn size={20} className="text-white opacity-0 group-hover/layout:opacity-100 transition-opacity drop-shadow" />
+                          </div>
+                        )}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => deleteLayout.mutate({ complexId, url })}
-                      className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 p-1 rounded opacity-0 group-hover/layout:opacity-100 transition-opacity z-10"
-                    >
-                      <Trash2 size={12} className="text-white" />
-                    </button>
+                    {editingLayouts && (
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => deleteLayout.mutate({ complexId, url })}
+                          className="p-1.5 rounded-full bg-red-500/90 text-white hover:bg-red-600 transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                        <div className="flex gap-1">
+                          <button type="button" onClick={() => moveLayout(url, -1)} disabled={idx === 0}
+                            className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30">
+                            <ChevronLeft size={12} />
+                          </button>
+                          <button type="button" onClick={() => moveLayout(url, 1)} disabled={idx === complex.layouts.length - 1}
+                            className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30">
+                            <ChevronRight size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {!editingLayouts && (
+                      <button
+                        type="button"
+                        onClick={() => deleteLayout.mutate({ complexId, url })}
+                        className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 p-1 rounded opacity-0 group-hover/layout:opacity-100 transition-opacity z-10"
+                      >
+                        <Trash2 size={12} className="text-white" />
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -1036,33 +1154,55 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
             <p className="text-xs text-slate-400">Нет документов</p>
           )}
           <div className="space-y-2">
-            {complex.documents.map((doc) => (
-              <div
-                key={doc.url}
-                className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg"
-              >
-                <FileText size={14} className="text-slate-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-400">{DOC_TYPE_LABELS[doc.type]}</p>
-                  <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+            {complex.documents.map((doc) => {
+              const isPdf = /\.pdf(\?|$)/i.test(doc.url)
+              const isImage = /\.(jpe?g|png|gif|webp|svg)(\?|$)/i.test(doc.url)
+              return (
+                <div
+                  key={doc.url}
+                  className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg group/doc"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPdf) setPdfViewerUrl(doc.url)
+                      else window.open(doc.url, '_blank', 'noopener,noreferrer')
+                    }}
+                    className="shrink-0 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                    title="Открыть"
+                  >
+                    <FileText size={14} className={isPdf ? 'text-red-400' : isImage ? 'text-blue-400' : 'text-slate-400'} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPdf) setPdfViewerUrl(doc.url)
+                      else window.open(doc.url, '_blank', 'noopener,noreferrer')
+                    }}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <p className="text-xs text-slate-400">{DOC_TYPE_LABELS[doc.type]}</p>
+                    <p className="text-sm font-medium text-slate-800 truncate group-hover/doc:text-blue-600 transition-colors">{doc.name}</p>
+                  </button>
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 p-1 text-blue-400 hover:text-blue-600"
+                    title="Скачать"
+                  >
+                    <Download size={14} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => deleteDoc.mutate({ complexId, url: doc.url })}
+                    className="shrink-0 p-1 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 p-1 text-blue-400 hover:text-blue-600"
-                >
-                  <Download size={14} />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => deleteDoc.mutate({ complexId, url: doc.url })}
-                  className="shrink-0 p-1 text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

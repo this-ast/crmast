@@ -18,7 +18,7 @@ import {
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import PropertyTypeIcon from './PropertyTypeIcon'
-import { useDeleteProperty } from '@/hooks/useProperties'
+import { useDeleteProperty, useDeletePropertyPhoto, useReorderPropertyPhotos } from '@/hooks/useProperties'
 import { usePropertyStore } from '@/store/usePropertyStore'
 import { useClientMode } from '@/store/useClientMode'
 import { useDealsByProperty } from '@/hooks/useDeals'
@@ -32,10 +32,16 @@ import toast from 'react-hot-toast'
 
 // ─── Photo gallery ────────────────────────────────────────────────────────────
 
-function PhotoGallery({ photos }: { photos: string[] }) {
+function PhotoGallery({ photos, propertyId, onDelete, onReorder }: {
+  photos: string[]
+  propertyId?: string
+  onDelete?: (url: string) => void
+  onReorder?: (photos: string[]) => void
+}) {
   const [idx, setIdx] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
+  const [editMode, setEditMode] = useState(false)
   const [lbTouchStart, setLbTouchStart] = useState({ x: 0, y: 0 })
   const [swipeDy, setSwipeDy] = useState(0)
   const [swipeDx, setSwipeDx] = useState(0)
@@ -104,10 +110,68 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   const dragProgress = Math.min(Math.abs(swipeDy) / 260, 1)
   const overlayOpacity = dismissing ? 0 : Math.max(0, 1 - dragProgress * 0.85)
 
+  const movePhoto = (fromIdx: number, dir: -1 | 1) => {
+    if (!onReorder) return
+    const toIdx = fromIdx + dir
+    if (toIdx < 0 || toIdx >= photos.length) return
+    const next = [...photos]
+    ;[next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]]
+    onReorder(next)
+    setIdx(toIdx)
+  }
+
   return (
     <>
+      {/* Edit mode toggle */}
+      {(onDelete || onReorder) && (
+        <div className="flex justify-end px-3 pt-2 pb-1">
+          <button
+            type="button"
+            onClick={() => setEditMode(v => !v)}
+            className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${editMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+          >
+            {editMode ? 'Готово' : 'Редактировать фото'}
+          </button>
+        </div>
+      )}
+
+      {/* Edit mode grid */}
+      {editMode && (
+        <div className="grid grid-cols-3 gap-2 px-3 pb-2">
+          {photos.map((src, i) => (
+            <div key={src} className="relative aspect-square rounded-xl overflow-hidden bg-slate-800 group/ep">
+              <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover/ep:opacity-100 transition-opacity">
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(src)}
+                    className="p-1.5 rounded-full bg-red-500/90 text-white hover:bg-red-600 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+                {onReorder && (
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => movePhoto(i, -1)} disabled={i === 0}
+                      className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30">
+                      <ChevronLeft size={12} />
+                    </button>
+                    <button type="button" onClick={() => movePhoto(i, 1)} disabled={i === photos.length - 1}
+                      className="p-1 rounded bg-white/25 text-white hover:bg-white/40 disabled:opacity-30">
+                      <ChevronRight size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="absolute top-1 left-1 text-[10px] bg-black/50 text-white px-1 rounded">{i + 1}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Main scrollable strip */}
-      <div
+      {!editMode && <div
         className="flex overflow-x-auto snap-x snap-mandatory bg-slate-900 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
       >
@@ -142,10 +206,10 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Thumbnail strip */}
-      {photos.length > 1 && (
+      {!editMode && photos.length > 1 && (
         <div
           ref={(el) => { stripRef[1](el) }}
           className="flex gap-2 overflow-x-auto px-4 py-2 bg-slate-900"
@@ -271,6 +335,8 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   const [inlineClient, setInlineClient] = useState<(Client & { matchReasons?: string[]; matchMismatches?: string[] }) | null>(null)
   const [showOwnerPopup, setShowOwnerPopup] = useState(false)
   const [showFloorPlan, setShowFloorPlan] = useState(false)
+  const deletePhoto = useDeletePropertyPhoto()
+  const reorderPhotos = useReorderPropertyPhotos()
   const deleteProperty = useDeleteProperty()
   const { openForm } = usePropertyStore()
   const { data: deals = [] } = useDealsByProperty(property.id)
@@ -441,7 +507,12 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
       <div className="flex-1 overflow-y-auto space-y-6">
         {/* Photo gallery — full width, no padding */}
         {property.photos && property.photos.length > 0 && (
-          <PhotoGallery photos={property.photos} />
+          <PhotoGallery
+            photos={property.photos}
+            propertyId={property.id}
+            onDelete={(url) => deletePhoto.mutate({ propertyId: property.id, url })}
+            onReorder={(photos) => reorderPhotos.mutate({ propertyId: property.id, photos })}
+          />
         )}
 
         <div className="px-6 space-y-6">
