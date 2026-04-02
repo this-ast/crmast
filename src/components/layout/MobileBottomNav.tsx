@@ -72,10 +72,12 @@ export default function MobileBottomNav() {
           👁 РЕЖИМ КЛИЕНТА
         </div>
       )}
-      {/* pb-8 — поднимает кнопки выше iOS home indicator, чтобы не срабатывал system swipe */}
       <div
-        className="flex overflow-x-auto scrollbar-hide px-1 pb-8"
-        style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+        className="flex overflow-x-auto scrollbar-hide px-1"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+        } as React.CSSProperties}
       >
         {visible.map(({ id, label }) => (
           <NavItem key={id} id={id} label={label} to={SECTION_ROUTES[id] ?? `/${id}`} />
