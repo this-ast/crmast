@@ -1,5 +1,8 @@
-import { Building2, CalendarDays, Phone, Layers, ClipboardList } from 'lucide-react'
+import { useState } from 'react'
+import { Building2, CalendarDays, Phone, Layers, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
 import type { Complex } from '@/types'
+import { useComplexUnits } from '@/hooks/useComplexes'
+import { formatPriceShort } from '@/utils/format'
 
 interface ComplexCardProps {
   complex: Complex
@@ -9,7 +12,45 @@ interface ComplexCardProps {
   taskCount?: number
 }
 
+function UnitsDropdown({ complexId, onStop }: { complexId: string; onStop: (e: React.MouseEvent) => void }) {
+  const { data: units = [], isLoading } = useComplexUnits(complexId)
+
+  if (isLoading) return (
+    <div className="mt-2 pt-2 border-t border-slate-100">
+      <p className="text-xs text-slate-400 text-center py-2">Загрузка...</p>
+    </div>
+  )
+
+  if (units.length === 0) return (
+    <div className="mt-2 pt-2 border-t border-slate-100">
+      <p className="text-xs text-slate-400 text-center py-1">Нет объектов</p>
+    </div>
+  )
+
+  return (
+    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1" onClick={onStop}>
+      {units.map((u) => (
+        <div key={u.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-lg">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-slate-700 truncate">
+              {u.title || (u.rooms ? `${u.rooms}-комн. кв.` : 'Объект')}
+              {u.area ? ` · ${u.area} м²` : ''}
+              {u.floor ? ` · ${u.floor} эт.` : ''}
+            </p>
+            {u.notes && <p className="text-[10px] text-slate-400 truncate">{u.notes}</p>}
+          </div>
+          {u.price != null && (
+            <span className="text-xs font-bold text-emerald-600 shrink-0 ml-2">{formatPriceShort(u.price)}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function ComplexCard({ complex, propertyCount = 0, onClick, onShowProperties, taskCount = 0 }: ComplexCardProps) {
+  const [showUnits, setShowUnits] = useState(false)
+
   return (
     <div
       onClick={onClick}
@@ -96,6 +137,21 @@ export default function ComplexCard({ complex, propertyCount = 0, onClick, onSho
           Объекты в этом доме ({propertyCount})
         </button>
       )}
+
+      {/* Developer units toggle */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setShowUnits((v) => !v) }}
+        className="mt-2 w-full flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-lg hover:bg-slate-50 text-slate-500 text-xs font-medium transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <Building2 size={12} />
+          Объекты от застройщика
+        </span>
+        {showUnits ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+
+      {showUnits && <UnitsDropdown complexId={complex.id} onStop={(e) => e.stopPropagation()} />}
     </div>
   )
 }

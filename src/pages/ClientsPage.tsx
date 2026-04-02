@@ -686,8 +686,10 @@ export default function ClientsPage() {
           setPromptDemandClient(newClient as Client)
         }
       }
-    } catch {
-      toast.error('Ошибка при сохранении')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ошибка при сохранении'
+      console.error('[handleSave]', err)
+      toast.error(msg)
     }
   }
 

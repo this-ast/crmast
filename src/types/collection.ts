@@ -5,6 +5,7 @@ export interface Collection {
   title: string
   comment?: string
   property_ids: string[]
+  unit_ids?: string[]
   created_at: string
   updated_at: string
 }
@@ -23,4 +24,5 @@ export interface CollectionFormData {
   client_id?: string
   comment?: string
   property_ids: string[]
+  unit_ids?: string[]
 }

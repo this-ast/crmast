@@ -10,7 +10,7 @@ import {
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useClients } from '@/hooks/useClients'
-import { useComplexes } from '@/hooks/useComplexes'
+import { useComplexes, useAllComplexUnits } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useCreateCollection } from '@/hooks/useCollections'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
@@ -520,12 +520,15 @@ function CollectionFromDemandModal({
   onClose: () => void
 }) {
   const { data: allProperties = [] } = useProperties()
+  const { data: allUnits = [] } = useAllComplexUnits()
   const createCollection = useCreateCollection()
+  const [tab, setTab] = useState<'props' | 'units'>('props')
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
+  const [selectedProps, setSelectedProps] = useState<string[]>([])
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([])
   const [title, setTitle] = useState(demand.title ? `Подборка: ${demand.title}` : 'Подборка')
 
-  const filtered = useMemo(() => {
+  const filteredProps = useMemo(() => {
     const q = search.toLowerCase()
     const props = allProperties.filter((p) => p.status !== 'sold' && p.status !== 'withdrawn')
     if (!q) return props.slice(0, 60)
@@ -541,17 +544,36 @@ function CollectionFromDemandModal({
     }).slice(0, 60)
   }, [allProperties, search])
 
-  const toggle = (id: string) => {
-    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
-  }
+  const filteredUnits = useMemo(() => {
+    const q = search.toLowerCase()
+    if (!q) return allUnits.slice(0, 60)
+    return allUnits.filter((u) => {
+      const name = u.title || (u.rooms ? `${u.rooms}-комн. кв.` : 'Объект')
+      const complex = u.complex_name || ''
+      return (
+        name.toLowerCase().includes(q) ||
+        complex.toLowerCase().includes(q) ||
+        String(u.price ?? '').includes(q)
+      )
+    }).slice(0, 60)
+  }, [allUnits, search])
+
+  const toggleProp = (id: string) =>
+    setSelectedProps((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+
+  const toggleUnit = (id: string) =>
+    setSelectedUnits((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+
+  const totalSelected = selectedProps.length + selectedUnits.length
 
   const handleCreate = async () => {
-    if (selected.length === 0) return
+    if (totalSelected === 0) return
     try {
       await createCollection.mutateAsync({
         title: title.trim() || 'Подборка',
         client_id: demand.client_id ?? undefined,
-        property_ids: selected,
+        property_ids: selectedProps,
+        unit_ids: selectedUnits,
       })
       toast.success('Подборка создана и добавлена в раздел Подборки')
       onClose()
@@ -581,61 +603,127 @@ function CollectionFromDemandModal({
           </div>
         )}
 
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setTab('props')}
+            className={cn(
+              'flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors',
+              tab === 'props' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            Объекты {selectedProps.length > 0 && `(${selectedProps.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('units')}
+            className={cn(
+              'flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors',
+              tab === 'units' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            От застройщика {selectedUnits.length > 0 && `(${selectedUnits.length})`}
+          </button>
+        </div>
+
         {/* Search */}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по адресу, типу, району, цене..."
+            placeholder={tab === 'props' ? 'Поиск по адресу, типу, цене...' : 'Поиск по ЖК, типу, цене...'}
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
-        {selected.length > 0 && (
+        {totalSelected > 0 && (
           <div className="flex items-center gap-2 text-xs text-blue-600 font-medium">
             <BookMarked size={13} />
-            Выбрано объектов: {selected.length}
+            Выбрано: {totalSelected} объект{totalSelected === 1 ? '' : totalSelected < 5 ? 'а' : 'ов'}
           </div>
         )}
 
         {/* Properties list */}
-        <div className="space-y-1.5">
-          {filtered.map((p) => {
-            const isSelected = selected.includes(p.id)
-            const title = p.type === 'apartment' && p.rooms
-              ? `${p.rooms}-комн. квартира`
-              : PROPERTY_TYPE_LABELS[p.type] ?? p.type
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => toggle(p.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors',
-                  isSelected
-                    ? 'bg-blue-50 border-blue-300'
-                    : 'bg-white border-slate-100 hover:border-slate-300'
-                )}
-              >
-                <div className={cn(
-                  'w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors',
-                  isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                )}>
-                  {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 truncate">{title}</p>
-                  <p className="text-[11px] text-slate-500 truncate">{p.complex_name || p.address}</p>
-                </div>
-                <span className="text-xs font-bold text-slate-700 shrink-0">{formatPriceShort(p.price)}</span>
-              </button>
-            )
-          })}
-          {filtered.length === 0 && (
-            <p className="text-sm text-slate-400 text-center py-6">Объекты не найдены</p>
-          )}
-        </div>
+        {tab === 'props' && (
+          <div className="space-y-1.5">
+            {filteredProps.map((p) => {
+              const isSelected = selectedProps.includes(p.id)
+              const label = p.type === 'apartment' && p.rooms
+                ? `${p.rooms}-комн. квартира`
+                : PROPERTY_TYPE_LABELS[p.type] ?? p.type
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => toggleProp(p.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors',
+                    isSelected ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-100 hover:border-slate-300'
+                  )}
+                >
+                  <div className={cn(
+                    'w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors',
+                    isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  )}>
+                    {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 truncate">{label}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{p.complex_name || p.address}</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700 shrink-0">{formatPriceShort(p.price)}</span>
+                </button>
+              )
+            })}
+            {filteredProps.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-6">Объекты не найдены</p>
+            )}
+          </div>
+        )}
+
+        {/* Units list */}
+        {tab === 'units' && (
+          <div className="space-y-1.5">
+            {filteredUnits.map((u) => {
+              const isSelected = selectedUnits.includes(u.id)
+              const label = u.title || (u.rooms ? `${u.rooms}-комн. кв.` : 'Объект')
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleUnit(u.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors',
+                    isSelected ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-100 hover:border-slate-300'
+                  )}
+                >
+                  <div className={cn(
+                    'w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors',
+                    isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300'
+                  )}>
+                    {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 truncate">{label}
+                      {u.area ? ` · ${u.area} м²` : ''}</p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      <Building2 size={9} className="inline mr-0.5" />{u.complex_name ?? 'ЖК'}
+                      {u.floor ? ` · ${u.floor} эт.` : ''}
+                    </p>
+                  </div>
+                  {u.price != null && (
+                    <span className="text-xs font-bold text-emerald-700 shrink-0">{formatPriceShort(u.price)}</span>
+                  )}
+                </button>
+              )
+            })}
+            {filteredUnits.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-6">Объекты от застройщика не найдены</p>
+            )}
+          </div>
+        )}
       </div>
       <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100">
         <button
@@ -648,12 +736,12 @@ function CollectionFromDemandModal({
         <button
           type="button"
           onClick={handleCreate}
-          disabled={selected.length === 0 || createCollection.isPending}
+          disabled={totalSelected === 0 || createCollection.isPending}
           className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
         >
           {createCollection.isPending && <Loader2 size={14} className="animate-spin" />}
           <BookMarked size={14} />
-          Создать подборку ({selected.length})
+          Создать подборку ({totalSelected})
         </button>
       </div>
     </div>

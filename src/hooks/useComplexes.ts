@@ -297,6 +297,27 @@ export function useComplexUnits(complexId: string) {
   })
 }
 
+export function useAllComplexUnits() {
+  return useQuery({
+    queryKey: ['complex_units_all'],
+    queryFn: async (): Promise<(ComplexUnit & { complex_name?: string })[]> => {
+      const { data, error } = await supabase
+        .from('complex_units')
+        .select('*, complexes(name)')
+        .order('complex_id')
+      if (error) {
+        if (error.code === '42P01') return []
+        throw new Error(error.message)
+      }
+      return (data ?? []).map((u: any) => ({
+        ...u,
+        photos: u.photos ?? [],
+        complex_name: u.complexes?.name,
+      }))
+    },
+  })
+}
+
 export function useCreateComplexUnit() {
   const queryClient = useQueryClient()
   return useMutation({

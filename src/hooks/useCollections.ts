@@ -97,6 +97,7 @@ export function useCreateCollection() {
         client_id: formData.client_id || null,
         comment: formData.comment || null,
         property_ids: formData.property_ids ?? [],
+        unit_ids: formData.unit_ids ?? [],
       }
 
       if (!navigator.onLine) {
