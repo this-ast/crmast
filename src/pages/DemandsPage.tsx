@@ -1,24 +1,29 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, X, Loader2, AlertCircle, Pencil, Trash2,
   ChevronDown, ChevronUp, User, TrendingUp, SlidersHorizontal,
   Banknote, MapPin, Home, ArrowRight, Filter, ClipboardList,
+  Archive, ArchiveRestore, BookMarked, Building2, ExternalLink,
 } from 'lucide-react'
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useClients } from '@/hooks/useClients'
 import { useComplexes } from '@/hooks/useComplexes'
+import { useProperties } from '@/hooks/useProperties'
+import { useCreateCollection } from '@/hooks/useCollections'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import Modal from '@/components/ui/Modal'
 import { cn } from '@/utils/cn'
-import { formatPrice } from '@/utils/format'
+import { formatPrice, formatPriceShort } from '@/utils/format'
 import { getOptionsWithDeletions } from '@/lib/customOptions'
 import toast from 'react-hot-toast'
 import type { Demand, DemandFormData, DemandFunnelStage, Client } from '@/types'
 import {
   DEMAND_FUNNEL_STAGES, DEMAND_PROPERTY_TYPES, DEMAND_PROPERTY_GROUPS,
   DEMAND_PAYMENT_TYPES, DEMAND_MARKET_TYPES, getDemandCategory,
+  PROPERTY_TYPE_LABELS,
 } from '@/types'
 
 // ─── Funnel Bar ───────────────────────────────────────────────────────────────
@@ -505,6 +510,156 @@ function DemandForm({
   )
 }
 
+// ─── Collection From Demand Modal ─────────────────────────────────────────────
+
+function CollectionFromDemandModal({
+  demand,
+  onClose,
+}: {
+  demand: Demand
+  onClose: () => void
+}) {
+  const { data: allProperties = [] } = useProperties()
+  const createCollection = useCreateCollection()
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [title, setTitle] = useState(demand.title ? `Подборка: ${demand.title}` : 'Подборка')
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    const props = allProperties.filter((p) => p.status !== 'sold' && p.status !== 'withdrawn')
+    if (!q) return props.slice(0, 60)
+    return props.filter((p) => {
+      const loc = p.complex_name || p.address || ''
+      const type = PROPERTY_TYPE_LABELS[p.type] ?? p.type
+      return (
+        loc.toLowerCase().includes(q) ||
+        type.toLowerCase().includes(q) ||
+        (p.district ?? '').toLowerCase().includes(q) ||
+        String(p.price).includes(q)
+      )
+    }).slice(0, 60)
+  }, [allProperties, search])
+
+  const toggle = (id: string) => {
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  const handleCreate = async () => {
+    if (selected.length === 0) return
+    try {
+      await createCollection.mutateAsync({
+        title: title.trim() || 'Подборка',
+        client_id: demand.client_id ?? undefined,
+        property_ids: selected,
+      })
+      toast.success('Подборка создана и добавлена в раздел Подборки')
+      onClose()
+    } catch {
+      toast.error('Ошибка при создании подборки')
+    }
+  }
+
+  return (
+    <div className="flex flex-col max-h-[85vh]">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Title */}
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Название подборки</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {demand.client && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+            <User size={13} className="text-blue-500" />
+            <span className="text-blue-700 font-medium">{demand.client.name}</span>
+            <span className="text-blue-400 text-xs">(будет привязан к подборке)</span>
+          </div>
+        )}
+
+        {/* Search */}
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по адресу, типу, району, цене..."
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {selected.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-blue-600 font-medium">
+            <BookMarked size={13} />
+            Выбрано объектов: {selected.length}
+          </div>
+        )}
+
+        {/* Properties list */}
+        <div className="space-y-1.5">
+          {filtered.map((p) => {
+            const isSelected = selected.includes(p.id)
+            const title = p.type === 'apartment' && p.rooms
+              ? `${p.rooms}-комн. квартира`
+              : PROPERTY_TYPE_LABELS[p.type] ?? p.type
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => toggle(p.id)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors',
+                  isSelected
+                    ? 'bg-blue-50 border-blue-300'
+                    : 'bg-white border-slate-100 hover:border-slate-300'
+                )}
+              >
+                <div className={cn(
+                  'w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors',
+                  isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                )}>
+                  {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{title}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{p.complex_name || p.address}</p>
+                </div>
+                <span className="text-xs font-bold text-slate-700 shrink-0">{formatPriceShort(p.price)}</span>
+              </button>
+            )
+          })}
+          {filtered.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-6">Объекты не найдены</p>
+          )}
+        </div>
+      </div>
+      <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          Отмена
+        </button>
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={selected.length === 0 || createCollection.isPending}
+          className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
+        >
+          {createCollection.isPending && <Loader2 size={14} className="animate-spin" />}
+          <BookMarked size={14} />
+          Создать подборку ({selected.length})
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Demand Card ──────────────────────────────────────────────────────────────
 
 function DemandCard({
@@ -513,6 +668,7 @@ function DemandCard({
   onEdit,
   onDelete,
   onStageChange,
+  onArchiveToggle,
   taskCount = 0,
 }: {
   demand: Demand
@@ -520,151 +676,183 @@ function DemandCard({
   onEdit: (d: Demand) => void
   onDelete: (id: string) => void
   onStageChange: (id: string, stage: DemandFunnelStage) => void
+  onArchiveToggle: (id: string, current: string) => void
   taskCount?: number
 }) {
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
+  const [collectionOpen, setCollectionOpen] = useState(false)
   const stage = DEMAND_FUNNEL_STAGES.find((s) => s.value === demand.funnel_stage) ?? DEMAND_FUNNEL_STAGES[0]
+  const isArchived = demand.status === 'archived'
 
   const ptLabels = (demand.property_types ?? [])
     .map((v) => DEMAND_PROPERTY_TYPES.find((x) => x.value === v)?.label ?? v)
   const payLabels = (demand.payment_types ?? [])
     .map((v) => DEMAND_PAYMENT_TYPES.find((x) => x.value === v)?.label ?? v)
 
+  const alsoLinkOptions = [
+    demand.client ? { type: 'client' as const, id: demand.client.id, label: demand.client.name } : null,
+    ...(demand.complex_ids ?? []).map((cid) => ({ type: 'complex' as const, id: cid, label: complexesMap[cid] ?? cid })),
+  ].filter(Boolean) as { type: 'client' | 'complex'; id: string; label: string }[]
+
   return (
-    <div className={cn('bg-white border rounded-2xl shadow-sm overflow-hidden transition-shadow hover:shadow-md', stage.border)}>
-      {/* Header */}
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={cn('shrink-0 w-2 h-2 rounded-full mt-2', stage.bg, 'border', stage.border)} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full border', stage.bg, stage.color, stage.border)}>
-                {stage.label}
-              </span>
-              {demand.demand_number && (
-                <span className="text-xs text-slate-400">#{demand.demand_number}</span>
-              )}
-            </div>
-            {demand.title && (
-              <p className="mt-1 text-sm font-semibold text-slate-800 truncate">{demand.title}</p>
-            )}
-            {demand.client && (
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                <User size={10} />
-                {demand.client.client_number}. {demand.client.name}
-                <span className="text-slate-300">·</span>
-                {demand.client.phone}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {taskCount > 0 && (
-              <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 mr-1">
-                <ClipboardList size={11} />
-                {taskCount}
-              </span>
-            )}
-            <button
-              onClick={() => onEdit(demand)}
-              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              <Pencil size={13} />
-            </button>
-            <button
-              onClick={() => onDelete(demand.id)}
-              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </div>
-
-        {/* Key params */}
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {(demand.budget_min || demand.budget_max) && (
-            <span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-              <Banknote size={10} />
-              {demand.budget_min && demand.budget_max
-                ? `${formatPrice(demand.budget_min)} — ${formatPrice(demand.budget_max)}`
-                : demand.budget_max
-                ? `до ${formatPrice(demand.budget_max)}`
-                : `от ${formatPrice(demand.budget_min!)}`}
-            </span>
-          )}
-          {ptLabels.length > 0 && (
-            <span className="flex items-center gap-1 text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
-              <Home size={10} />
-              {ptLabels.join(', ')}
-            </span>
-          )}
-          {(demand.districts ?? []).length > 0 && (
-            <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-              <MapPin size={10} />
-              {(demand.districts!).join(', ')}
-            </span>
-          )}
-          {payLabels.length > 0 && (
-            <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-              {payLabels.join(', ')}
-            </span>
-          )}
-        </div>
-
-        {/* Linked complexes */}
-        {(demand.complex_ids ?? []).length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {demand.complex_ids!.map((cid) => (
-              <span
-                key={cid}
-                className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200"
-              >
-                {complexesMap[cid] ?? cid}
-              </span>
-            ))}
+    <>
+      <div className={cn(
+        'bg-white border rounded-2xl shadow-sm overflow-hidden transition-shadow hover:shadow-md',
+        isArchived ? 'opacity-60 border-slate-200' : stage.border
+      )}>
+        {isArchived && (
+          <div className="flex items-center gap-2 px-4 py-1 bg-slate-50 border-b border-slate-200 text-[11px] text-slate-400">
+            <Archive size={10} /> В архиве
           </div>
         )}
 
-        {/* Stage quick-change */}
-        <div className="mt-3 flex gap-1 overflow-x-auto scrollbar-hide">
-          {DEMAND_FUNNEL_STAGES.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => onStageChange(demand.id, s.value)}
-              className={cn(
-                'shrink-0 text-[9px] font-medium px-2 py-0.5 rounded-full border transition-colors',
-                demand.funnel_stage === s.value
-                  ? cn(s.bg, s.color, s.border, 'font-bold')
-                  : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <div className={cn('shrink-0 w-2 h-2 rounded-full mt-2 border', isArchived ? 'bg-slate-300 border-slate-300' : cn(stage.bg, stage.border))} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isArchived && (
+                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full border', stage.bg, stage.color, stage.border)}>
+                    {stage.label}
+                  </span>
+                )}
+                {demand.demand_number && <span className="text-xs text-slate-400">#{demand.demand_number}</span>}
+              </div>
+              {demand.title && <p className="mt-1 text-sm font-semibold text-slate-800 truncate">{demand.title}</p>}
+              {demand.client && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/clients?highlight=${demand.client!.id}`)}
+                  className="mt-0.5 text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
+                >
+                  <User size={10} />
+                  {demand.client.client_number}. {demand.client.name}
+                  <ExternalLink size={9} className="opacity-60" />
+                </button>
               )}
-            >
-              {s.label.split(' ')[0]}
-            </button>
-          ))}
-        </div>
-      </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {taskCount > 0 && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                  <ClipboardList size={11} />
+                  {taskCount}
+                </span>
+              )}
+              <button
+                onClick={() => onArchiveToggle(demand.id, demand.status ?? 'active')}
+                title={isArchived ? 'Восстановить' : 'В архив'}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                {isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+              </button>
+              <button onClick={() => onEdit(demand)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Pencil size={13} />
+              </button>
+              <button onClick={() => onDelete(demand.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
 
-      {/* Expand button */}
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center justify-center gap-1 py-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-      >
-        {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        {expanded ? 'Свернуть' : 'История и задачи'}
-      </button>
+          {/* Key params */}
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            {(demand.budget_min || demand.budget_max) && (
+              <span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                <Banknote size={10} />
+                {demand.budget_min && demand.budget_max
+                  ? `${formatPrice(demand.budget_min)} — ${formatPrice(demand.budget_max)}`
+                  : demand.budget_max ? `до ${formatPrice(demand.budget_max)}` : `от ${formatPrice(demand.budget_min!)}`}
+              </span>
+            )}
+            {ptLabels.length > 0 && (
+              <span className="flex items-center gap-1 text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
+                <Home size={10} />{ptLabels.join(', ')}
+              </span>
+            )}
+            {(demand.districts ?? []).length > 0 && (
+              <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                <MapPin size={10} />{demand.districts!.join(', ')}
+              </span>
+            )}
+            {payLabels.length > 0 && (
+              <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                {payLabels.join(', ')}
+              </span>
+            )}
+          </div>
 
-      {/* Expanded: tasks */}
-      {expanded && (
-        <div className="border-t border-slate-100 p-4 space-y-4">
-          {demand.notes && (
-            <div>
-              <p className="text-xs font-medium text-slate-500 mb-1">Примечания</p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{demand.notes}</p>
+          {/* Clickable ЖК */}
+          {(demand.complex_ids ?? []).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {demand.complex_ids!.map((cid) => (
+                <button
+                  key={cid}
+                  type="button"
+                  onClick={() => navigate('/complexes')}
+                  className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors"
+                >
+                  <Building2 size={9} />
+                  {complexesMap[cid] ?? cid}
+                  <ExternalLink size={8} className="opacity-60" />
+                </button>
+              ))}
             </div>
           )}
-          <LinkedTasksSection linkedType="demand" linkedId={demand.id} />
+
+          {/* Stage quick-change */}
+          {!isArchived && (
+            <div className="mt-3 flex gap-1 overflow-x-auto scrollbar-hide">
+              {DEMAND_FUNNEL_STAGES.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => onStageChange(demand.id, s.value)}
+                  className={cn(
+                    'shrink-0 text-[9px] font-medium px-2 py-0.5 rounded-full border transition-colors',
+                    demand.funnel_stage === s.value ? cn(s.bg, s.color, s.border, 'font-bold') : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+                  )}
+                >
+                  {s.label.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Подборка */}
+          <button
+            type="button"
+            onClick={() => setCollectionOpen(true)}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-600 text-xs font-medium border border-violet-100 transition-colors"
+          >
+            <BookMarked size={12} /> Сделать подборку
+          </button>
         </div>
-      )}
-    </div>
+
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="w-full flex items-center justify-center gap-1 py-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+        >
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          {expanded ? 'Свернуть' : 'История и задачи'}
+        </button>
+
+        {expanded && (
+          <div className="border-t border-slate-100 p-4 space-y-4">
+            {demand.notes && (
+              <div>
+                <p className="text-xs font-medium text-slate-500 mb-1">Примечания</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{demand.notes}</p>
+              </div>
+            )}
+            <LinkedTasksSection linkedType="demand" linkedId={demand.id} alsoLinkOptions={alsoLinkOptions} />
+          </div>
+        )}
+      </div>
+
+      <Modal isOpen={collectionOpen} onClose={() => setCollectionOpen(false)} title="Создать подборку" size="lg">
+        <CollectionFromDemandModal demand={demand} onClose={() => setCollectionOpen(false)} />
+      </Modal>
+    </>
   )
 }
 
@@ -694,6 +882,7 @@ export default function DemandsPage() {
   const [search, setSearch] = useState('')
   const [funnelFilter, setFunnelFilter] = useState<DemandFunnelStage | 'all'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [filterBudget, setFilterBudget] = useState('')
   const [filterDistrict, setFilterDistrict] = useState('')
   const [filterPropType, setFilterPropType] = useState('')
@@ -704,7 +893,9 @@ export default function DemandsPage() {
 
   // ── filtering ──
   const filtered = useMemo(() => {
-    let list = demands.filter((d) => d.status !== 'archived')
+    let list = showArchived
+      ? demands.filter((d) => d.status === 'archived')
+      : demands.filter((d) => d.status !== 'archived')
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -769,6 +960,16 @@ export default function DemandsPage() {
     }
   }
 
+  const handleArchiveToggle = async (id: string, current: string) => {
+    const newStatus = current === 'archived' ? 'active' : 'archived'
+    try {
+      await updateDemand.mutateAsync({ id, data: { status: newStatus as 'active' | 'archived' } })
+      toast.success(newStatus === 'archived' ? 'Спрос архивирован' : 'Спрос восстановлен')
+    } catch {
+      toast.error('Ошибка')
+    }
+  }
+
   const handleStageChange = async (id: string, stage: DemandFunnelStage) => {
     try {
       await updateDemand.mutateAsync({ id, data: { funnel_stage: stage } })
@@ -788,13 +989,27 @@ export default function DemandsPage() {
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">Запросы покупателей и работа с лидами</p>
         </div>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="ml-auto flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
-        >
-          <Plus size={15} />
-          Добавить
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors',
+              showArchived
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            )}
+          >
+            {showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+            {showArchived ? 'Архив' : 'Активные'}
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            <Plus size={15} />
+            Добавить
+          </button>
+        </div>
       </div>
 
       {/* Funnel */}
@@ -948,6 +1163,7 @@ export default function DemandsPage() {
             onEdit={setEditDemand}
             onDelete={handleDelete}
             onStageChange={handleStageChange}
+            onArchiveToggle={handleArchiveToggle}
             taskCount={taskCounts[d.id] ?? 0}
           />
         ))}

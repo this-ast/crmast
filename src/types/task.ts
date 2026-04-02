@@ -2,6 +2,12 @@ export type TaskPriority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'pending' | 'done' | 'cancelled'
 export type TaskLinkedType = 'client' | 'property' | 'deal' | 'complex' | 'demand'
 
+export interface TaskAlsoLink {
+  type: TaskLinkedType
+  id: string
+  label?: string
+}
+
 export interface Task {
   id: string
   title: string
@@ -11,6 +17,7 @@ export interface Task {
   status: TaskStatus
   linked_type?: TaskLinkedType
   linked_id?: string
+  also_linked?: TaskAlsoLink[]
   profit_potential?: number
   created_at: string
   updated_at: string
@@ -23,6 +30,7 @@ export interface TaskFormData {
   deadline?: string
   linked_type?: TaskLinkedType
   linked_id?: string
+  also_linked?: TaskAlsoLink[]
   profit_potential?: number
 }
 

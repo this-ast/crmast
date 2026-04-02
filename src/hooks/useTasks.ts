@@ -73,13 +73,20 @@ export function useTasksByLinked(linkedType: 'client' | 'property' | 'deal' | 'c
   })
 }
 
-/** Returns a map of entityId → count of active (pending) tasks */
+/** Returns a map of entityId → count of active (pending) tasks.
+ *  Checks both primary linked_id and also_linked entries. */
 export function useActiveTaskCounts(): Record<string, number> {
   const { data: tasks = [] } = useTasks()
   const map: Record<string, number> = {}
   tasks.forEach((t) => {
-    if (t.status === 'pending' && t.linked_id) {
+    if (t.status !== 'pending') return
+    if (t.linked_id) {
       map[t.linked_id] = (map[t.linked_id] ?? 0) + 1
+    }
+    if (Array.isArray(t.also_linked)) {
+      t.also_linked.forEach((l) => {
+        if (l.id) map[l.id] = (map[l.id] ?? 0) + 1
+      })
     }
   })
   return map

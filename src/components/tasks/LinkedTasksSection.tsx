@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { CheckCircle2, Circle, Plus, X, Loader2, ClipboardList } from 'lucide-react'
+import { CheckCircle2, Circle, Plus, X, Loader2, ClipboardList, Link2 } from 'lucide-react'
 import { useTasksByLinked, useCreateTask, useUpdateTask } from '@/hooks/useTasks'
 import { TASK_PRIORITY_COLORS, TASK_PRIORITY_LABELS, TASK_PRIORITY_DOT } from '@/types'
-import type { TaskLinkedType, TaskPriority } from '@/types'
+import type { TaskLinkedType, TaskPriority, TaskAlsoLink } from '@/types'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 
@@ -13,12 +13,29 @@ function fmtDate(d: string) {
   return `${day}.${m}.${y}`
 }
 
+const TYPE_LABELS: Record<TaskLinkedType, string> = {
+  client:   'Клиент',
+  property: 'Объект',
+  deal:     'Сделка',
+  complex:  'ЖК',
+  demand:   'Спрос',
+}
+
+export interface AlsoLinkOption {
+  type: TaskLinkedType
+  id: string
+  label: string
+}
+
 export default function LinkedTasksSection({
   linkedType,
   linkedId,
+  alsoLinkOptions = [],
 }: {
   linkedType: TaskLinkedType
   linkedId: string
+  /** Extra entities the task can also be linked to (e.g. client from demand) */
+  alsoLinkOptions?: AlsoLinkOption[]
 }) {
   const { data: tasks = [], isLoading } = useTasksByLinked(linkedType, linkedId)
   const updateTask = useUpdateTask()
@@ -28,6 +45,11 @@ export default function LinkedTasksSection({
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [deadline, setDeadline] = useState('')
+  const [alsoLinked, setAlsoLinked] = useState<string[]>([])
+
+  const toggleAlso = (id: string) => {
+    setAlsoLinked((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
 
   const handleToggle = async (id: string, currentStatus: string) => {
     try {
@@ -42,16 +64,22 @@ export default function LinkedTasksSection({
     e.stopPropagation()
     if (!title.trim()) return
     try {
+      const extraLinks: TaskAlsoLink[] = alsoLinkOptions
+        .filter((o) => alsoLinked.includes(o.id))
+        .map((o) => ({ type: o.type, id: o.id, label: o.label }))
+
       await createTask.mutateAsync({
         title: title.trim(),
         priority,
         deadline: deadline || undefined,
         linked_type: linkedType,
         linked_id: linkedId,
+        also_linked: extraLinks.length > 0 ? extraLinks : undefined,
       })
       setTitle('')
       setPriority('medium')
       setDeadline('')
+      setAlsoLinked([])
       setShowForm(false)
       toast.success('Задача создана')
     } catch {
@@ -102,6 +130,13 @@ export default function LinkedTasksSection({
                     {overdue ? '⏰ ' : today ? '📅 ' : ''}{fmtDate(task.deadline)}
                   </span>
                 )}
+                {/* Also linked badges */}
+                {Array.isArray(task.also_linked) && task.also_linked.map((l) => (
+                  <span key={l.id} className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                    <Link2 size={9} />
+                    {TYPE_LABELS[l.type]}: {l.label ?? l.id.slice(0, 6)}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -160,10 +195,37 @@ export default function LinkedTasksSection({
               className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
+
+          {/* Also link to other entities */}
+          {alsoLinkOptions.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1">
+                <Link2 size={10} /> Также привязать к:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {alsoLinkOptions.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => toggleAlso(o.id)}
+                    className={cn(
+                      'text-[11px] px-2 py-0.5 rounded-full border transition-colors font-medium',
+                      alsoLinked.includes(o.id)
+                        ? 'bg-violet-600 text-white border-violet-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-violet-400'
+                    )}
+                  >
+                    {TYPE_LABELS[o.type]}: {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-0.5">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setShowForm(false); setTitle(''); setDeadline(''); setPriority('medium') }}
+              onClick={(e) => { e.stopPropagation(); setShowForm(false); setTitle(''); setDeadline(''); setPriority('medium'); setAlsoLinked([]) }}
               className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1"
             >
               <X size={11} /> Отмена

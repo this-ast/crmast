@@ -5,9 +5,11 @@ import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
   ArrowUp, ArrowDown, List, GitMerge, ClipboardList, Bookmark,
+  ShoppingCart, ArrowRight,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
+import { useDemands, useCreateDemand } from '@/hooks/useDemands'
 import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
 import { useCustomStatuses } from '@/hooks/useCustomStatuses'
@@ -351,12 +353,14 @@ function ClientRow({
   onEdit,
   onDelete,
   taskCount = 0,
+  activeDemandCount = 0,
 }: {
   client: Client
   highlighted: boolean
   onEdit: (c: Client) => void
   onDelete: (c: Client) => void
   taskCount?: number
+  activeDemandCount?: number
 }) {
   const [expanded, setExpanded] = useState(highlighted)
   const [phoneRevealed, setPhoneRevealed] = useState(false)
@@ -426,6 +430,12 @@ function ClientRow({
         <div className="flex items-center gap-2 shrink-0">
           {client.budget && (
             <span className="text-xs text-emerald-600 font-medium hidden sm:block">{client.budget}</span>
+          )}
+          {activeDemandCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+              <ShoppingCart size={11} />
+              {activeDemandCount}
+            </span>
           )}
           {taskCount > 0 && (
             <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
@@ -574,6 +584,9 @@ const TYPE_TABS = [
 export default function ClientsPage() {
   const { data: clients = [], isLoading, error } = useClients()
   const taskCounts = useActiveTaskCounts()
+  const { data: demands = [] } = useDemands()
+  const createDemand = useCreateDemand()
+  const navigate = useNavigate()
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
@@ -593,6 +606,18 @@ export default function ClientsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
+  const [promptDemandClient, setPromptDemandClient] = useState<Client | null>(null)
+
+  // Map: clientId → active demand count
+  const demandCounts = useMemo(() => {
+    const m: Record<string, number> = {}
+    demands.forEach((d) => {
+      if (d.client_id && d.status !== 'archived') {
+        m[d.client_id] = (m[d.client_id] ?? 0) + 1
+      }
+    })
+    return m
+  }, [demands])
 
   // Clear highlight param after 3s
   useEffect(() => {
@@ -645,12 +670,22 @@ export default function ClientsPage() {
       if (editingClient) {
         await updateClient.mutateAsync({ id: editingClient.id, data })
         toast.success('Клиент обновлён')
+        setIsFormOpen(false)
+        setEditingClient(null)
+        // If changed to buyer and no active demand — prompt
+        if (data.client_type === 'Покупатель' && !demandCounts[editingClient.id]) {
+          setPromptDemandClient({ ...editingClient, ...data })
+        }
       } else {
-        await createClient.mutateAsync(data)
+        const newClient = await createClient.mutateAsync(data)
         toast.success('Клиент добавлен')
+        setIsFormOpen(false)
+        setEditingClient(null)
+        // If new buyer — prompt
+        if (data.client_type === 'Покупатель' && newClient) {
+          setPromptDemandClient(newClient as Client)
+        }
       }
-      setIsFormOpen(false)
-      setEditingClient(null)
     } catch {
       toast.error('Ошибка при сохранении')
     }
@@ -922,6 +957,7 @@ export default function ClientsPage() {
               onEdit={openEdit}
               onDelete={setDeletingClient}
               taskCount={taskCounts[client.id] ?? 0}
+              activeDemandCount={demandCounts[client.id] ?? 0}
             />
           ))}
         </div>
@@ -968,6 +1004,58 @@ export default function ClientsPage() {
             >
               {deleteClient.isPending && <Loader2 size={14} className="animate-spin" />}
               Удалить
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Prompt: create demand for buyer */}
+      <Modal
+        isOpen={!!promptDemandClient}
+        onClose={() => setPromptDemandClient(null)}
+        title="Создать спрос?"
+        size="sm"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <ShoppingCart size={18} className="text-blue-500 shrink-0" />
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">{promptDemandClient?.name}</span> помечен как Покупатель.
+              Создать для него спрос?
+            </p>
+          </div>
+          <p className="text-xs text-slate-400 mb-5">
+            Спрос позволит отслеживать требования клиента, вести воронку и делать подборки.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setPromptDemandClient(null)}
+              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Позже
+            </button>
+            <button
+              onClick={async () => {
+                if (!promptDemandClient) return
+                try {
+                  await createDemand.mutateAsync({
+                    title: `Спрос: ${promptDemandClient.name}`,
+                    client_id: promptDemandClient.id,
+                    funnel_stage: 'new',
+                    status: 'active',
+                  })
+                  toast.success('Спрос создан')
+                  setPromptDemandClient(null)
+                  navigate('/demands')
+                } catch {
+                  toast.error('Ошибка')
+                }
+              }}
+              disabled={createDemand.isPending}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {createDemand.isPending ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+              Создать спрос
             </button>
           </div>
         </div>
