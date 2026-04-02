@@ -5,7 +5,7 @@ import {
   Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useCreateComplexUnit, useUpdateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
@@ -25,13 +25,57 @@ const DOC_TYPE_LABELS = {
   other: 'Документ',
 }
 
+const EMPTY_UNIT_FORM = { title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' }
+
+function UnitForm({
+  initial,
+  onSave,
+  onCancel,
+  isPending,
+  accent = 'blue',
+}: {
+  initial?: typeof EMPTY_UNIT_FORM
+  onSave: (f: typeof EMPTY_UNIT_FORM) => void
+  onCancel: () => void
+  isPending: boolean
+  accent?: 'blue' | 'amber'
+}) {
+  const [form, setForm] = useState(initial ?? EMPTY_UNIT_FORM)
+  const inp = 'w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500'
+  const bg = accent === 'amber' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+  return (
+    <div className={`p-3 rounded-xl border space-y-2 ${bg}`}>
+      <input className={inp} placeholder="Название (2-комн. кв., студия...)" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+      <div className="grid grid-cols-2 gap-2">
+        <input className={inp} type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
+        <input className={inp} type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <input className={inp} type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
+        <input className={inp} type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
+      </div>
+      <input className={inp} type="number" placeholder="Цена (наличный) ₽" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+      <input className={inp} placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} className="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50">Отмена</button>
+        <button type="button" onClick={() => onSave(form)} disabled={isPending} className="flex-1 py-1.5 rounded-lg bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-1">
+          {isPending && <Loader2 size={11} className="animate-spin" />}
+          Сохранить
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function DeveloperUnitsView({ complexId }: { complexId: string }) {
   const { data: units = [] } = useComplexUnits(complexId)
   const createUnit = useCreateComplexUnit()
+  const updateUnit = useUpdateComplexUnit()
+  const deleteUnit = useDeleteComplexUnit()
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' })
+  const [editingId, setEditingId] = useState<string | null>(null)
 
-  const handleAdd = async () => {
+  const handleAdd = async (form: typeof EMPTY_UNIT_FORM) => {
     try {
       await createUnit.mutateAsync({
         complexId,
@@ -45,7 +89,6 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
           notes: form.notes || undefined,
         },
       })
-      setForm({ title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' })
       setShowAdd(false)
       toast.success('Объект добавлен')
     } catch (err) {
@@ -53,7 +96,37 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
     }
   }
 
-  const inputCls = 'w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500'
+  const handleEdit = async (id: string, form: typeof EMPTY_UNIT_FORM) => {
+    try {
+      await updateUnit.mutateAsync({
+        id,
+        complexId,
+        data: {
+          title: form.title || undefined,
+          rooms: form.rooms ? Number(form.rooms) : undefined,
+          area: form.area ? Number(form.area) : undefined,
+          floor: form.floor ? Number(form.floor) : undefined,
+          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
+          price: form.price ? Number(form.price) : undefined,
+          notes: form.notes || undefined,
+        },
+      })
+      setEditingId(null)
+      toast.success('Объект обновлён')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Удалить объект от застройщика?')) return
+    try {
+      await deleteUnit.mutateAsync({ id, complexId })
+      toast.success('Удалено')
+    } catch {
+      toast.error('Ошибка при удалении')
+    }
+  }
 
   return (
     <div>
@@ -72,25 +145,8 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
       </div>
 
       {showAdd && (
-        <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2">
-          <input className={inputCls} placeholder="Название (2-комн. кв., студия...)" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
-            <input className={inputCls} type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
-            <input className={inputCls} type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
-          </div>
-          <input className={inputCls} type="number" placeholder="Цена (наличный) ₽" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
-          <input className={inputCls} placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50">Отмена</button>
-            <button type="button" onClick={handleAdd} disabled={createUnit.isPending} className="flex-1 py-1.5 rounded-lg bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-1">
-              {createUnit.isPending && <Loader2 size={11} className="animate-spin" />}
-              Сохранить
-            </button>
-          </div>
+        <div className="mb-3">
+          <UnitForm onSave={handleAdd} onCancel={() => setShowAdd(false)} isPending={createUnit.isPending} />
         </div>
       )}
 
@@ -99,24 +155,63 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
       )}
 
       <div className="space-y-2">
-        {units.map((unit) => (
-          <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-800">
-                {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
-                {unit.area ? ` · ${unit.area} м²` : ''}
-                {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
-              </p>
-              {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
-            </div>
-            {unit.price != null && (
-              <div className="text-right shrink-0 ml-3">
-                <p className="text-xs text-slate-400">Наличный</p>
-                <p className="text-sm font-bold text-emerald-600">{new Intl.NumberFormat('ru-RU').format(unit.price)} ₽</p>
+        {units.map((unit) => {
+          const unitInitial: typeof EMPTY_UNIT_FORM = {
+            title: unit.title ?? '',
+            rooms: unit.rooms != null ? String(unit.rooms) : '',
+            area: unit.area != null ? String(unit.area) : '',
+            floor: unit.floor != null ? String(unit.floor) : '',
+            total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
+            price: unit.price != null ? String(unit.price) : '',
+            notes: unit.notes ?? '',
+          }
+          if (editingId === unit.id) {
+            return (
+              <UnitForm
+                key={unit.id}
+                initial={unitInitial}
+                onSave={(f) => handleEdit(unit.id, f)}
+                onCancel={() => setEditingId(null)}
+                isPending={updateUnit.isPending}
+                accent="amber"
+              />
+            )
+          }
+          return (
+            <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-800">
+                  {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
+                  {unit.area ? ` · ${unit.area} м²` : ''}
+                  {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+                </p>
+                {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
               </div>
-            )}
-          </div>
-        ))}
+              <div className="flex items-center gap-2 ml-3 shrink-0">
+                {unit.price != null && (
+                  <div className="text-right">
+                    <p className="text-xs text-slate-400">Наличный</p>
+                    <p className="text-sm font-bold text-emerald-600">{new Intl.NumberFormat('ru-RU').format(unit.price)} ₽</p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setEditingId(unit.id)}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(unit.id)}
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
