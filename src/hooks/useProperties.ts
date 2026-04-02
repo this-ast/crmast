@@ -8,6 +8,14 @@ import { generateArticle } from '@/utils/format'
 
 const QUERY_KEY = 'properties'
 
+async function ensureBucket(name: string) {
+  const { error } = await supabase.storage.createBucket(name, { public: true })
+  // ignore "already exists" error
+  if (error && !error.message.toLowerCase().includes('already exist')) {
+    console.warn(`[storage] createBucket(${name}):`, error.message)
+  }
+}
+
 export function useProperties() {
   return useQuery({
     queryKey: [QUERY_KEY],
@@ -295,6 +303,7 @@ export function useUploadPropertyDocument() {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
       const safeName = docName.replace(/[^\w\-_.]/g, '_').slice(0, 60)
       const path = `${propertyId}/${Date.now()}-${safeName}.${ext}`
+      await ensureBucket('property-docs')
       const { error: uploadError } = await supabase.storage
         .from('property-docs')
         .upload(path, file, { upsert: true, contentType: getMimeType(file) })

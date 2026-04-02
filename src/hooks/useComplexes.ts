@@ -4,6 +4,13 @@ import type { Complex, ComplexFormData, ComplexDocument, ComplexUnit, ComplexUni
 
 const QUERY_KEY = 'complexes'
 
+async function ensureBucket(name: string) {
+  const { error } = await supabase.storage.createBucket(name, { public: true })
+  if (error && !error.message.toLowerCase().includes('already exist')) {
+    console.warn(`[storage] createBucket(${name}):`, error.message)
+  }
+}
+
 // Detect MIME type from file extension — browser detection is unreliable on some devices
 function getMimeType(file: File): string {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -281,6 +288,7 @@ export function useUploadComplexDocument() {
       const safeName = docName.replace(/[^\w\-_.]/g, '_').slice(0, 60)
       const path = `${complexId}/${Date.now()}-${safeName}.${ext}`
 
+      await ensureBucket('complex-docs')
       const { error: uploadError } = await supabase.storage
         .from('complex-docs')
         .upload(path, file, { upsert: true, contentType: getMimeType(file) })
