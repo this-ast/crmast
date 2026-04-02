@@ -6,7 +6,7 @@ import {
   Plus, CheckCircle2, Circle, Trash2, Pencil, X, Bell,
   ChevronLeft, ChevronRight, BarChart2, Target, Zap, Star,
   Calendar, Link2, Phone, DollarSign, TrendingDown, Flame,
-  ChevronUp, ChevronDown, GripVertical, Settings2,
+  ChevronUp, ChevronDown, GripVertical, Settings2, Search,
 } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { useClients } from '@/hooks/useClients'
@@ -66,6 +66,164 @@ function StatCard({
   )
 }
 
+// ─── Linked Entity Picker ─────────────────────────────────────────────────────
+
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  client: 'Клиент', property: 'Объект', deal: 'Сделка', complex: 'ЖК',
+}
+
+function LinkedEntityPicker({
+  value,
+  onChange,
+  clients,
+  properties,
+  deals,
+  complexes,
+}: {
+  value: { type: TaskLinkedType | ''; id: string }
+  onChange: (type: TaskLinkedType | '', id: string) => void
+  clients: { id: string; name: string }[]
+  properties: { id: string; article: string; address?: string }[]
+  deals: { id: string; title?: string; deal_number: number }[]
+  complexes: { id: string; name: string }[]
+}) {
+  const [search, setSearch] = useState('')
+  const { type, id } = value
+
+  const TYPES: { value: TaskLinkedType | ''; label: string }[] = [
+    { value: '', label: 'Без привязки' },
+    { value: 'client', label: 'Клиент' },
+    { value: 'property', label: 'Объект' },
+    { value: 'deal', label: 'Сделка' },
+    { value: 'complex', label: 'ЖК' },
+  ]
+
+  const results = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    switch (type) {
+      case 'client':
+        return clients
+          .filter(c => !q || c.name.toLowerCase().includes(q))
+          .slice(0, 25)
+          .map(c => ({ id: c.id, label: c.name }))
+      case 'property':
+        return properties
+          .filter(p => !q || [p.article, p.address].filter(Boolean).join(' ').toLowerCase().includes(q))
+          .slice(0, 25)
+          .map(p => ({ id: p.id, label: `${p.article}${p.address ? ` · ${p.address}` : ''}` }))
+      case 'deal':
+        return deals
+          .filter(d => !q || String(d.deal_number).includes(q) || (d.title ?? '').toLowerCase().includes(q))
+          .slice(0, 25)
+          .map(d => ({ id: d.id, label: `#${d.deal_number} ${d.title || 'Сделка'}` }))
+      case 'complex':
+        return complexes
+          .filter(c => !q || c.name.toLowerCase().includes(q))
+          .slice(0, 25)
+          .map(c => ({ id: c.id, label: c.name }))
+      default:
+        return []
+    }
+  }, [type, search, clients, properties, deals, complexes])
+
+  const selectedLabel = useMemo(() => {
+    if (!type || !id) return null
+    switch (type) {
+      case 'client': return clients.find(c => c.id === id)?.name ?? null
+      case 'property': {
+        const p = properties.find(p => p.id === id)
+        return p ? `${p.article}${p.address ? ` · ${p.address}` : ''}` : null
+      }
+      case 'deal': {
+        const d = deals.find(d => d.id === id)
+        return d ? `#${d.deal_number} ${d.title || 'Сделка'}` : null
+      }
+      case 'complex': return complexes.find(c => c.id === id)?.name ?? null
+      default: return null
+    }
+  }, [type, id, clients, properties, deals, complexes])
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-2">Привязать к</label>
+
+      {/* Type tabs */}
+      <div className="flex flex-wrap gap-1 mb-2">
+        {TYPES.map(t => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => { onChange(t.value, ''); setSearch('') }}
+            className={cn(
+              'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+              type === t.value
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-700'
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Entity selector */}
+      {type && (
+        <>
+          {id && selectedLabel ? (
+            /* Selected chip */
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <span className="text-xs font-semibold text-blue-500 shrink-0">{ENTITY_TYPE_LABELS[type]}:</span>
+              <span className="text-xs font-medium text-blue-800 flex-1 truncate">{selectedLabel}</span>
+              <button
+                type="button"
+                onClick={() => { onChange(type, ''); setSearch('') }}
+                className="text-blue-400 hover:text-blue-700 shrink-0"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            /* Search + dropdown */
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
+                <Search size={12} className="text-slate-400 shrink-0" />
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={`Поиск ${(ENTITY_TYPE_LABELS[type] ?? '').toLowerCase()}а...`}
+                  className="flex-1 text-xs bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                />
+                {search && (
+                  <button type="button" onClick={() => setSearch('')} className="text-slate-300 hover:text-slate-500">
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+              <div className="max-h-44 overflow-y-auto">
+                {results.length === 0 ? (
+                  <p className="text-xs text-slate-400 px-3 py-3 text-center">Ничего не найдено</p>
+                ) : (
+                  results.map(r => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => { onChange(type, r.id); setSearch('') }}
+                      className="w-full text-left text-xs px-3 py-2 hover:bg-blue-50 hover:text-blue-700 text-slate-700 transition-colors truncate"
+                    >
+                      {r.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── Task Form Modal ──────────────────────────────────────────────────────────
 
 function TaskFormModal({
@@ -87,13 +245,18 @@ function TaskFormModal({
   onCancel: () => void
   isSubmitting: boolean
 }) {
-  const { register, handleSubmit, watch } = useForm<TaskFormData>({ defaultValues: { priority: 'medium', ...initial } })
-  const linkedType = watch('linked_type')
+  const { register, handleSubmit, watch, setValue } = useForm<TaskFormData>({
+    defaultValues: { priority: 'medium', ...initial },
+  })
+  const linkedType = (watch('linked_type') ?? '') as TaskLinkedType | ''
+  const linkedId = watch('linked_id') ?? ''
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="p-5 space-y-4">
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">Название <span className="text-red-500">*</span></label>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">
+          Название <span className="text-red-500">*</span>
+        </label>
         <input
           {...register('title', { required: true })}
           placeholder="Что нужно сделать..."
@@ -104,7 +267,10 @@ function TaskFormModal({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Приоритет</label>
-          <select {...register('priority')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select
+            {...register('priority')}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
             <option value="high">🔴 Высокий</option>
             <option value="medium">🟡 Средний</option>
             <option value="low">⚪ Низкий</option>
@@ -112,7 +278,11 @@ function TaskFormModal({
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Дедлайн</label>
-          <input type="date" {...register('deadline')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input
+            type="date"
+            {...register('deadline')}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
 
@@ -126,50 +296,17 @@ function TaskFormModal({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Привязать к</label>
-          <select {...register('linked_type')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">— без привязки —</option>
-            <option value="client">Клиент</option>
-            <option value="property">Объект</option>
-            <option value="deal">Сделка</option>
-            <option value="complex">ЖК</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            {linkedType === 'client' ? 'Клиент' : linkedType === 'property' ? 'Объект' : linkedType === 'deal' ? 'Сделка' : linkedType === 'complex' ? 'ЖК' : 'Запись'}
-          </label>
-          {linkedType === 'client' && (
-            <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— выбрать —</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          )}
-          {linkedType === 'property' && (
-            <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— выбрать —</option>
-              {properties.map(p => <option key={p.id} value={p.id}>{p.article}{p.address ? ` · ${p.address}` : ''}</option>)}
-            </select>
-          )}
-          {linkedType === 'deal' && (
-            <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— выбрать —</option>
-              {deals.map(d => <option key={d.id} value={d.id}>#{d.deal_number} {d.title || 'Сделка'}</option>)}
-            </select>
-          )}
-          {linkedType === 'complex' && (
-            <select {...register('linked_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— выбрать —</option>
-              {complexes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          )}
-          {!linkedType && (
-            <div className="px-3 py-2 border border-slate-100 rounded-lg bg-slate-50 text-xs text-slate-400">не выбрано</div>
-          )}
-        </div>
-      </div>
+      <LinkedEntityPicker
+        value={{ type: linkedType, id: linkedId }}
+        onChange={(type, id) => {
+          setValue('linked_type', (type || undefined) as TaskLinkedType | undefined)
+          setValue('linked_id', id || undefined)
+        }}
+        clients={clients}
+        properties={properties}
+        deals={deals}
+        complexes={complexes}
+      />
 
       <div>
         <label className="block text-xs font-medium text-slate-600 mb-1.5">Потенциальная прибыль (₽)</label>
@@ -182,10 +319,18 @@ function TaskFormModal({
       </div>
 
       <div className="flex gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
           Отмена
         </button>
-        <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex-1 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2"
+        >
           {isSubmitting && <Loader2 size={14} className="animate-spin" />}
           Сохранить
         </button>
