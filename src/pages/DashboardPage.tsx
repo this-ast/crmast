@@ -12,7 +12,10 @@ import { useProperties } from '@/hooks/useProperties'
 import { useClients } from '@/hooks/useClients'
 import { useDeals } from '@/hooks/useDeals'
 import { useComplexes } from '@/hooks/useComplexes'
+import { useDemands } from '@/hooks/useDemands'
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
+import { EntityPicker } from '@/components/tasks/LinkedTasksSection'
+import type { EntityOption } from '@/components/tasks/LinkedTasksSection'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import {
@@ -20,7 +23,7 @@ import {
   CLIENT_STATUS_COLORS,
   TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS, TASK_PRIORITY_DOT,
 } from '@/types'
-import type { Task, TaskFormData, TaskPriority, TaskLinkedType } from '@/types'
+import type { Task, TaskFormData, TaskPriority, TaskLinkedType, TaskAlsoLink } from '@/types'
 import toast from 'react-hot-toast'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -251,8 +254,25 @@ function TaskFormModal({
   const linkedType = (watch('linked_type') ?? '') as TaskLinkedType | ''
   const linkedId = watch('linked_id') ?? ''
 
+  // Multi-link state (additional entities beyond the primary one)
+  const [alsoLinked, setAlsoLinked] = useState<EntityOption[]>([])
+  const [showMultiPicker, setShowMultiPicker] = useState(false)
+
+  const toggleEntity = (opt: EntityOption) => {
+    setAlsoLinked(prev =>
+      prev.some(s => s.id === opt.id)
+        ? prev.filter(s => s.id !== opt.id)
+        : [...prev, opt]
+    )
+  }
+
+  const onSubmit = (formData: TaskFormData) => {
+    const also: TaskAlsoLink[] = alsoLinked.map(o => ({ type: o.type, id: o.id, label: o.label }))
+    onSave({ ...formData, also_linked: also.length > 0 ? also : undefined })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSave)} className="p-5 space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
       <div>
         <label className="block text-xs font-medium text-slate-600 mb-1.5">
           Название <span className="text-red-500">*</span>
@@ -296,6 +316,7 @@ function TaskFormModal({
         />
       </div>
 
+      {/* Primary link */}
       <LinkedEntityPicker
         value={{ type: linkedType, id: linkedId }}
         onChange={(type, id) => {
@@ -307,6 +328,56 @@ function TaskFormModal({
         deals={deals}
         complexes={complexes}
       />
+
+      {/* Multi-link section */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+            <Link2 size={12} className="text-slate-400" />
+            Также привязать к:
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowMultiPicker(v => !v)}
+            className={cn(
+              'text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors',
+              showMultiPicker
+                ? 'bg-violet-600 text-white border-violet-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-violet-400 hover:text-violet-700'
+            )}
+          >
+            <Search size={10} className="inline mr-1" />
+            Найти
+          </button>
+        </div>
+
+        {/* Selected additional entities */}
+        {alsoLinked.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {alsoLinked.map(opt => (
+              <span
+                key={opt.id}
+                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200 font-medium"
+              >
+                <span className="text-violet-400 text-[9px] font-bold uppercase">{ENTITY_TYPE_LABELS[opt.type] ?? opt.type}</span>:
+                {opt.label}
+                <button type="button" onClick={() => toggleEntity(opt)} className="text-violet-400 hover:text-violet-700 ml-0.5">
+                  <X size={9} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {showMultiPicker && (
+          <EntityPicker
+            selected={alsoLinked}
+            onToggle={toggleEntity}
+            excludeType={linkedType || undefined}
+            excludeId={linkedId || undefined}
+          />
+        )}
+      </div>
 
       <div>
         <label className="block text-xs font-medium text-slate-600 mb-1.5">Потенциальная прибыль (₽)</label>
@@ -1278,6 +1349,7 @@ export default function DashboardPage() {
   const { data: clients = [], isLoading: clientsLoading, error: clientsError } = useClients()
   const { data: deals = [], isLoading: dealsLoading } = useDeals()
   const { data: complexes = [] } = useComplexes()
+  const { data: demands = [] } = useDemands()
   const { data: tasks = [], isLoading: tasksLoading } = useTasks()
   const [editLayout, setEditLayout] = useState(false)
   const { layout, move, reset } = useLayout()
@@ -1317,6 +1389,7 @@ export default function DashboardPage() {
   const taskDeals = (deals as any[]).map(d => ({ id: d.id, title: d.title, deal_number: d.deal_number }))
   const taskClients = clients.map(c => ({ id: c.id, name: c.name, client_number: (c as any).client_number as number | undefined }))
   const taskComplexes = (complexes as any[]).map(c => ({ id: c.id, name: c.name }))
+  const taskDemands = (demands as any[]).map(d => ({ id: d.id, title: d.title, demand_number: d.demand_number }))
 
   const blocks: Record<string, React.ReactNode> = {
     money: <MoneyBlock deals={deals as any[]} />,

@@ -28,7 +28,7 @@ const TYPE_LABELS: Record<TaskLinkedType, string> = {
 
 type PickerTab = 'client' | 'property' | 'complex' | 'demand'
 
-interface EntityOption {
+export interface EntityOption {
   type: TaskLinkedType
   id: string
   label: string
@@ -40,7 +40,7 @@ export interface AlsoLinkOption {
   label: string
 }
 
-function EntityPicker({
+export function EntityPicker({
   selected,
   onToggle,
   excludeType,
