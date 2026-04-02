@@ -36,6 +36,10 @@ export default function Modal({ isOpen, onClose, title, children, size = 'lg' }:
 
   function onPanelTouchStart(e: React.TouchEvent) {
     if (fromHandle) return
+    // Never drag when touching interactive elements — prevents accidental close
+    // while filling forms (especially on iOS where keyboard raises viewport)
+    const target = e.target as Element
+    if (target.closest('input, textarea, select, button, a, label, [role="button"], [role="combobox"], [role="listbox"], [role="option"]')) return
     if (scrollRef.current && scrollRef.current.scrollTop > 4) return
     setStartY(e.touches[0].clientY)
     setDragging(true)
@@ -50,7 +54,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'lg' }:
   function onTouchEnd() {
     setDragging(false)
     setFromHandle(false)
-    if (dragY > 110) {
+    if (dragY > 150) {
       onClose()
     }
     setDragY(0)

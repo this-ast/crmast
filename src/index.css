@@ -16,6 +16,16 @@
   ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 }
 
+/* ── iOS input zoom prevention ──────────────────────────────────────────────── */
+/* iOS auto-zooms on inputs with font-size < 16px. Force 16px on mobile only.   */
+@media screen and (max-width: 639px) {
+  input:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Scrollbar hide utility ─────────────────────────────────────────────────── */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
