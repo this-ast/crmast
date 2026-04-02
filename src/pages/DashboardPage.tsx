@@ -82,7 +82,7 @@ function LinkedEntityPicker({
 }: {
   value: { type: TaskLinkedType | ''; id: string }
   onChange: (type: TaskLinkedType | '', id: string) => void
-  clients: { id: string; name: string }[]
+  clients: { id: string; name: string; client_number?: number }[]
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
   complexes: { id: string; name: string }[]
@@ -103,9 +103,9 @@ function LinkedEntityPicker({
     switch (type) {
       case 'client':
         return clients
-          .filter(c => !q || c.name.toLowerCase().includes(q))
+          .filter(c => !q || c.name.toLowerCase().includes(q) || String(c.client_number ?? '').includes(q))
           .slice(0, 25)
-          .map(c => ({ id: c.id, label: c.name }))
+          .map(c => ({ id: c.id, label: c.client_number ? `#${c.client_number} ${c.name}` : c.name }))
       case 'property':
         return properties
           .filter(p => !q || [p.article, p.address].filter(Boolean).join(' ').toLowerCase().includes(q))
@@ -129,7 +129,7 @@ function LinkedEntityPicker({
   const selectedLabel = useMemo(() => {
     if (!type || !id) return null
     switch (type) {
-      case 'client': return clients.find(c => c.id === id)?.name ?? null
+      case 'client': { const c = clients.find(c => c.id === id); return c ? (c.client_number ? `#${c.client_number} ${c.name}` : c.name) : null }
       case 'property': {
         const p = properties.find(p => p.id === id)
         return p ? `${p.article}${p.address ? ` · ${p.address}` : ''}` : null
@@ -237,7 +237,7 @@ function TaskFormModal({
   isSubmitting,
 }: {
   initial?: Partial<TaskFormData>
-  clients: { id: string; name: string }[]
+  clients: { id: string; name: string; client_number?: number }[]
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
   complexes: { id: string; name: string }[]
@@ -435,7 +435,7 @@ function TasksWidget({
   complexes,
 }: {
   tasks: Task[]
-  clients: { id: string; name: string }[]
+  clients: { id: string; name: string; client_number?: number }[]
   properties: { id: string; article: string; address?: string }[]
   deals: { id: string; title?: string; deal_number: number }[]
   complexes: { id: string; name: string }[]
@@ -1315,7 +1315,7 @@ export default function DashboardPage() {
 
   const taskProps = properties.map(p => ({ id: p.id, article: p.article, address: p.address }))
   const taskDeals = (deals as any[]).map(d => ({ id: d.id, title: d.title, deal_number: d.deal_number }))
-  const taskClients = clients.map(c => ({ id: c.id, name: c.name }))
+  const taskClients = clients.map(c => ({ id: c.id, name: c.name, client_number: (c as any).client_number as number | undefined }))
   const taskComplexes = (complexes as any[]).map(c => ({ id: c.id, name: c.name }))
 
   const blocks: Record<string, React.ReactNode> = {

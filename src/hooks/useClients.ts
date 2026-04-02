@@ -70,9 +70,14 @@ export function useCreateClient() {
         clientNumber = (maxRow?.client_number ?? 0) + 1
       }
 
+      // Strip empty strings from date fields — Supabase rejects "" for date columns
+      const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
+      const cleaned = { ...data } as Record<string, unknown>
+      DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = undefined })
+
       const { data: created, error } = await supabase
         .from('clients')
-        .insert({ ...data, client_number: clientNumber })
+        .insert({ ...cleaned, client_number: clientNumber })
         .select()
         .single()
 
@@ -102,9 +107,13 @@ export function useUpdateClient() {
         return OFFLINE_MARKER
       }
 
+      const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
+      const cleaned = { ...data } as Record<string, unknown>
+      DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = null })
+
       const { data: updated, error } = await supabase
         .from('clients')
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update({ ...cleaned, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single()
