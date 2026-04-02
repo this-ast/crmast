@@ -641,6 +641,7 @@ export default function PropertyForm() {
         description:     editingProperty.description ?? '',
         cadastral_number: editingProperty.cadastral_number ?? '',
         area_sotki:      editingProperty.area_sotki != null ? String(editingProperty.area_sotki) : '',
+        area2:           editingProperty.area2 != null ? String(editingProperty.area2) : '',
         entrance_groups: editingProperty.entrance_groups ?? '',
         kitchen_area:    editingProperty.kitchen_area != null ? String(editingProperty.kitchen_area) : '',
         living_area:     editingProperty.living_area  != null ? String(editingProperty.living_area)  : '',
@@ -710,15 +711,13 @@ export default function PropertyForm() {
       price:         priceNum,
       price_net:     floatOrUndef(raw.price_net),
       agent_commission: floatOrUndef(raw.agent_commission),
-      area:          areaNum,
+      area:          propType === 'land' ? (floatOrUndef(raw.area_sotki) ?? 0) : areaNum,
       rooms:         intOrUndef(raw.rooms),
       floor:         intOrUndef(raw.floor),
       total_floors:  intOrUndef(raw.total_floors),
       view:          strOrUndef(raw.view),
       address:       raw.address.trim(),
       district:      district.trim() || undefined,
-      complex_id:    complexId || undefined,
-      complex_name:  complexName.trim() || undefined,
       description:   strOrUndef(raw.description),
       owner_id:      ownerId || (null as any),
       // Apartment extended
@@ -737,6 +736,11 @@ export default function PropertyForm() {
       area_sotki:    floatOrUndef(raw.area_sotki),
       communications: communications.length > 0 ? communications : undefined,
       cadastral_number: strOrUndef(raw.cadastral_number),
+      // House extra
+      area2:         propType === 'house' ? floatOrUndef(raw.area2) : undefined,
+      // Clear complex_id for land
+      complex_id:    propType === 'land' ? undefined : (complexId || undefined),
+      complex_name:  propType === 'land' ? undefined : (complexName.trim() || undefined),
       // Commercial
       is_active_business: !!raw.is_active_business || undefined,
       has_wet_points: !!raw.has_wet_points || undefined,
@@ -939,17 +943,19 @@ export default function PropertyForm() {
             />
             <FieldError message={errors.price?.message as string} />
           </div>
-          <div>
-            <FieldLabel required>Площадь (м²)</FieldLabel>
-            <input
-              className={cn(inputCls, errors.area && 'border-red-400 focus:ring-red-400')}
-              placeholder="65"
-              inputMode="decimal"
-              {...register('area')}
-              onChange={(e) => { register('area').onChange(e); clearErrors('area') }}
-            />
-            <FieldError message={errors.area?.message as string} />
-          </div>
+          {propType !== 'land' && (
+            <div>
+              <FieldLabel required>Площадь (м²)</FieldLabel>
+              <input
+                className={cn(inputCls, errors.area && 'border-red-400 focus:ring-red-400')}
+                placeholder="65"
+                inputMode="decimal"
+                {...register('area')}
+                onChange={(e) => { register('area').onChange(e); clearErrors('area') }}
+              />
+              <FieldError message={errors.area?.message as string} />
+            </div>
+          )}
         </div>
 
         {/* ── Net price and commission ────────────────────────────────── */}
@@ -1162,14 +1168,26 @@ export default function PropertyForm() {
 
         {/* ── House specifics ──────────────────────────────────────────── */}
         {propType === 'house' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>Этаж</FieldLabel>
-              <input className={inputCls} placeholder="2" inputMode="numeric" {...register('floor')} />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Площадь участка (сот.)</FieldLabel>
+                <input className={inputCls} placeholder="8" inputMode="decimal" {...register('area_sotki')} />
+              </div>
+              <div>
+                <FieldLabel>Площадь 2-го дома (м²)</FieldLabel>
+                <input className={inputCls} placeholder="Если есть" inputMode="decimal" {...register('area2')} />
+              </div>
             </div>
-            <div>
-              <FieldLabel>Всего этажей</FieldLabel>
-              <input className={inputCls} placeholder="2" inputMode="numeric" {...register('total_floors')} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Этажей в доме</FieldLabel>
+                <input className={inputCls} placeholder="2" inputMode="numeric" {...register('total_floors')} />
+              </div>
+              <div>
+                <FieldLabel>Этаж</FieldLabel>
+                <input className={inputCls} placeholder="1" inputMode="numeric" {...register('floor')} />
+              </div>
             </div>
           </div>
         )}
@@ -1248,14 +1266,16 @@ export default function PropertyForm() {
             <FieldLabel>Район</FieldLabel>
             <DistrictSelector value={district} onChange={setDistrict} />
           </div>
-          <div>
-            <FieldLabel>Жилой комплекс</FieldLabel>
-            <ComplexSelector
-              complexId={complexId}
-              complexName={complexName}
-              onChange={(id, name) => { setComplexId(id); setComplexName(name) }}
-            />
-          </div>
+          {propType !== 'land' && (
+            <div>
+              <FieldLabel>Жилой комплекс</FieldLabel>
+              <ComplexSelector
+                complexId={complexId}
+                complexName={complexName}
+                onChange={(id, name) => { setComplexId(id); setComplexName(name) }}
+              />
+            </div>
+          )}
           <div>
             <FieldLabel required>Адрес</FieldLabel>
             <input

@@ -68,6 +68,9 @@ export interface Property {
   communications?: string[]
   cadastral_number?: string
 
+  // House specific
+  area2?: number  // площадь второго дома на участке (м²)
+
   // Commercial specific
   is_active_business?: boolean
   has_wet_points?: boolean
@@ -133,6 +136,8 @@ export interface PropertyFormData {
   area_sotki?: number
   communications?: string[]
   cadastral_number?: string
+  // House extra
+  area2?: number
   // Commercial
   is_active_business?: boolean
   has_wet_points?: boolean

@@ -68,7 +68,7 @@ export default function PropertyPdfDocument({ property, agentSettings }: Props) 
     p.has_military_mort && '🎖 Воен. ипотека',
   ].filter(Boolean) as string[]
 
-  const typeLabel = p.rooms
+  const typeLabel = (p.rooms && p.type !== 'land')
     ? `${p.rooms}-комн. ${PROPERTY_TYPE_LABELS[p.type]}`
     : PROPERTY_TYPE_LABELS[p.type]
 
@@ -99,11 +99,22 @@ export default function PropertyPdfDocument({ property, agentSettings }: Props) 
         {/* Main characteristics */}
         <Text style={s.sectionTitle}>Характеристики</Text>
         <View style={s.grid}>
-          <View style={s.cell}>
-            <Text style={s.cellLabel}>Площадь</Text>
-            <Text style={s.cellValue}>{p.area} м²</Text>
-          </View>
-          {p.rooms && (
+          {/* Land: show only sotki; others: show m² */}
+          {p.type === 'land' ? (
+            p.area_sotki ? (
+              <View style={s.cell}>
+                <Text style={s.cellLabel}>Площадь</Text>
+                <Text style={s.cellValue}>{p.area_sotki} сот.</Text>
+              </View>
+            ) : null
+          ) : (
+            <View style={s.cell}>
+              <Text style={s.cellLabel}>Площадь{p.type === 'house' ? ' дома' : ''}</Text>
+              <Text style={s.cellValue}>{p.area} м²</Text>
+            </View>
+          )}
+          {/* Rooms — not shown for land */}
+          {p.rooms && p.type !== 'land' && (
             <View style={s.cell}>
               <Text style={s.cellLabel}>Комнат</Text>
               <Text style={s.cellValue}>{p.rooms}</Text>
@@ -115,13 +126,21 @@ export default function PropertyPdfDocument({ property, agentSettings }: Props) 
               <Text style={s.cellValue}>{p.floor} из {p.total_floors}</Text>
             </View>
           )}
-          {p.area_sotki && (
+          {/* House: plot area */}
+          {p.type === 'house' && p.area_sotki && (
             <View style={s.cell}>
               <Text style={s.cellLabel}>Участок</Text>
               <Text style={s.cellValue}>{p.area_sotki} сот.</Text>
             </View>
           )}
-          {p.market_type && (
+          {/* House: second house area */}
+          {p.type === 'house' && (p as any).area2 && (
+            <View style={s.cell}>
+              <Text style={s.cellLabel}>2-й дом</Text>
+              <Text style={s.cellValue}>{(p as any).area2} м²</Text>
+            </View>
+          )}
+          {p.market_type && p.type !== 'land' && (
             <View style={s.cell}>
               <Text style={s.cellLabel}>Рынок</Text>
               <Text style={s.cellValue}>{p.market_type === 'secondary' ? 'Вторичка' : 'Новострой'}</Text>
