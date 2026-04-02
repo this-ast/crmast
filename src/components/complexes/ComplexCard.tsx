@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Building2, CalendarDays, Phone, Layers, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
+import { cn } from '@/utils/cn'
 import type { Complex, ComplexUnit } from '@/types'
 import { useComplexUnits } from '@/hooks/useComplexes'
 import { formatPriceShort } from '@/utils/format'
@@ -13,6 +14,7 @@ interface ComplexCardProps {
   onClick: () => void
   onShowProperties?: (e: React.MouseEvent) => void
   taskCount?: number
+  compact?: boolean
 }
 
 function UnitCards({
@@ -73,17 +75,20 @@ function UnitCards({
   )
 }
 
-export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0, onClick, onShowProperties, taskCount = 0 }: ComplexCardProps) {
+export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0, onClick, onShowProperties, taskCount = 0, compact = false }: ComplexCardProps) {
   const [showUnits, setShowUnits] = useState(false)
 
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group"
+      className={cn(
+        'bg-white rounded-2xl border border-slate-100 cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group',
+        compact ? 'p-2.5' : 'p-4'
+      )}
     >
       {/* Photo */}
       {complex.photos[0] ? (
-        <div className="w-full h-32 rounded-xl overflow-hidden mb-3 bg-slate-100">
+        <div className={cn('w-full rounded-xl overflow-hidden bg-slate-100', compact ? 'h-20 mb-2' : 'h-32 mb-3')}>
           <img
             src={complex.photos[0]}
             alt={complex.name}
@@ -91,19 +96,19 @@ export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0,
           />
         </div>
       ) : (
-        <div className="w-full h-32 rounded-xl bg-gradient-to-br from-blue-50 to-slate-100 mb-3 flex items-center justify-center">
-          <Building2 size={32} className="text-slate-300" />
+        <div className={cn('w-full rounded-xl bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center', compact ? 'h-20 mb-2' : 'h-32 mb-3')}>
+          <Building2 size={compact ? 24 : 32} className="text-slate-300" />
         </div>
       )}
 
       {/* Name */}
-      <h3 className="font-semibold text-slate-900 text-sm mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
+      <h3 className={cn('font-semibold text-slate-900 text-sm group-hover:text-blue-600 transition-colors line-clamp-1', compact ? 'mb-0.5' : 'mb-1')}>
         {complex.name}
       </h3>
 
       {/* Developer */}
       {complex.developer && (
-        <p className="text-xs text-slate-500 mb-3 line-clamp-1">{complex.developer}</p>
+        <p className={cn('text-xs text-slate-500 line-clamp-1', compact ? 'mb-1.5' : 'mb-3')}>{complex.developer}</p>
       )}
 
       {/* Badges */}
@@ -131,7 +136,7 @@ export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0,
             {unitCount} от застройщика
           </button>
         )}
-        {complex.developer_phones.length > 0 && (
+        {!compact && complex.developer_phones.length > 0 && (
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Phone size={11} />
             {complex.developer_phones[0]}
@@ -163,7 +168,7 @@ export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0,
         </div>
       )}
 
-      {propertyCount > 0 && onShowProperties && (
+      {!compact && propertyCount > 0 && onShowProperties && (
         <button
           type="button"
           onClick={onShowProperties}
@@ -175,7 +180,7 @@ export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0,
       )}
 
       {/* Expand toggle for no-badge case (unitCount = 0 but still shown) */}
-      {unitCount === 0 && (
+      {!compact && unitCount === 0 && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setShowUnits((v) => !v) }}
@@ -189,7 +194,7 @@ export default function ComplexCard({ complex, propertyCount = 0, unitCount = 0,
         </button>
       )}
 
-      {showUnits && (
+      {!compact && showUnits && (
         <UnitCards
           complexId={complex.id}
           complexName={complex.name}

@@ -13,9 +13,10 @@ interface PropertyCardProps {
   property: PropertyWithOwner
   onClick: () => void
   taskCount?: number
+  compact?: boolean
 }
 
-export default function PropertyCard({ property, onClick, taskCount = 0 }: PropertyCardProps) {
+export default function PropertyCard({ property, onClick, taskCount = 0, compact = false }: PropertyCardProps) {
   const { type, status, price, area, rooms, floor, total_floors, complex_name, address, owner, article, district } =
     property
 
@@ -41,7 +42,7 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
     >
       {/* Photo preview */}
       {firstPhoto ? (
-        <div className="relative w-full h-36 bg-slate-100 overflow-hidden">
+        <div className={cn('relative w-full bg-slate-100 overflow-hidden', compact ? 'h-24' : 'h-36')}>
           <img
             src={firstPhoto}
             alt=""
@@ -60,7 +61,7 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
           )}
         </div>
       ) : (
-        <div className="relative w-full h-20 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+        <div className={cn('relative w-full bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center', compact ? 'h-14' : 'h-20')}>
           <PropertyTypeIcon type={type} size="sm" />
           {property.is_realtor_property && (
             <div className="absolute top-2 left-2 text-[11px] bg-purple-600/90 text-white px-2 py-0.5 rounded-full font-medium">
@@ -70,9 +71,9 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
         </div>
       )}
 
-      <div className="p-4">
+      <div className={compact ? 'p-2.5' : 'p-4'}>
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-3">
+      <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-1.5' : 'mb-3')}>
         <div className="flex items-center gap-2.5 min-w-0">
           {!firstPhoto && <PropertyTypeIcon type={type} size="sm" />}
           <div className="min-w-0">
@@ -91,13 +92,13 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
       </div>
 
       {/* Location */}
-      <div className="flex items-start gap-1.5 mb-2">
+      <div className={cn('flex items-start gap-1.5', compact ? 'mb-1' : 'mb-2')}>
         <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
         <p className="text-xs text-slate-600 line-clamp-1">{locationDisplay}</p>
       </div>
 
-      {/* District badge */}
-      {district && (
+      {/* District badge — hidden in compact mode */}
+      {district && !compact && (
         <div className="mb-3">
           <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
             📍 {district}
@@ -106,7 +107,7 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
       )}
 
       {/* Details row */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className={cn('flex items-center gap-3', compact ? 'mb-1' : 'mb-3')}>
         <div className="flex items-center gap-1 text-xs text-slate-500">
           <Maximize2 size={12} />
           <span>{type === 'land' && property.area_sotki ? `${property.area_sotki} сот.` : `${area} м²`}</span>
@@ -119,7 +120,7 @@ export default function PropertyCard({ property, onClick, taskCount = 0 }: Prope
       </div>
 
       {/* Price */}
-      <div className="text-base font-bold text-slate-900 mb-3">
+      <div className={cn('font-bold text-slate-900', compact ? 'text-sm mb-1' : 'text-base mb-3')}>
         {formatPriceShort(price)}
       </div>
 

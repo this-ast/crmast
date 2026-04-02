@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Settings, Search } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Settings, Search, LayoutList, LayoutGrid } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -156,7 +156,14 @@ export default function PropertiesPage() {
   const activeCount = properties.filter((p) => p.status === 'active').length
   const totalCount = properties.length
   const [showOptionsManager, setShowOptionsManager] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(
+    () => (localStorage.getItem('crm_view_mode') as 'list' | 'grid') ?? 'list'
+  )
+  useEffect(() => { localStorage.setItem('crm_view_mode', viewMode) }, [viewMode])
   const formTitle = editingPropertyId ? 'Редактировать объект' : 'Новый объект'
+  const gridClass = viewMode === 'grid'
+    ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
+    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
 
   return (
     <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
@@ -170,6 +177,29 @@ export default function PropertiesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center bg-slate-100 rounded-xl p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              title="Список"
+              className={cn(
+                'p-2 rounded-lg transition-colors',
+                viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              )}
+            >
+              <LayoutList size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              title="Сетка"
+              className={cn(
+                'p-2 rounded-lg transition-colors',
+                viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              )}
+            >
+              <LayoutGrid size={16} />
+            </button>
+          </div>
           <button
             onClick={() => setShowOptionsManager(true)}
             className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
@@ -241,13 +271,14 @@ export default function PropertiesPage() {
             </div>
           )}
           {!isLoading && filtered.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className={gridClass}>
               {filtered.map((property) => (
                 <PropertyCard
                   key={property.id}
                   property={property}
                   onClick={() => openDetail(property.id)}
                   taskCount={taskCounts[property.id] ?? 0}
+                  compact={viewMode === 'grid'}
                 />
               ))}
             </div>
@@ -289,7 +320,7 @@ export default function PropertiesPage() {
           )}
 
           {!unitsLoading && filteredUnits.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className={gridClass}>
               {filteredUnits.map((u) => (
                 <button
                   key={u.id}

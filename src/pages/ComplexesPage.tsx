@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight, Settings } from 'lucide-react'
+import { Plus, Building2, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronRight, Settings, LayoutList, LayoutGrid } from 'lucide-react'
 import { useComplexes, useComplexUnitCounts } from '@/hooks/useComplexes'
 import { useProperties } from '@/hooks/useProperties'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -27,6 +27,13 @@ export default function ComplexesPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [propertiesModalComplexId, setPropertiesModalComplexId] = useState<string | null>(null)
   const [showOptionsManager, setShowOptionsManager] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(
+    () => (localStorage.getItem('crm_view_mode') as 'list' | 'grid') ?? 'list'
+  )
+  useEffect(() => { localStorage.setItem('crm_view_mode', viewMode) }, [viewMode])
+  const gridClass = viewMode === 'grid'
+    ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
+    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
   const navigate = useNavigate()
 
   const {
@@ -219,6 +226,29 @@ export default function ComplexesPage() {
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        {/* View mode toggle */}
+        <div className="flex items-center bg-slate-100 rounded-xl p-0.5">
+          <button
+            onClick={() => setViewMode('list')}
+            title="Список"
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            )}
+          >
+            <LayoutList size={16} />
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            title="Сетка"
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            )}
+          >
+            <LayoutGrid size={16} />
+          </button>
+        </div>
         <button
           onClick={() => setShowFilters((v) => !v)}
           className={cn(
@@ -274,7 +304,7 @@ export default function ComplexesPage() {
 
       {/* Grid */}
       {!isLoading && filtered.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className={gridClass}>
           {filtered.map((complex) => (
             <ComplexCard
               key={complex.id}
@@ -284,6 +314,7 @@ export default function ComplexesPage() {
               onClick={() => openDetail(complex.id)}
               onShowProperties={(e) => { e.stopPropagation(); setPropertiesModalComplexId(complex.id) }}
               taskCount={taskCounts[complex.id] ?? 0}
+              compact={viewMode === 'grid'}
             />
           ))}
         </div>
