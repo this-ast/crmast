@@ -99,6 +99,33 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function AppleModeToggle() {
+  const { appleMode, setAppleMode } = useThemeStore()
+  return (
+    <button
+      onClick={() => setAppleMode(!appleMode)}
+      className={`apple-mode-card ${appleMode ? 'apple-mode-card-on' : ''}`}
+    >
+      <div className="apple-mode-logo">
+        {appleMode ? '' : ''}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 2 }}>
+          Apple UI
+        </p>
+        <p style={{ fontSize: 12, opacity: 0.65, lineHeight: 1.4 }}>
+          {appleMode
+            ? 'Активен — iOS / macOS стиль'
+            : 'Нативный стиль iOS и macOS'}
+        </p>
+      </div>
+      <div className={`a-switch ${appleMode ? 'a-switch-on' : ''}`}>
+        <div className="a-switch-knob" />
+      </div>
+    </button>
+  )
+}
+
 function AppearanceTab() {
   const theme = useThemeStore()
   const [presetName, setPresetName] = useState('')
@@ -117,6 +144,17 @@ function AppearanceTab() {
 
   return (
     <div className="max-w-2xl space-y-7">
+
+      {/* ── Apple UI Mode ────────────────────────────────────────────────────── */}
+      <Section title="Режим Apple UI">
+        <AppleModeToggle />
+        {theme.appleMode && (
+          <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+            Интерфейс переключён в стиль iOS / macOS. Навигация, карточки, кнопки и анимации
+            соответствуют Human Interface Guidelines.
+          </p>
+        )}
+      </Section>
 
       {/* ── Presets ─────────────────────────────────────────────────────────── */}
       <Section title="Готовые пресеты">

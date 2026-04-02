@@ -1,0 +1,776 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   APPLE UI THEME  ·  html[data-apple]
+   Реализует нативный визуальный язык iOS / macOS (Human Interface Guidelines)
+   Активируется атрибутом data-apple на корневом <html> элементе
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1.  DESIGN TOKENS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+html[data-apple] {
+  /* Typography — SF Pro (нативно на Apple, Helvetica Neue как фоллбэк) */
+  --a-font: -apple-system, "SF Pro Display", "SF Pro Text", BlinkMacSystemFont,
+            "Helvetica Neue", "Arial", sans-serif;
+
+  /* Tint — подхватывает выбранный primary цвет из useThemeStore */
+  --a-tint:        var(--color-blue-600, #007AFF);
+  --a-tint-bg:     var(--color-blue-50,  #E8F1FF);
+  --a-tint-rgb:    0, 122, 255;
+
+  /* iOS System Palette */
+  --a-sys-red:     #FF3B30;
+  --a-sys-orange:  #FF9500;
+  --a-sys-yellow:  #FFCC00;
+  --a-sys-green:   #34C759;
+  --a-sys-teal:    #5AC8FA;
+  --a-sys-blue:    #007AFF;
+  --a-sys-indigo:  #5856D6;
+  --a-sys-purple:  #AF52DE;
+  --a-sys-pink:    #FF2D55;
+  --a-sys-gray:    #8E8E93;
+
+  /* Light Mode Backgrounds (Grouped inset style) */
+  --a-bg-1:   #F2F2F7;  /* Page / system grouped */
+  --a-bg-2:   #FFFFFF;  /* Cards / elevated surfaces */
+  --a-bg-3:   #F2F2F7;  /* Secondary grouped */
+  --a-bg-4:   #FFFFFF;  /* Elevated cards */
+
+  /* Light Mode Labels */
+  --a-l1:  #000000;
+  --a-l2:  rgba(60, 60, 67, 0.60);
+  --a-l3:  rgba(60, 60, 67, 0.30);
+  --a-l4:  rgba(60, 60, 67, 0.18);
+
+  /* Light Mode Fills */
+  --a-f1:  rgba(120, 120, 128, 0.20);
+  --a-f2:  rgba(120, 120, 128, 0.16);
+  --a-f3:  rgba(120, 120, 128, 0.12);
+  --a-f4:  rgba(116, 116, 128, 0.08);
+
+  /* Light Mode Separators */
+  --a-sep:  rgba(60, 60, 67, 0.29);
+  --a-sep2: #C6C6C8;
+
+  /* Glass / Translucency (iOS Control Center / Tab Bar style) */
+  --a-glass:      rgba(255, 255, 255, 0.78);
+  --a-glass-blur: saturate(180%) blur(22px);
+
+  /* Shadows (Apple-style: layered, very subtle in light mode) */
+  --a-s0:  0 1px 2px  rgba(0,0,0,0.06);
+  --a-s1:  0 1px 3px  rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04);
+  --a-s2:  0 2px 8px  rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.05);
+  --a-s3:  0 4px 16px rgba(0,0,0,0.10), 0 16px 48px rgba(0,0,0,0.07);
+  --a-s4:  0 8px 32px rgba(0,0,0,0.12), 0 32px 80px rgba(0,0,0,0.10);
+
+  /* Border Radius */
+  --a-r3:   6px;
+  --a-r4:   10px;
+  --a-r5:   12px;
+  --a-r6:   14px;
+  --a-r7:   16px;
+  --a-r8:   20px;
+  --a-r9:   28px;
+
+  /* Motion — Apple easing functions */
+  --a-ease:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --a-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --a-snap:   cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --a-tf:  0.10s var(--a-ease);   /* fast */
+  --a-t:   0.22s var(--a-ease);   /* normal */
+  --a-ts:  0.38s var(--a-ease);   /* slow */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK MODE TOKENS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+html[data-apple][data-theme="dark"] {
+  --a-bg-1:   #000000;
+  --a-bg-2:   #1C1C1E;
+  --a-bg-3:   #2C2C2E;
+  --a-bg-4:   #3A3A3C;
+
+  --a-l1:  #FFFFFF;
+  --a-l2:  rgba(235, 235, 245, 0.60);
+  --a-l3:  rgba(235, 235, 245, 0.30);
+  --a-l4:  rgba(235, 235, 245, 0.18);
+
+  --a-f1:  rgba(120, 120, 128, 0.36);
+  --a-f2:  rgba(120, 120, 128, 0.32);
+  --a-f3:  rgba(120, 120, 128, 0.24);
+  --a-f4:  rgba(118, 118, 128, 0.18);
+
+  --a-sep:  rgba(84, 84, 88, 0.65);
+  --a-sep2: #38383A;
+
+  --a-glass:  rgba(28, 28, 30, 0.85);
+
+  --a-s0:  0 1px 2px  rgba(0,0,0,0.45);
+  --a-s1:  0 1px 3px  rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.30);
+  --a-s2:  0 2px 8px  rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.35);
+  --a-s3:  0 4px 16px rgba(0,0,0,0.50), 0 16px 48px rgba(0,0,0,0.40);
+  --a-s4:  0 8px 32px rgba(0,0,0,0.60), 0 32px 80px rgba(0,0,0,0.50);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   2.  BASE — BODY & GLOBAL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] body {
+  font-family: var(--a-font) !important;
+  background-color: var(--a-bg-1) !important;
+  color: var(--a-l1) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-apple] * {
+  font-family: var(--a-font) !important;
+}
+
+/* Scrollbars — macOS appearance */
+html[data-apple] ::-webkit-scrollbar { width: 4px; height: 4px; }
+html[data-apple] ::-webkit-scrollbar-track { background: transparent; }
+html[data-apple] ::-webkit-scrollbar-thumb {
+  background: var(--a-f1);
+  border-radius: 99px;
+}
+html[data-apple] ::-webkit-scrollbar-thumb:hover { background: var(--a-f2); }
+
+/* Tap highlight */
+html[data-apple] * { -webkit-tap-highlight-color: transparent; }
+
+/* Text selection */
+html[data-apple] ::selection { background: rgba(var(--a-tint-rgb), 0.22); }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   3.  LAYOUT CONTAINERS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .bg-slate-100 { background-color: var(--a-bg-1) !important; }
+html[data-apple] .bg-slate-50  { background-color: var(--a-bg-3) !important; }
+
+html[data-apple][data-theme="dark"] .bg-slate-50  { background-color: var(--a-bg-2) !important; }
+html[data-apple][data-theme="dark"] .bg-slate-100 { background-color: var(--a-bg-1) !important; }
+html[data-apple][data-theme="dark"] .bg-slate-200 { background-color: var(--a-bg-3) !important; }
+html[data-apple][data-theme="dark"] .bg-slate-700 { background-color: var(--a-bg-3) !important; }
+html[data-apple][data-theme="dark"] .bg-slate-800 { background-color: var(--a-bg-2) !important; }
+html[data-apple][data-theme="dark"] .bg-slate-900 { background-color: var(--a-bg-1) !important; }
+
+/* Hover backgrounds */
+html[data-apple] .hover\:bg-slate-50:hover  { background-color: var(--a-f4) !important; }
+html[data-apple] .hover\:bg-slate-100:hover { background-color: var(--a-f3) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   4.  SIDEBAR — macOS Sidebar (vibrancy + glass)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] aside {
+  background: var(--a-glass) !important;
+  backdrop-filter: var(--a-glass-blur) !important;
+  -webkit-backdrop-filter: var(--a-glass-blur) !important;
+  border-right: 0.5px solid var(--a-sep) !important;
+  box-shadow: none !important;
+}
+
+html[data-apple][data-theme="dark"] aside {
+  background: rgba(28, 28, 30, 0.92) !important;
+}
+
+/* Sidebar logo strip */
+html[data-apple] aside > div:first-child {
+  background: transparent !important;
+  border-bottom: 0.5px solid var(--a-sep) !important;
+  padding: 18px 16px !important;
+}
+
+/* Reset slate colours to Apple labels in sidebar */
+html[data-apple] aside .text-white        { color: var(--a-l1) !important; }
+html[data-apple] aside .text-slate-400    { color: var(--a-l2) !important; }
+html[data-apple] aside .text-slate-200    { color: var(--a-l1) !important; }
+
+html[data-apple] aside .font-semibold {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Sidebar logo icon */
+html[data-apple] aside .bg-blue-500 {
+  background: var(--a-tint) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--a-s1) !important;
+}
+
+/* Nav items */
+html[data-apple] aside nav a {
+  border-radius: var(--a-r4) !important;
+  color: var(--a-l1) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+  padding: 7px 10px !important;
+  transition: background var(--a-tf), color var(--a-tf) !important;
+}
+
+html[data-apple] aside nav a:hover {
+  background: var(--a-f3) !important;
+  color: var(--a-l1) !important;
+}
+
+/* Active nav item — filled tint pill */
+html[data-apple] aside nav a.bg-blue-600 {
+  background: var(--a-tint) !important;
+  color: #fff !important;
+  box-shadow: var(--a-s1) !important;
+  border-radius: var(--a-r4) !important;
+}
+
+/* Sidebar bottom utility buttons */
+html[data-apple] aside > div:not(:first-child) button {
+  border-radius: var(--a-r4) !important;
+  transition: background var(--a-tf) !important;
+}
+html[data-apple] aside > div:not(:first-child) button:hover {
+  background: var(--a-f3) !important;
+}
+html[data-apple] aside .hover\:bg-slate-800:hover {
+  background: var(--a-f3) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   5.  BOTTOM TAB BAR — iOS Tab Bar (glass + blur)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] nav.fixed.bottom-0 {
+  background: var(--a-glass) !important;
+  backdrop-filter: var(--a-glass-blur) !important;
+  -webkit-backdrop-filter: var(--a-glass-blur) !important;
+  border-top: 0.5px solid var(--a-sep) !important;
+  box-shadow: none !important;
+}
+
+html[data-apple][data-theme="dark"] nav.fixed.bottom-0 {
+  background: rgba(28, 28, 30, 0.92) !important;
+}
+
+/* Tab items */
+html[data-apple] nav.fixed.bottom-0 a {
+  color: var(--a-l2) !important;
+  transition: color var(--a-tf), transform var(--a-tf) !important;
+}
+
+html[data-apple] nav.fixed.bottom-0 a.text-blue-400 { color: var(--a-tint) !important; }
+
+/* Remove the old underline indicator */
+html[data-apple] nav.fixed.bottom-0 span.w-6.h-0\.5 { display: none !important; }
+
+/* Active icon gets a tinted background bubble (iOS 17+ style) */
+html[data-apple] nav.fixed.bottom-0 a[aria-current="page"] svg,
+html[data-apple] nav.fixed.bottom-0 a.text-blue-400 svg {
+  color: var(--a-tint) !important;
+}
+
+/* Tap press animation */
+html[data-apple] nav.fixed.bottom-0 a:active {
+  transform: scale(0.85) !important;
+  opacity: 0.6 !important;
+  transition-duration: 0.06s !important;
+}
+
+/* Client mode FAB */
+html[data-apple] button.fixed.bottom-20,
+html[data-apple] .fixed.bottom-20 {
+  border-radius: 99px !important;
+  box-shadow: var(--a-s3) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   6.  STICKY NAVIGATION BAR — iOS Navigation Bar (blur + glass)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .sticky.top-0 {
+  background: var(--a-glass) !important;
+  backdrop-filter: var(--a-glass-blur) !important;
+  -webkit-backdrop-filter: var(--a-glass-blur) !important;
+  border-bottom: 0.5px solid var(--a-sep) !important;
+  box-shadow: none !important;
+}
+
+html[data-apple][data-theme="dark"] .sticky.top-0 {
+  background: rgba(28, 28, 30, 0.88) !important;
+}
+
+/* Page title — Large Title style */
+html[data-apple] .sticky.top-0 .text-xl,
+html[data-apple] .sticky.top-0 .text-2xl,
+html[data-apple] .sticky.top-0 h1 {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--a-l1) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   7.  CARDS & SURFACES — iOS Grouped Inset Cards
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .bg-white {
+  background-color: var(--a-bg-2) !important;
+  border-radius: var(--a-r7) !important;
+  box-shadow: var(--a-s1) !important;
+}
+
+html[data-apple][data-theme="dark"] .bg-white {
+  background-color: var(--a-bg-2) !important;
+}
+
+/* Card hover — subtle lift */
+html[data-apple] a:has(.bg-white):hover .bg-white,
+html[data-apple] .cursor-pointer.bg-white:hover,
+html[data-apple] button.bg-white:hover {
+  box-shadow: var(--a-s2) !important;
+  transform: translateY(-1px) scale(1.002);
+  transition: box-shadow var(--a-t), transform var(--a-t) !important;
+}
+
+/* Overflow clips for card images */
+html[data-apple] .overflow-hidden.rounded-xl,
+html[data-apple] .overflow-hidden.rounded-2xl {
+  border-radius: var(--a-r7) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   8.  TYPOGRAPHY — SF Pro hierarchy
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .text-2xl  { font-size: 22px !important; font-weight: 700; letter-spacing: -0.03em; }
+html[data-apple] .text-xl   { font-size: 19px !important; font-weight: 700; letter-spacing: -0.025em; }
+html[data-apple] .text-lg   { font-size: 17px !important; font-weight: 600; letter-spacing: -0.02em; }
+html[data-apple] .text-base { font-size: 15px !important; letter-spacing: -0.01em; }
+html[data-apple] .text-sm   { font-size: 14px !important; letter-spacing: -0.008em; }
+html[data-apple] .text-xs   { font-size: 12px !important; letter-spacing: -0.004em; }
+
+/* Label hierarchy */
+html[data-apple] .text-slate-900 { color: var(--a-l1) !important; }
+html[data-apple] .text-slate-800 { color: var(--a-l1) !important; }
+html[data-apple] .text-slate-700 { color: var(--a-l1) !important; }
+html[data-apple] .text-slate-600 { color: var(--a-l2) !important; }
+html[data-apple] .text-slate-500 { color: var(--a-l2) !important; }
+html[data-apple] .text-slate-400 { color: var(--a-l3) !important; }
+html[data-apple] .text-slate-300 { color: var(--a-l3) !important; }
+
+/* Section headers — caption uppercase */
+html[data-apple] .uppercase.tracking-wide {
+  text-transform: uppercase !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.025em !important;
+  color: var(--a-l2) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   9.  BUTTONS — iOS pressed states + variants
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] button {
+  font-family: var(--a-font) !important;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  transition:
+    transform   var(--a-tf),
+    opacity     var(--a-tf),
+    background  var(--a-tf),
+    box-shadow  var(--a-tf) !important;
+}
+
+/* Spring press — identical to UIKit highlight */
+html[data-apple] button:active:not(:disabled) {
+  transform: scale(0.94) !important;
+  opacity: 0.82 !important;
+  transition-duration: 0.06s !important;
+}
+
+/* ── Primary (filled) */
+html[data-apple] .bg-blue-600 {
+  background: var(--a-tint) !important;
+  border-radius: var(--a-r4) !important;
+  box-shadow: var(--a-s1) !important;
+  font-weight: 600 !important;
+}
+html[data-apple] button.bg-blue-600:hover { filter: brightness(1.08) !important; }
+
+/* ── Tinted (light fill) */
+html[data-apple] .bg-blue-50  { background: var(--a-tint-bg) !important; }
+html[data-apple] .text-blue-700 { color: var(--a-tint) !important; }
+html[data-apple] .text-blue-600 { color: var(--a-tint) !important; }
+
+/* ── Danger */
+html[data-apple] .bg-red-600, html[data-apple] .bg-red-500 {
+  background: var(--a-sys-red) !important;
+  border-radius: var(--a-r4) !important;
+  box-shadow: var(--a-s1) !important;
+}
+
+/* ── Secondary (slate fill) */
+html[data-apple] button.bg-slate-100,
+html[data-apple] button.bg-slate-200 {
+  background: var(--a-f2) !important;
+  color: var(--a-l1) !important;
+  border-radius: var(--a-r4) !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+html[data-apple][data-theme="dark"] button.bg-slate-200,
+html[data-apple][data-theme="dark"] button.bg-slate-100 {
+  background: var(--a-f2) !important;
+  color: var(--a-l1) !important;
+}
+
+/* ── Amber (client mode) */
+html[data-apple] .bg-amber-500 { background: var(--a-sys-orange) !important; }
+
+/* ── Rounded pills */
+html[data-apple] .rounded-full { border-radius: 99px !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   10. FORM INPUTS — iOS text field style
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] input:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+html[data-apple] textarea,
+html[data-apple] select {
+  font-family: var(--a-font) !important;
+  background: var(--a-f4) !important;
+  border: 1.5px solid transparent !important;
+  border-radius: var(--a-r4) !important;
+  color: var(--a-l1) !important;
+  padding: 10px 12px !important;
+  outline: none !important;
+  transition: border-color var(--a-t), background var(--a-t), box-shadow var(--a-t) !important;
+}
+
+html[data-apple][data-theme="dark"]
+  input:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+html[data-apple][data-theme="dark"] textarea,
+html[data-apple][data-theme="dark"] select {
+  background: var(--a-f4) !important;
+  border-color: transparent !important;
+  color: var(--a-l1) !important;
+  color-scheme: dark;
+}
+
+html[data-apple] input:focus:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+html[data-apple] textarea:focus,
+html[data-apple] select:focus {
+  background: var(--a-bg-2) !important;
+  border-color: var(--a-tint) !important;
+  box-shadow: 0 0 0 3.5px rgba(var(--a-tint-rgb), 0.18) !important;
+}
+
+html[data-apple] input::placeholder,
+html[data-apple] textarea::placeholder { color: var(--a-l3) !important; }
+
+html[data-apple] label {
+  color: var(--a-l2) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.005em;
+}
+
+/* Focus ring via Tailwind class */
+html[data-apple] .focus\:ring-2:focus,
+html[data-apple] .focus\:ring-blue-500:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3.5px rgba(var(--a-tint-rgb), 0.18) !important;
+  border-color: var(--a-tint) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   11. BORDERS & SEPARATORS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .border-slate-100,
+html[data-apple] .border-slate-200 { border-color: var(--a-sep) !important; }
+html[data-apple] .border-slate-300 { border-color: var(--a-sep2) !important; }
+html[data-apple] .border-t { border-top-color: var(--a-sep) !important; }
+html[data-apple] .border-b { border-bottom-color: var(--a-sep) !important; }
+html[data-apple] .divide-y > * + * { border-color: var(--a-sep) !important; }
+html[data-apple] .divide-slate-100 > * + * { border-color: var(--a-sep) !important; }
+html[data-apple] .divide-slate-200 > * + * { border-color: var(--a-sep) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   12. SHADOWS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .shadow-sm  { box-shadow: var(--a-s1) !important; }
+html[data-apple] .shadow     { box-shadow: var(--a-s2) !important; }
+html[data-apple] .shadow-md  { box-shadow: var(--a-s2) !important; }
+html[data-apple] .shadow-lg  { box-shadow: var(--a-s3) !important; }
+html[data-apple] .shadow-xl  { box-shadow: var(--a-s4) !important; }
+html[data-apple] .shadow-none { box-shadow: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   13. BORDER RADIUS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .rounded    { border-radius: var(--a-r3) !important; }
+html[data-apple] .rounded-md { border-radius: var(--a-r3) !important; }
+html[data-apple] .rounded-lg { border-radius: var(--a-r5) !important; }
+html[data-apple] .rounded-xl { border-radius: var(--a-r7) !important; }
+html[data-apple] .rounded-2xl { border-radius: var(--a-r8) !important; }
+html[data-apple] .rounded-3xl { border-radius: var(--a-r9) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   14. STATUS COLORS — iOS System Colors
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Emerald → iOS Green */
+html[data-apple] .bg-emerald-100 { background: rgba(52, 199, 89, 0.14) !important; }
+html[data-apple] .bg-emerald-500, html[data-apple] .bg-emerald-600 { background: var(--a-sys-green) !important; }
+html[data-apple] .text-emerald-600, html[data-apple] .text-emerald-700 { color: var(--a-sys-green) !important; }
+html[data-apple] .text-emerald-500 { color: var(--a-sys-green) !important; }
+
+/* Amber → iOS Orange */
+html[data-apple] .bg-amber-100 { background: rgba(255, 149, 0, 0.14) !important; }
+html[data-apple] .text-amber-600, html[data-apple] .text-amber-700, html[data-apple] .text-amber-500 { color: var(--a-sys-orange) !important; }
+
+/* Red → iOS Red */
+html[data-apple] .bg-red-100 { background: rgba(255, 59, 48, 0.14) !important; }
+html[data-apple] .text-red-500, html[data-apple] .text-red-600, html[data-apple] .text-red-700 { color: var(--a-sys-red) !important; }
+
+/* Blue */
+html[data-apple] .bg-blue-100 { background: rgba(var(--a-tint-rgb), 0.12) !important; }
+html[data-apple] .text-blue-500 { color: var(--a-tint) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   15. LIST ROWS — iOS Grouped list style
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Row tap highlight */
+html[data-apple] .divide-y > div,
+html[data-apple] .divide-y > li {
+  transition: background var(--a-tf) !important;
+}
+
+html[data-apple] .divide-y > div:active,
+html[data-apple] .divide-y > li:active { background: var(--a-f3) !important; }
+
+/* Disclosure chevron */
+html[data-apple] .lucide-chevron-right { color: var(--a-l3) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   16. MODAL / SHEET PANEL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Dialog backdrop */
+html[data-apple] .fixed.inset-0.bg-black\/60,
+html[data-apple] .fixed.inset-0.bg-black\/50,
+html[data-apple] .fixed.inset-0.bg-black\/40 {
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+  background: rgba(0, 0, 0, 0.38) !important;
+}
+
+/* Sheet surface */
+html[data-apple] [role="dialog"] .bg-white {
+  border-radius: var(--a-r8) var(--a-r8) 0 0 !important;
+  background: var(--a-bg-2) !important;
+  box-shadow: var(--a-s4) !important;
+}
+
+/* Desktop modal — symmetrical rounded */
+@media (min-width: 640px) {
+  html[data-apple] [role="dialog"] .bg-white {
+    border-radius: var(--a-r8) !important;
+    box-shadow: var(--a-s4) !important;
+  }
+}
+
+/* Drag handle */
+html[data-apple] .w-10.h-1\.5.rounded-full {
+  background: var(--a-sep2) !important;
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   17. BADGES — pill-style system colors
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] .text-\[10px\],
+html[data-apple] .text-\[11px\] {
+  letter-spacing: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   18. MICRO-INTERACTIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html[data-apple] a,
+html[data-apple] [role="button"],
+html[data-apple] [tabindex] {
+  transition: opacity var(--a-tf) !important;
+}
+
+html[data-apple] a:active,
+html[data-apple] [role="button"]:active { opacity: 0.55 !important; }
+
+/* Icon button size — prevent overflow on press */
+html[data-apple] button > svg { pointer-events: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   19. PAGE TRANSITIONS (augment Framer Motion)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes a-page-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+html[data-apple] main > div {
+  animation: a-page-in 0.25s var(--a-ease) both;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   20. SETTINGS PAGE SPECIFIC
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Preset cards */
+html[data-apple] .border-2.rounded-xl {
+  border-radius: var(--a-r7) !important;
+  border-width: 1.5px !important;
+}
+
+html[data-apple] .border-blue-500 { border-color: var(--a-tint) !important; }
+html[data-apple] .border-slate-200 { border-color: var(--a-sep) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   21. APPLE-UI TOGGLE BUTTON (used in SettingsPage)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.apple-mode-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: transform 0.22s var(--a-spring), box-shadow 0.22s var(--a-ease);
+  width: 100%;
+  text-align: left;
+  color: white;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.apple-mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0) 0%, rgba(88, 86, 214, 0.15) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.apple-mode-card:hover { transform: translateY(-2px) scale(1.005); box-shadow: 0 14px 48px rgba(0,0,0,0.32); }
+.apple-mode-card:hover::before { opacity: 1; }
+.apple-mode-card:active { transform: scale(0.98) !important; transition-duration: 0.07s; }
+
+.apple-mode-card-on {
+  background: linear-gradient(145deg, #007AFF 0%, #5856D6 60%, #AF52DE 100%) !important;
+  box-shadow: 0 8px 32px rgba(0, 122, 255, 0.40), 0 2px 8px rgba(88, 86, 214, 0.30), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+
+.apple-mode-card-on::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -10%;
+  width: 60%;
+  height: 200%;
+  background: rgba(255,255,255,0.07);
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+/* iOS-style switch */
+.a-switch {
+  flex-shrink: 0;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.18);
+  transition: background 0.22s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+
+.a-switch-on { background: rgba(255, 255, 255, 0.95) !important; }
+
+.a-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.28), 0 0.5px 1px rgba(0,0,0,0.18);
+  transition: transform 0.26s var(--a-spring);
+}
+
+.a-switch-on .a-switch-knob {
+  transform: translateX(20px);
+  background: var(--a-tint, #007AFF);
+}
+
+/* Logo mark inside card */
+.apple-mode-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.15);
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   22. RESPONSIVE — Mobile iOS / Desktop macOS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* iOS Large Title page header */
+@media (max-width: 639px) {
+  html[data-apple] h1,
+  html[data-apple] .text-2xl { font-size: 28px !important; font-weight: 700 !important; letter-spacing: -0.04em !important; }
+
+  /* Inset cards — no radius on very narrow content */
+  html[data-apple] .bg-white { border-radius: var(--a-r7) !important; }
+
+  /* Prominent CTA buttons on mobile */
+  html[data-apple] button.w-full.py-3,
+  html[data-apple] button.w-full.py-2\.5 {
+    border-radius: var(--a-r6) !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.02em !important;
+  }
+}
+
+/* macOS — more refined spacing */
+@media (min-width: 1024px) {
+  html[data-apple] .bg-white { border-radius: var(--a-r7) !important; }
+  html[data-apple] .text-2xl { font-size: 24px !important; letter-spacing: -0.035em !important; }
+}

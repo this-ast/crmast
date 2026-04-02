@@ -94,6 +94,7 @@ interface ThemeActions {
   setFont:       (v: FontFamily)   => void
   setFontSize:   (v: FontSize)     => void
   setAnimations: (v: AnimLevel)    => void
+  setAppleMode:  (v: boolean)      => void
   applyPreset:   (p: ThemePreset)  => void
   savePreset:    (name: string)    => void
   deletePreset:  (id: string)      => void
@@ -108,6 +109,7 @@ export interface ThemeState extends ThemeActions {
   font:          FontFamily
   fontSize:      FontSize
   animations:    AnimLevel
+  appleMode:     boolean
   customPresets: ThemePreset[]
 }
 
@@ -119,6 +121,7 @@ const DEFAULTS: Omit<ThemeState, keyof ThemeActions | 'customPresets'> = {
   font:       'inter',
   fontSize:   'md',
   animations: 'standard',
+  appleMode:  false,
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -134,6 +137,7 @@ export const useThemeStore = create<ThemeState>()(
       setFont:       (font)       => set({ font }),
       setFontSize:   (fontSize)   => set({ fontSize }),
       setAnimations: (animations) => set({ animations }),
+      setAppleMode:  (appleMode)  => set({ appleMode }),
 
       applyPreset: (p) => set({
         colorMode: p.colorMode, primary: p.primary,

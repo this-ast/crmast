@@ -33,7 +33,7 @@ const LIGHT_BODY_CSS = `body{background-color:#f1f5f9;color:#1e293b}`
 // ─── ThemeProvider ─────────────────────────────────────────────────────────────
 
 export default function ThemeProvider() {
-  const { colorMode, primary, style, density, font, fontSize, animations } = useThemeStore()
+  const { colorMode, primary, style, density, font, fontSize, animations, appleMode } = useThemeStore()
 
   // Track system dark preference for "auto" mode
   const [systemDark, setSystemDark] = useState(
@@ -56,6 +56,8 @@ export default function ThemeProvider() {
     html.setAttribute('data-density', density)
     html.setAttribute('data-style',   style)
     html.setAttribute('data-anim',    animations)
+    if (appleMode) html.setAttribute('data-apple', 'true')
+    else           html.removeAttribute('data-apple')
 
     // ── Build dynamic CSS vars ───────────────────────────────────────────────
     const vars: Record<string, string> = {}
@@ -110,7 +112,7 @@ export default function ThemeProvider() {
         document.head.appendChild(link)
       }
     }
-  }, [isDark, primary, style, density, font, fontSize, animations])
+  }, [isDark, primary, style, density, font, fontSize, animations, appleMode])
 
   return null
 }
