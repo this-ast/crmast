@@ -246,7 +246,7 @@ export default function PropertiesPage() {
       {/* ─── All properties tab ─── */}
       {tab === 'all' && (
         <>
-          <div className="mb-5 bg-slate-50 rounded-2xl p-4">
+          <div className="mb-5">
             <PropertyFilters />
           </div>
 
