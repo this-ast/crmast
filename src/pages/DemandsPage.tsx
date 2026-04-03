@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronUp, User, TrendingUp, SlidersHorizontal,
   Banknote, MapPin, Home, ArrowRight, Filter, ClipboardList,
   Archive, ArchiveRestore, BookMarked, Building2, ExternalLink,
+  Layers, CreditCard, Maximize2, MoveVertical, Wrench,
 } from 'lucide-react'
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -250,21 +251,23 @@ function RangeInput({
   register: ReturnType<typeof useForm<DemandFormData>>['register']
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center min-w-0">
         <input
           {...register(nameFrom, { valueAsNumber: true })}
           type="number"
+          inputMode="numeric"
           placeholder={placeholderFrom ?? 'от'}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="min-w-0 flex-1 w-0 px-2.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <span className="text-slate-400 text-sm">—</span>
+        <span className="text-slate-400 text-sm shrink-0">—</span>
         <input
           {...register(nameTo, { valueAsNumber: true })}
           type="number"
+          inputMode="numeric"
           placeholder={placeholderTo ?? 'до'}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="min-w-0 flex-1 w-0 px-2.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
     </div>
@@ -337,7 +340,7 @@ function DemandForm({
 
   return (
     <form onSubmit={handleSubmit(handleSave)} className="flex flex-col max-h-[90vh]">
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 overflow-x-hidden">
 
         {/* Title */}
         <div>
@@ -427,7 +430,7 @@ function DemandForm({
         {showMarketType && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
               {DEMAND_MARKET_TYPES.map((m) => (
                 <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
                   <input type="radio" value={m.value} {...register('market_type')} className="accent-blue-600" />
@@ -455,7 +458,7 @@ function DemandForm({
         {showComplexes && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">ЖК (интересующие)</label>
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto overflow-x-hidden">
               {complexes.map((cx) => (
                 <button
                   key={cx.id}
@@ -502,7 +505,7 @@ function DemandForm({
         </div>
       </div>
 
-      <div className="shrink-0 flex gap-2 justify-end px-6 py-4 border-t border-slate-100">
+      <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-slate-100">
         <button
           type="button"
           onClick={onCancel}
@@ -763,6 +766,17 @@ function CollectionFromDemandModal({
 
 // ─── Demand Card ──────────────────────────────────────────────────────────────
 
+// Small helper: one labeled info row with an icon
+function InfoRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 min-w-0">
+      <span className="shrink-0 mt-0.5 text-slate-400">{icon}</span>
+      <span className="shrink-0 text-[11px] font-semibold text-slate-400 w-14">{label}</span>
+      <span className="flex-1 min-w-0">{children}</span>
+    </div>
+  )
+}
+
 function DemandCard({
   demand,
   complexesMap,
@@ -790,6 +804,36 @@ function DemandCard({
     .map((v) => DEMAND_PROPERTY_TYPES.find((x) => x.value === v)?.label ?? v)
   const payLabels = (demand.payment_types ?? [])
     .map((v) => DEMAND_PAYMENT_TYPES.find((x) => x.value === v)?.label ?? v)
+  const marketLabel = DEMAND_MARKET_TYPES.find((m) => m.value === demand.market_type && demand.market_type !== 'any')?.label
+
+  const budgetStr = (() => {
+    if (!demand.budget_min && !demand.budget_max) return null
+    if (demand.budget_min && demand.budget_max)
+      return `${formatPriceShort(demand.budget_min)} — ${formatPriceShort(demand.budget_max)} ₽`
+    if (demand.budget_max) return `до ${formatPriceShort(demand.budget_max)} ₽`
+    return `от ${formatPriceShort(demand.budget_min!)} ₽`
+  })()
+
+  const floorStr = (() => {
+    if (!demand.floor_min && !demand.floor_max) return null
+    if (demand.floor_min && demand.floor_max) return `${demand.floor_min} — ${demand.floor_max} эт.`
+    if (demand.floor_max) return `до ${demand.floor_max} эт.`
+    return `от ${demand.floor_min} эт.`
+  })()
+
+  const areaStr = (() => {
+    if (!demand.area_min && !demand.area_max) return null
+    if (demand.area_min && demand.area_max) return `${demand.area_min} — ${demand.area_max} м²`
+    if (demand.area_max) return `до ${demand.area_max} м²`
+    return `от ${demand.area_min} м²`
+  })()
+
+  const sotkiStr = (() => {
+    if (!demand.area_sotki_min && !demand.area_sotki_max) return null
+    if (demand.area_sotki_min && demand.area_sotki_max) return `${demand.area_sotki_min} — ${demand.area_sotki_max} сот.`
+    if (demand.area_sotki_max) return `до ${demand.area_sotki_max} сот.`
+    return `от ${demand.area_sotki_min} сот.`
+  })()
 
   const alsoLinkOptions = [
     demand.client ? { type: 'client' as const, id: demand.client.id, label: demand.client.name } : null,
@@ -808,102 +852,124 @@ function DemandCard({
           </div>
         )}
 
-        <div className="p-4">
-          <div className="flex items-start gap-3">
-            <div className={cn('shrink-0 w-2 h-2 rounded-full mt-2 border', isArchived ? 'bg-slate-300 border-slate-300' : cn(stage.bg, stage.border))} />
+        {/* ── Clickable main body ── */}
+        <button
+          type="button"
+          onClick={() => onEdit(demand)}
+          className="w-full text-left p-4 hover:bg-slate-50/60 transition-colors"
+        >
+          {/* Header row: stage + number + actions */}
+          <div className="flex items-start gap-2">
+            <div className={cn('shrink-0 w-2 h-2 rounded-full mt-1.5 border', isArchived ? 'bg-slate-300 border-slate-300' : cn(stage.bg, stage.border))} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 {!isArchived && (
-                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full border', stage.bg, stage.color, stage.border)}>
+                  <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border', stage.bg, stage.color, stage.border)}>
                     {stage.label}
                   </span>
                 )}
-                {demand.demand_number && <span className="text-xs text-slate-400">#{demand.demand_number}</span>}
+                {demand.demand_number && <span className="text-[11px] text-slate-400">#{demand.demand_number}</span>}
+                {taskCount > 0 && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                    <ClipboardList size={10} />{taskCount}
+                  </span>
+                )}
               </div>
-              {demand.title && <p className="mt-1 text-sm font-semibold text-slate-800 truncate">{demand.title}</p>}
+              {demand.title && (
+                <p className="mt-1 text-sm font-semibold text-slate-800 leading-snug">{demand.title}</p>
+              )}
               {demand.client && (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/clients?highlight=${demand.client!.id}`)}
-                  className="mt-0.5 text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
-                >
+                <p className="mt-0.5 text-xs text-blue-600 flex items-center gap-1">
                   <User size={10} />
                   {demand.client.client_number}. {demand.client.name}
-                  <ExternalLink size={9} className="opacity-60" />
-                </button>
+                </p>
               )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {taskCount > 0 && (
-                <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-                  <ClipboardList size={11} />
-                  {taskCount}
-                </span>
-              )}
-              <button
-                onClick={() => onArchiveToggle(demand.id, demand.status ?? 'active')}
-                title={isArchived ? 'Восстановить' : 'В архив'}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                {isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
-              </button>
-              <button onClick={() => onEdit(demand)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                <Pencil size={13} />
-              </button>
-              <button onClick={() => onDelete(demand.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                <Trash2 size={13} />
-              </button>
             </div>
           </div>
 
-          {/* Key params */}
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {(demand.budget_min || demand.budget_max) && (
-              <span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                <Banknote size={10} />
-                {demand.budget_min && demand.budget_max
-                  ? `${formatPrice(demand.budget_min)} — ${formatPrice(demand.budget_max)}`
-                  : demand.budget_max ? `до ${formatPrice(demand.budget_max)}` : `от ${formatPrice(demand.budget_min!)}`}
-              </span>
-            )}
+          {/* ── Structured params ── */}
+          <div className="mt-3 space-y-1.5 text-xs">
             {ptLabels.length > 0 && (
-              <span className="flex items-center gap-1 text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
-                <Home size={10} />{ptLabels.join(', ')}
-              </span>
+              <InfoRow icon={<Home size={11} />} label="Тип">
+                <div className="flex flex-wrap gap-1">
+                  {ptLabels.map((l) => (
+                    <span key={l} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-full text-[11px]">
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </InfoRow>
             )}
+
+            {budgetStr && (
+              <InfoRow icon={<Banknote size={11} />} label="Бюджет">
+                <span className="font-semibold text-emerald-700">{budgetStr}</span>
+              </InfoRow>
+            )}
+
+            {marketLabel && (
+              <InfoRow icon={<Layers size={11} />} label="Рынок">
+                <span className="text-slate-700">{marketLabel}</span>
+              </InfoRow>
+            )}
+
+            {(areaStr || floorStr || sotkiStr) && (
+              <InfoRow icon={<Maximize2 size={11} />} label="Площадь">
+                <span className="text-slate-700">
+                  {[areaStr, sotkiStr, floorStr].filter(Boolean).join(' · ')}
+                </span>
+              </InfoRow>
+            )}
+
             {(demand.districts ?? []).length > 0 && (
-              <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                <MapPin size={10} />{demand.districts!.join(', ')}
-              </span>
+              <InfoRow icon={<MapPin size={11} />} label="Район">
+                <div className="flex flex-wrap gap-1">
+                  {demand.districts!.map((d) => (
+                    <span key={d} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[11px]">{d}</span>
+                  ))}
+                </div>
+              </InfoRow>
             )}
+
             {payLabels.length > 0 && (
-              <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                {payLabels.join(', ')}
-              </span>
+              <InfoRow icon={<CreditCard size={11} />} label="Оплата">
+                <div className="flex flex-wrap gap-1">
+                  {payLabels.map((l) => (
+                    <span key={l} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-full text-[11px]">{l}</span>
+                  ))}
+                </div>
+              </InfoRow>
+            )}
+
+            {(demand.renovation ?? []).length > 0 && (
+              <InfoRow icon={<Wrench size={11} />} label="Ремонт">
+                <div className="flex flex-wrap gap-1">
+                  {demand.renovation!.map((r) => (
+                    <span key={r} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[11px]">{r}</span>
+                  ))}
+                </div>
+              </InfoRow>
+            )}
+
+            {(demand.complex_ids ?? []).length > 0 && (
+              <InfoRow icon={<Building2 size={11} />} label="ЖК">
+                <div className="flex flex-wrap gap-1">
+                  {demand.complex_ids!.map((cid) => (
+                    <span key={cid} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full text-[11px]">
+                      {complexesMap[cid] ?? cid}
+                    </span>
+                  ))}
+                </div>
+              </InfoRow>
             )}
           </div>
+        </button>
 
-          {/* Clickable ЖК */}
-          {(demand.complex_ids ?? []).length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {demand.complex_ids!.map((cid) => (
-                <button
-                  key={cid}
-                  type="button"
-                  onClick={() => navigate('/complexes')}
-                  className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors"
-                >
-                  <Building2 size={9} />
-                  {complexesMap[cid] ?? cid}
-                  <ExternalLink size={8} className="opacity-60" />
-                </button>
-              ))}
-            </div>
-          )}
-
+        {/* ── Actions strip ── */}
+        <div className="px-4 pb-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
           {/* Stage quick-change */}
           {!isArchived && (
-            <div className="mt-3 flex gap-1 overflow-x-auto scrollbar-hide">
+            <div className="flex-1 flex gap-1 overflow-x-auto scrollbar-hide">
               {DEMAND_FUNNEL_STAGES.map((s) => (
                 <button
                   key={s.value}
@@ -918,15 +984,34 @@ function DemandCard({
               ))}
             </div>
           )}
-
-          {/* Подборка */}
-          <button
-            type="button"
-            onClick={() => setCollectionOpen(true)}
-            className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-600 text-xs font-medium border border-violet-100 transition-colors"
-          >
-            <BookMarked size={12} /> Сделать подборку
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={() => setCollectionOpen(true)}
+              title="Подборка"
+              className="p-1.5 text-violet-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+            >
+              <BookMarked size={13} />
+            </button>
+            <button
+              onClick={() => onArchiveToggle(demand.id, demand.status ?? 'active')}
+              title={isArchived ? 'Восстановить' : 'В архив'}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              {isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+            </button>
+            <button
+              onClick={() => onEdit(demand)}
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Pencil size={13} />
+            </button>
+            <button
+              onClick={() => onDelete(demand.id)}
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
         </div>
 
         <button
