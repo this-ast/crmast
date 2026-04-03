@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, User, TrendingUp, SlidersHorizontal,
   Banknote, MapPin, Home, ArrowRight, Filter, ClipboardList,
   Archive, ArchiveRestore, BookMarked, Building2, ExternalLink,
-  Layers, CreditCard, Maximize2, MoveVertical, Wrench,
+  Layers, CreditCard, Maximize2, MoveVertical, Wrench, LayoutGrid,
 } from 'lucide-react'
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -1076,6 +1076,7 @@ export default function DemandsPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editDemand, setEditDemand] = useState<Demand | null>(null)
+  const [twoCol, setTwoCol] = useState(false)
 
   // ── filtering ──
   const filtered = useMemo(() => {
@@ -1187,6 +1188,16 @@ export default function DemandsPage() {
           >
             {showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
             {showArchived ? 'Архив' : 'Активные'}
+          </button>
+          <button
+            onClick={() => setTwoCol((v) => !v)}
+            title={twoCol ? 'Одна колонка' : 'Две колонки'}
+            className={cn(
+              'p-2 rounded-xl border transition-all',
+              twoCol ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            )}
+          >
+            <LayoutGrid size={15} />
           </button>
           <button
             onClick={() => setCreateOpen(true)}
@@ -1340,7 +1351,7 @@ export default function DemandsPage() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className={twoCol ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
         {filtered.map((d) => (
           <DemandCard
             key={d.id}

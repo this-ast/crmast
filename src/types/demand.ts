@@ -119,9 +119,15 @@ export const DEMAND_PAYMENT_TYPES: { value: string; label: string }[] = [
   { value: 'installment', label: 'Рассрочка' },
 ]
 
-export const DEMAND_MARKET_TYPES: { value: string; label: string }[] = [
+export const DEMAND_MARKET_TYPES: { value: string; label: string; sub?: { value: string; label: string }[] }[] = [
   { value: 'any',       label: 'Любой'     },
-  { value: 'primary',   label: 'Новостройка'},
+  {
+    value: 'primary',   label: 'Новостройка',
+    sub: [
+      { value: 'primary_ready',   label: 'Сданный дом'   },
+      { value: 'primary_unready', label: 'Не сданный дом' },
+    ],
+  },
   { value: 'secondary', label: 'Вторичка'  },
 ]
 

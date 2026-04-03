@@ -6,7 +6,7 @@ import {
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
   ArrowUp, ArrowDown, List, GitMerge, ClipboardList, Bookmark,
   ShoppingCart, ArrowRight, MessageSquare, Copy, Check,
-  ToggleLeft, ToggleRight,
+  ToggleLeft, ToggleRight, LayoutGrid,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -132,25 +132,133 @@ function RangeInput({
   placeholderTo?: string
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center min-w-0">
         <input
           type="number"
+          inputMode="numeric"
           value={fromValue ?? ''}
           onChange={(e) => onFromChange(e.target.value === '' ? undefined : Number(e.target.value))}
           placeholder={placeholderFrom}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="min-w-0 flex-1 w-0 px-2.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <span className="text-slate-400 text-sm">—</span>
+        <span className="text-slate-400 text-sm shrink-0">—</span>
         <input
           type="number"
+          inputMode="numeric"
           value={toValue ?? ''}
           onChange={(e) => onToChange(e.target.value === '' ? undefined : Number(e.target.value))}
           placeholder={placeholderTo}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="min-w-0 flex-1 w-0 px-2.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+    </div>
+  )
+}
+
+// ─── Popup Chip Select (opens a bottom-sheet style popup) ─────────────────────
+
+function PopupChipSelect({
+  label,
+  options,
+  value,
+  onChange,
+  colorActive = 'bg-blue-600 text-white border-blue-600',
+  searchable = false,
+  buttonVariant = 'default',
+}: {
+  label: string
+  options: { value: string; label: string }[]
+  value: string[]
+  onChange: (v: string[]) => void
+  colorActive?: string
+  searchable?: boolean
+  buttonVariant?: 'default' | 'violet'
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const toggle = (v: string) =>
+    onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v])
+  const filtered = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options
+
+  const btnColor = buttonVariant === 'violet'
+    ? 'border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100'
+    : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50'
+
+  return (
+    <div className="relative">
+      <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm transition-colors ${btnColor}`}
+      >
+        <span className="truncate">
+          {value.length === 0
+            ? <span className="text-slate-400">Выбрать...</span>
+            : <span className="font-medium">{value.slice(0, 3).join(', ')}{value.length > 3 ? ` +${value.length - 3}` : ''}</span>
+          }
+        </span>
+        <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setOpen(false)}>
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl shadow-2xl border border-slate-100 p-4 pb-8 max-h-[60vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-slate-800">{label}</p>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            {searchable && (
+              <div className="relative mb-3">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск..."
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-wrap gap-2">
+                {filtered.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => toggle(o.value)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                      value.includes(o.value) ? colorActive : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+                {filtered.length === 0 && <p className="text-sm text-slate-400 py-4 w-full text-center">Ничего не найдено</p>}
+              </div>
+            </div>
+            {value.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="mt-3 text-xs text-slate-400 hover:text-red-500 transition-colors"
+              >
+                Сбросить всё
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -309,10 +417,10 @@ function ClientForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
 
         {/* Basic */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">
               Имя <span className="text-red-500">*</span>
@@ -332,6 +440,17 @@ function ClientForm({
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+        </div>
+
+        {/* Request field (for all clients) */}
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Запрос / пожелания</label>
+          <textarea
+            {...register('request')}
+            rows={2}
+            placeholder="Что ищет клиент, особые пожелания..."
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* Type chips */}
@@ -438,9 +557,10 @@ function ClientForm({
               <div className="flex flex-wrap gap-2">
                 {BUYER_STATUSES.map((s) => {
                   const colorMap: Record<string, string> = {
-                    'Горячий': 'border-red-300 bg-red-50 text-red-700',
-                    'Теплый':  'border-orange-300 bg-orange-50 text-orange-700',
-                    'Холодный':'border-blue-300 bg-blue-50 text-blue-700',
+                    'Горячий':   'border-red-300 bg-red-50 text-red-700',
+                    'Теплый':    'border-orange-300 bg-orange-50 text-orange-700',
+                    'Холодный':  'border-blue-300 bg-blue-50 text-blue-700',
+                    'Воздухан':  'border-slate-300 bg-slate-100 text-slate-500',
                   }
                   return (
                     <button
@@ -461,6 +581,53 @@ function ClientForm({
             </div>
 
             <hr className="border-blue-100" />
+
+            {/* Market type FIRST (above property types) */}
+            {showMarketType && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
+                <div className="flex flex-wrap gap-2">
+                  {DEMAND_MARKET_TYPES.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setDemandMarketType(demandMarketType === m.value ? 'any' : m.value)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                        demandMarketType === m.value
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Sub-options when Новостройка selected */}
+                {(demandMarketType === 'primary' || demandMarketType === 'primary_ready' || demandMarketType === 'primary_unready') && (
+                  <div className="mt-2 flex flex-wrap gap-2 pl-2">
+                    {[
+                      { value: 'primary_ready',   label: 'Сданный дом'    },
+                      { value: 'primary_unready',  label: 'Не сданный дом' },
+                    ].map((sub) => (
+                      <button
+                        key={sub.value}
+                        type="button"
+                        onClick={() => setDemandMarketType(demandMarketType === sub.value ? 'primary' : sub.value)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                          demandMarketType === sub.value
+                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+                        )}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Property types */}
             <div>
@@ -541,77 +708,41 @@ function ClientForm({
               />
             )}
 
-            {/* Market type */}
-            {showMarketType && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
-                <div className="flex gap-3">
-                  {DEMAND_MARKET_TYPES.map((m) => (
-                    <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="demand_market_type"
-                        value={m.value}
-                        checked={demandMarketType === m.value}
-                        onChange={() => setDemandMarketType(m.value)}
-                        className="accent-blue-600"
-                      />
-                      <span className="text-sm text-slate-700">{m.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Payment types */}
-            <ChipSelect
+            {/* Payment types — popup */}
+            <PopupChipSelect
               label="Форма оплаты"
               options={DEMAND_PAYMENT_TYPES}
               value={demandPaymentTypes}
               onChange={setDemandPaymentTypes}
             />
 
-            {/* Districts */}
+            {/* Districts — popup with search */}
             {districts.length > 0 && (
-              <ChipSelect
+              <PopupChipSelect
                 label="Районы"
                 options={districts.map((d) => ({ value: d, label: d }))}
                 value={demandDistricts}
                 onChange={setDemandDistricts}
+                searchable
               />
             )}
 
-            {/* Complexes */}
+            {/* Complexes — popup with search */}
             {showComplexes && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">ЖК</label>
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                  {complexes.map((cx) => (
-                    <button
-                      key={cx.id}
-                      type="button"
-                      onClick={() =>
-                        setDemandComplexIds((prev) =>
-                          prev.includes(cx.id) ? prev.filter((x) => x !== cx.id) : [...prev, cx.id]
-                        )
-                      }
-                      className={cn(
-                        'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
-                        demandComplexIds.includes(cx.id)
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-violet-400'
-                      )}
-                    >
-                      {cx.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <PopupChipSelect
+                label="ЖК (интересующие)"
+                options={complexes.map((cx) => ({ value: cx.id, label: cx.name }))}
+                value={demandComplexIds}
+                onChange={setDemandComplexIds}
+                searchable
+                colorActive="bg-violet-600 text-white border-violet-600"
+                buttonVariant="violet"
+              />
             )}
 
-            {/* Renovation */}
+            {/* Renovation — popup */}
             {(showApartmentFields || showHouseFields) && renovationOptions.length > 0 && (
-              <ChipSelect
+              <PopupChipSelect
                 label="Ремонт"
                 options={renovationOptions.map((r) => ({ value: r, label: r }))}
                 value={demandRenovation}
@@ -648,7 +779,15 @@ function ClientForm({
         )}
 
         {/* Contact dates (for all types) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Первый контакт</label>
+            <input
+              type="date"
+              {...register('first_contact')}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Последний контакт</label>
             <input
@@ -702,7 +841,7 @@ function ClientForm({
         </div>
       </div>
 
-      <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
+      <div className="flex gap-3 px-4 py-3 border-t border-slate-100">
         <button
           type="button"
           onClick={onCancel}
@@ -906,6 +1045,7 @@ function ClientRow({
   const [expanded, setExpanded] = useState(highlighted)
   const [phoneRevealed, setPhoneRevealed] = useState(false)
   const rowRef = useRef<HTMLDivElement>(null)
+  const updateClient = useUpdateClient()
 
   const today = new Date().toISOString().slice(0, 10)
   const isOverdue =
@@ -956,8 +1096,29 @@ function ClientRow({
                 {client.status}
               </span>
             )}
-            {/* Active/inactive badge */}
-            <ActiveBadge client={client} />
+            {/* Clickable active/inactive toggle — works for all clients */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                const types = getClientTypes(client)
+                const isSL = types.includes('Продавец') || types.includes('Арендодатель')
+                const isBT = types.includes('Покупатель') || types.includes('Арендатор')
+                if (isSL && !isBT) {
+                  const nowActive = client.seller_status !== 'Неактивный'
+                  updateClient.mutate({ id: client.id, data: { seller_status: nowActive ? 'Неактивный' : 'Активный' } })
+                } else if (isBT) {
+                  updateClient.mutate({ id: client.id, data: { is_active: client.is_active === false } })
+                } else {
+                  // legacy: toggle via status
+                  const nowActive = client.status !== 'Неактивный' && client.status !== 'Архив'
+                  updateClient.mutate({ id: client.id, data: { status: nowActive ? 'Неактивный' : '' } })
+                }
+              }}
+              className="shrink-0"
+            >
+              <ActiveBadge client={client} />
+            </button>
             {isOverdue && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏰ Контакт</span>
             )}
@@ -984,7 +1145,7 @@ function ClientRow({
         <div className="px-4 pb-4 space-y-3 border-t border-slate-50">
           <div className="grid grid-cols-2 gap-3 pt-3">
             {client.phone && (
-              <div>
+              <div className="col-span-2">
                 <p className="text-xs text-slate-400 mb-1">Телефон</p>
                 <div className="flex items-center gap-2">
                   <Phone size={13} className="text-slate-400 shrink-0" />
@@ -998,6 +1159,12 @@ function ClientRow({
                     {phoneRevealed ? 'Скрыть' : 'Показать'}
                   </button>
                 </div>
+              </div>
+            )}
+            {client.first_contact && (
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Первый контакт</p>
+                <p className="text-sm text-slate-700">{client.first_contact}</p>
               </div>
             )}
             {client.last_contact && (
@@ -1163,6 +1330,7 @@ export default function ClientsPage() {
   const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('client_number')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [view, setView] = useState<'list' | 'funnel'>('list')
+  const [twoCol, setTwoCol] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
@@ -1345,6 +1513,16 @@ export default function ClientsPage() {
             </button>
           </div>
           <button
+            onClick={() => setTwoCol((v) => !v)}
+            title={twoCol ? 'Одна колонка' : 'Две колонки'}
+            className={cn(
+              'p-2 rounded-xl border text-xs font-medium transition-all',
+              twoCol ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            )}
+          >
+            <LayoutGrid size={15} />
+          </button>
+          <button
             onClick={() => { setEditingClient(null); setIsFormOpen(true) }}
             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
           >
@@ -1526,7 +1704,7 @@ export default function ClientsPage() {
       {!isLoading && view === 'funnel' && <SalesFunnel clients={filtered} />}
 
       {!isLoading && view === 'list' && filtered.length > 0 && (
-        <div className="space-y-2">
+        <div className={twoCol ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
           {filtered.map((client) => (
             <ClientRow
               key={client.id}

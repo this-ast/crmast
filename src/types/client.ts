@@ -18,6 +18,7 @@ export interface Client {
   priority?: string
   /** Global active/inactive for buyers & tenants (separate from temperature status) */
   is_active?: boolean
+  first_contact?: string
   last_contact?: string
   next_contact?: string
   next_step?: string
@@ -49,6 +50,7 @@ export interface ClientFormData {
   status?: string
   priority?: string
   is_active?: boolean
+  first_contact?: string
   last_contact?: string
   next_contact?: string
   next_step?: string
@@ -87,15 +89,15 @@ export const CLIENT_TYPE_ICONS: Record<string, string> = {
 }
 
 export const CLIENT_TYPE_COLORS: Record<string, string> = {
-  'Покупатель':         'bg-blue-100 text-blue-700',
-  'Продавец':           'bg-emerald-100 text-emerald-700',
-  'Подрядчик-перекуп':  'bg-violet-100 text-violet-700',
+  'Покупатель':         'bg-green-100 text-green-800',
+  'Арендатор':          'bg-emerald-100 text-emerald-700',
+  'Продавец':           'bg-yellow-100 text-yellow-800',
   'Арендодатель':       'bg-amber-100 text-amber-700',
-  'Арендатор':          'bg-cyan-100 text-cyan-700',
+  'Подрядчик-перекуп':  'bg-violet-100 text-violet-700',
 }
 
 /** Temperature statuses for Buyers and Tenants */
-export const BUYER_STATUSES = ['Горячий', 'Теплый', 'Холодный'] as const
+export const BUYER_STATUSES = ['Горячий', 'Теплый', 'Холодный', 'Воздухан'] as const
 
 /** Simple active/inactive statuses for Sellers and Landlords */
 export const SELLER_STATUSES = ['Активный', 'Неактивный'] as const
