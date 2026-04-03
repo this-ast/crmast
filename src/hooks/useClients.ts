@@ -74,6 +74,11 @@ export function useCreateClient() {
       const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
       const cleaned = { ...data } as Record<string, unknown>
       DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = undefined })
+      // Strip NaN from numeric fields
+      const NUM_FIELDS = ['price_net', 'rental_price', 'rental_deposit'] as const
+      NUM_FIELDS.forEach(f => { if (cleaned[f] !== undefined && isNaN(cleaned[f] as number)) cleaned[f] = undefined })
+      // Ensure client_types is an array
+      if (!cleaned.client_types) cleaned.client_types = []
 
       const { data: created, error } = await supabase
         .from('clients')
@@ -110,6 +115,9 @@ export function useUpdateClient() {
       const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
       const cleaned = { ...data } as Record<string, unknown>
       DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = null })
+      // Strip NaN from numeric fields
+      const NUM_FIELDS = ['price_net', 'rental_price', 'rental_deposit'] as const
+      NUM_FIELDS.forEach(f => { if (cleaned[f] !== undefined && isNaN(cleaned[f] as number)) cleaned[f] = null })
 
       const { data: updated, error } = await supabase
         .from('clients')

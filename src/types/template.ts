@@ -17,6 +17,8 @@ export interface TemplateFormData {
 export const TEMPLATE_CATEGORIES = [
   { value: 'Продавцам',    label: '🏠 Продавцам' },
   { value: 'Покупателям',  label: '🛒 Покупателям' },
+  { value: 'Арендодатель', label: '🔑 Арендодатель' },
+  { value: 'Арендатор',    label: '🏡 Арендатор' },
   { value: 'Горячим',      label: '🔥 Горячим' },
   { value: 'Тёплым',       label: '⚡ Тёплым' },
   { value: 'Думает',       label: '💭 Думает' },

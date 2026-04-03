@@ -10,13 +10,26 @@ export interface Client {
   request?: string
   budget?: string
   contact_date?: string
+  /** Legacy single-type field (kept for backward compat) */
   client_type?: string
+  /** Multi-type: Продавец, Покупатель, Арендодатель, Арендатор */
+  client_types?: string[]
   status?: string
   priority?: string
+  /** Global active/inactive for buyers & tenants (separate from temperature status) */
+  is_active?: boolean
   last_contact?: string
   next_contact?: string
   next_step?: string
   funnel_stage?: FunnelStage
+  /** Seller: net price (цена на руки) */
+  price_net?: number
+  /** Landlord: monthly rental price */
+  rental_price?: number
+  /** Landlord: deposit */
+  rental_deposit?: number
+  /** Landlord: utilities — 'included' | 'separate' */
+  rental_utilities?: string
   created_at: string
   updated_at: string
 }
@@ -30,12 +43,18 @@ export interface ClientFormData {
   budget?: string
   contact_date?: string
   client_type?: string
+  client_types?: string[]
   status?: string
   priority?: string
+  is_active?: boolean
   last_contact?: string
   next_contact?: string
   next_step?: string
   funnel_stage?: FunnelStage
+  price_net?: number
+  rental_price?: number
+  rental_deposit?: number
+  rental_utilities?: string
 }
 
 export const FUNNEL_STAGES: { value: FunnelStage; label: string; color: string; bg: string; border: string }[] = [
@@ -48,49 +67,60 @@ export const FUNNEL_STAGES: { value: FunnelStage; label: string; color: string; 
   { value: 'deal',      label: 'Сделка',                 color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
 ]
 
+/** Active types shown in UI for new/editing. Legacy types kept only in icon/color maps for display. */
 export const CLIENT_TYPES = [
   'Покупатель',
   'Продавец',
-  'Подрядчик-перекуп',
   'Арендодатель',
   'Арендатор',
 ] as const
 
 export const CLIENT_TYPE_ICONS: Record<string, string> = {
-  'Покупатель': '🛒',
-  'Продавец': '🏠',
-  'Подрядчик-перекуп': '🔄',
-  'Арендодатель': '🔑',
-  'Арендатор': '🏡',
+  'Покупатель':         '🛒',
+  'Продавец':           '🏠',
+  'Подрядчик-перекуп':  '🔄',
+  'Арендодатель':       '🔑',
+  'Арендатор':          '🏡',
 }
 
 export const CLIENT_TYPE_COLORS: Record<string, string> = {
-  'Покупатель': 'bg-blue-100 text-blue-700',
-  'Продавец': 'bg-emerald-100 text-emerald-700',
-  'Подрядчик-перекуп': 'bg-violet-100 text-violet-700',
-  'Арендодатель': 'bg-amber-100 text-amber-700',
-  'Арендатор': 'bg-cyan-100 text-cyan-700',
+  'Покупатель':         'bg-blue-100 text-blue-700',
+  'Продавец':           'bg-emerald-100 text-emerald-700',
+  'Подрядчик-перекуп':  'bg-violet-100 text-violet-700',
+  'Арендодатель':       'bg-amber-100 text-amber-700',
+  'Арендатор':          'bg-cyan-100 text-cyan-700',
 }
 
+/** Temperature statuses for Buyers and Tenants */
+export const BUYER_STATUSES = ['Горячий', 'Теплый', 'Холодный'] as const
+
+/** Simple active/inactive statuses for Sellers and Landlords */
+export const SELLER_STATUSES = ['Активный', 'Неактивный'] as const
+
+/** Full list kept for backward compat (filters, display, etc.) */
 export const CLIENT_STATUSES = [
   'Горячий',
   'Теплый',
   'Думает',
   'Воздухан',
   'Холодный',
+  'Активный',
+  'Неактивный',
   'Сделка',
   'Архив',
 ] as const
 
 // Priority hint shown next to status
 export const CLIENT_STATUS_PRIORITY: Record<string, string> = {
-  'Горячий': '🔥 Срочно в работу',
-  'Теплый': '⚡ Активно работать',
-  'Думает': '💭 Прогреть',
-  'Воздухан': '💨 Дожать или забить',
-  'Холодный': '❄️ Напомнить о себе',
-  'Сделка': '✅ Закрыто',
-  'Архив': '📦 Архив',
+  'Горячий':    '🔥 Срочно в работу',
+  'Теплый':     '⚡ Активно работать',
+  'Холодный':   '❄️ Напомнить о себе',
+  'Думает':     '💭 Прогреть',
+  'Воздухан':   '💨 Дожать или забить',
+  'Активный':   '✅ В работе',
+  'Неактивный': '⏸ Приостановлен',
+  'Сделка':     '✅ Закрыто',
+  'Архив':      '📦 Архив',
 }
 
 export const CLIENT_PRIORITIES = [
@@ -103,16 +133,60 @@ export const CLIENT_PRIORITIES = [
 ] as const
 
 export const CLIENT_STATUS_COLORS: Record<string, string> = {
-  // New statuses
-  'Горячий': 'bg-red-100 text-red-700',
-  'Теплый': 'bg-orange-100 text-orange-700',
-  'Думает': 'bg-purple-100 text-purple-700',
-  'Воздухан': 'bg-slate-100 text-slate-500',
-  'Холодный': 'bg-blue-100 text-blue-700',
-  'Сделка': 'bg-emerald-100 text-emerald-700',
-  'Архив': 'bg-yellow-100 text-yellow-700',
-  // Legacy statuses (backward compat)
-  'Тёплый': 'bg-orange-100 text-orange-700',
-  'Холодный(ЛИД)': 'bg-blue-100 text-blue-700',
-  'Воздухан(ка)': 'bg-slate-100 text-slate-500',
+  'Горячий':    'bg-red-100 text-red-700',
+  'Теплый':     'bg-orange-100 text-orange-700',
+  'Думает':     'bg-purple-100 text-purple-700',
+  'Воздухан':   'bg-slate-100 text-slate-500',
+  'Холодный':   'bg-blue-100 text-blue-700',
+  'Активный':   'bg-emerald-100 text-emerald-700',
+  'Неактивный': 'bg-slate-100 text-slate-500',
+  'Сделка':     'bg-emerald-100 text-emerald-700',
+  'Архив':      'bg-yellow-100 text-yellow-700',
+  // Legacy backward compat
+  'Тёплый':          'bg-orange-100 text-orange-700',
+  'Холодный(ЛИД)':   'bg-blue-100 text-blue-700',
+  'Воздухан(ка)':    'bg-slate-100 text-slate-500',
+}
+
+/** Returns the canonical types array for a client, falling back to legacy client_type */
+export function getClientTypes(client: Pick<Client, 'client_types' | 'client_type'>): string[] {
+  if (client.client_types && client.client_types.length > 0) return client.client_types
+  if (client.client_type) return [client.client_type]
+  return []
+}
+
+/** True if the client is effectively active (for template display logic) */
+export function isClientActive(client: Pick<Client, 'status' | 'is_active'>): boolean {
+  if (client.status === 'Неактивный' || client.status === 'Архив') return false
+  if (client.is_active === false) return false
+  return true
+}
+
+/** Returns template categories relevant for this client */
+export function getClientTemplateCategories(client: Pick<Client, 'client_types' | 'client_type' | 'status' | 'is_active'>): string[] {
+  if (!isClientActive(client)) return []
+  const types = getClientTypes(client)
+  const categories: string[] = []
+
+  if (types.includes('Продавец')) {
+    categories.push('Продавцам')
+  }
+  if (types.includes('Арендодатель')) {
+    categories.push('Арендодатель')
+  }
+  if (types.includes('Покупатель')) {
+    categories.push('Покупателям')
+    if (client.status === 'Горячий') categories.push('Горячим')
+    else if (client.status === 'Теплый' || client.status === 'Тёплый') categories.push('Тёплым')
+    else if (client.status === 'Холодный') categories.push('Холодным')
+    else if (client.status === 'Думает') categories.push('Думает')
+  }
+  if (types.includes('Арендатор')) {
+    categories.push('Арендатор')
+    if (client.status === 'Горячий') categories.push('Горячим')
+    else if (client.status === 'Теплый' || client.status === 'Тёплый') categories.push('Тёплым')
+    else if (client.status === 'Холодный') categories.push('Холодным')
+  }
+
+  return [...new Set(categories)]
 }

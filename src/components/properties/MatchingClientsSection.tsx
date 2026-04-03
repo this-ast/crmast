@@ -4,6 +4,7 @@ import { useClients } from '@/hooks/useClients'
 import { useCreateCollection } from '@/hooks/useCollections'
 import { getMatchingClients, getMatchLevel, getMatchPercent } from '@/utils/matching'
 import type { Property, Client } from '@/types'
+import { getClientTypes, isClientActive } from '@/types'
 import { formatPriceShort } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
@@ -78,7 +79,9 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-slate-500">
             {client.budget && <span>Бюджет: <span className="font-medium text-slate-700">{client.budget}</span></span>}
-            {client.client_type && <span>· {client.client_type}</span>}
+            {getClientTypes(client).length > 0 && (
+              <span>· {getClientTypes(client).join(', ')}</span>
+            )}
           </div>
           {(client.matchReasons.length > 0 || client.matchMismatches.length > 0) && (
             <div className="flex flex-wrap gap-1 mt-1.5">
@@ -134,7 +137,27 @@ export default function MatchingClientsSection({ property, onClientClick }: Matc
   const [expanded, setExpanded] = useState(true)
   const [showAll, setShowAll] = useState(false)
 
-  const matches = getMatchingClients(property, clients, 2)
+  // Filter clients by deal type and active status before scoring
+  const eligibleClients = clients.filter((c) => {
+    // Exclude inactive/archived clients
+    if (!isClientActive(c)) return false
+    if (c.status === 'Архив' || c.status === 'Неактивный') return false
+
+    const types = getClientTypes(c)
+    if (types.length === 0) return true // legacy clients without types: include
+
+    if (property.deal_type === 'sale') {
+      // Sale property: only buyers (and legacy Подрядчик-перекуп)
+      return types.some((t) => t === 'Покупатель' || t === 'Подрядчик-перекуп')
+    }
+    if (property.deal_type === 'rent') {
+      // Rent property: only tenants
+      return types.includes('Арендатор')
+    }
+    return true
+  })
+
+  const matches = getMatchingClients(property, eligibleClients, 2)
   const displayed = showAll ? matches : matches.slice(0, 5)
 
   if (isLoading) return null

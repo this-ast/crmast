@@ -5,7 +5,7 @@ import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
   ArrowUp, ArrowDown, List, GitMerge, ClipboardList, Bookmark,
-  ShoppingCart, ArrowRight,
+  ShoppingCart, ArrowRight, MessageSquare, Copy, Check,
 } from 'lucide-react'
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
@@ -14,6 +14,7 @@ import { usePropertiesByOwner } from '@/hooks/useProperties'
 import { useDealsByClient } from '@/hooks/useDeals'
 import { useCustomStatuses } from '@/hooks/useCustomStatuses'
 import { useSavedFilters, useCreateSavedFilter } from '@/hooks/useSavedFilters'
+import { useTemplates } from '@/hooks/useTemplates'
 import Timeline from '@/components/timeline/Timeline'
 import SalesFunnel from '@/components/clients/SalesFunnel'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
@@ -21,8 +22,10 @@ import type { Client, ClientFormData } from '@/types'
 import {
   CLIENT_STATUSES, CLIENT_PRIORITIES, CLIENT_STATUS_COLORS, CLIENT_STATUS_PRIORITY,
   CLIENT_TYPES, CLIENT_TYPE_ICONS, CLIENT_TYPE_COLORS,
+  BUYER_STATUSES, SELLER_STATUSES,
   PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS,
   DEAL_STATUSES, FUNNEL_STAGES,
+  getClientTypes, isClientActive, getClientTemplateCategories,
 } from '@/types'
 import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -38,7 +41,8 @@ function OverdueBanner({ clients }: { clients: Client[] }) {
       c.next_contact &&
       c.next_contact <= today &&
       c.status !== 'Архив' &&
-      c.status !== 'Сделка'
+      c.status !== 'Сделка' &&
+      c.status !== 'Неактивный'
   )
   if (overdue.length === 0) return null
 
@@ -71,7 +75,7 @@ function OverdueBanner({ clients }: { clients: Client[] }) {
   )
 }
 
-// ─── Client Form ────────────────────────────────────────────────────────────────
+// ─── Client Form ─────────────────────────────────────────────────────────────
 
 function ClientForm({
   initial,
@@ -84,13 +88,61 @@ function ClientForm({
   onCancel: () => void
   isSubmitting: boolean
 }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>({
-    defaultValues: initial,
+  // Derive initial types from client_types or legacy client_type
+  const initialTypes = useMemo(() => {
+    if (initial?.client_types && initial.client_types.length > 0) return initial.client_types
+    if (initial?.client_type) return [initial.client_type]
+    return []
+  }, [initial])
+
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(initialTypes)
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ClientFormData>({
+    defaultValues: {
+      ...initial,
+      client_types: initialTypes,
+      is_active: initial?.is_active !== false,
+    },
   })
 
+  const isSeller   = selectedTypes.includes('Продавец')
+  const isBuyer    = selectedTypes.includes('Покупатель')
+  const isLandlord = selectedTypes.includes('Арендодатель')
+  const isTenant   = selectedTypes.includes('Арендатор')
+  const isBuyerOrTenant   = isBuyer || isTenant
+  const isSellerOrLandlord = isSeller || isLandlord
+  const hasAnyType = selectedTypes.length > 0
+
+  // Status options depend on type combination
+  const statusOptions: readonly string[] = useMemo(() => {
+    if (isBuyerOrTenant && !isSellerOrLandlord) return BUYER_STATUSES
+    if (isSellerOrLandlord && !isBuyerOrTenant) return SELLER_STATUSES
+    // Mixed or none: show all relevant
+    return CLIENT_STATUSES
+  }, [isBuyerOrTenant, isSellerOrLandlord])
+
+  const toggleType = (type: string) => {
+    setSelectedTypes((prev) => {
+      const next = prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+      setValue('client_types', next, { shouldDirty: true })
+      setValue('client_type', next[0] ?? '', { shouldDirty: true })
+      return next
+    })
+  }
+
+  const onSubmit = (data: ClientFormData) => {
+    onSave({
+      ...data,
+      client_types: selectedTypes,
+      client_type: selectedTypes[0] ?? data.client_type,
+    })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSave)} className="flex flex-col max-h-[85vh]">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4">
+
+        {/* Basic info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">
@@ -113,24 +165,102 @@ function ClientForm({
           </div>
         </div>
 
+        {/* Type multi-select */}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Тип клиента</label>
           <div className="flex flex-wrap gap-2">
-            {CLIENT_TYPES.map((t) => (
-              <label key={t} className="cursor-pointer">
-                <input type="radio" {...register('client_type')} value={t} className="sr-only peer" />
-                <span className={cn(
-                  'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer',
-                  'border-slate-200 text-slate-600 bg-white',
-                  'peer-checked:border-blue-400 peer-checked:bg-blue-50 peer-checked:text-blue-700'
-                )}>
-                  {CLIENT_TYPE_ICONS[t]} {t}
-                </span>
-              </label>
-            ))}
+            {CLIENT_TYPES.map((t) => {
+              const active = selectedTypes.includes(t)
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleType(t)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                    active
+                      ? 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm'
+                      : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  )}
+                >
+                  <span>{CLIENT_TYPE_ICONS[t]}</span>
+                  {t}
+                  {active && <Check size={11} className="text-blue-500" />}
+                </button>
+              )
+            })}
           </div>
+          {selectedTypes.length > 1 && (
+            <p className="text-xs text-slate-400 mt-1.5">
+              Клиент совмещает несколько ролей
+            </p>
+          )}
         </div>
 
+        {/* Status — contextual */}
+        {hasAnyType && (
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                {isBuyerOrTenant && !isSellerOrLandlord ? 'Температура лида' : 'Статус'}
+              </label>
+              {isBuyerOrTenant && !isSellerOrLandlord ? (
+                // Chip selector for temperature
+                <div className="flex flex-wrap gap-2">
+                  {BUYER_STATUSES.map((s) => {
+                    const colors: Record<string, string> = {
+                      'Горячий': 'border-red-300 bg-red-50 text-red-700',
+                      'Теплый':  'border-orange-300 bg-orange-50 text-orange-700',
+                      'Холодный':'border-blue-300 bg-blue-50 text-blue-700',
+                    }
+                    const inactive = 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    const currentStatus = watch('status')
+                    const isSelected = currentStatus === s
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setValue('status', isSelected ? '' : s, { shouldDirty: true })}
+                        className={cn(
+                          'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                          isSelected ? colors[s] : inactive
+                        )}
+                      >
+                        {CLIENT_STATUS_PRIORITY[s]?.split(' ')[0]} {s}
+                        {isSelected && <Check size={11} />}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <select
+                  {...register('status')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— не указан —</option>
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Global active toggle for buyers/tenants */}
+            {isBuyerOrTenant && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('is_active')}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-700">Активный клиент</span>
+                <span className="text-xs text-slate-400">(снимите если клиент приостановлен)</span>
+              </label>
+            )}
+          </div>
+        )}
+
+        {/* Request + Budget */}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Запрос</label>
           <textarea
@@ -146,7 +276,7 @@ function ClientForm({
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Бюджет</label>
             <input
               {...register('budget')}
-              placeholder="до 5млн"
+              placeholder="до 5 млн"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -160,21 +290,63 @@ function ClientForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">Статус</label>
-            <select
-              {...register('status')}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— не указан —</option>
-              {CLIENT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s} · {CLIENT_STATUS_PRIORITY[s]?.replace(/^[^\s]+\s/, '')}
-                </option>
-              ))}
-            </select>
+        {/* Seller-specific: price_net */}
+        {isSeller && (
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-3">
+            <p className="text-xs font-semibold text-emerald-700">🏠 Поля продавца</p>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Цена на руки (₽)</label>
+              <input
+                type="number"
+                {...register('price_net', { valueAsNumber: true })}
+                placeholder="4 500 000"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <p className="text-xs text-slate-400 mt-1">Сумма, которую хочет получить продавец после всех комиссий</p>
+            </div>
           </div>
+        )}
+
+        {/* Landlord-specific: rental fields */}
+        {isLandlord && (
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl space-y-3">
+            <p className="text-xs font-semibold text-amber-700">🔑 Поля арендодателя</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Аренда в месяц (₽)</label>
+                <input
+                  type="number"
+                  {...register('rental_price', { valueAsNumber: true })}
+                  placeholder="35 000"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Залог (₽)</label>
+                <input
+                  type="number"
+                  {...register('rental_deposit', { valueAsNumber: true })}
+                  placeholder="35 000"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Коммунальные платежи</label>
+              <select
+                {...register('rental_utilities')}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">— не указано —</option>
+                <option value="included">Включены в стоимость</option>
+                <option value="separate">Оплачиваются отдельно</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Priority */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Приоритет</label>
             <select
@@ -185,8 +357,21 @@ function ClientForm({
               {CLIENT_PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Этап воронки</label>
+            <select
+              {...register('funnel_stage')}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— не указан —</option>
+              {FUNNEL_STAGES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
+        {/* Contact dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Последний контакт</label>
@@ -213,19 +398,6 @@ function ClientForm({
             placeholder="Скинуть подборку, дожать..."
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Этап воронки</label>
-          <select
-            {...register('funnel_stage')}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">— не указан —</option>
-            {FUNNEL_STAGES.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
         </div>
 
         <div>
@@ -345,6 +517,61 @@ function ClientDealsSection({ clientId }: { clientId: string }) {
   )
 }
 
+// ─── Client Templates Section ─────────────────────────────────────────────────
+
+function ClientTemplatesSection({ client }: { client: Client }) {
+  const { data: allTemplates = [] } = useTemplates()
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const categories = getClientTemplateCategories(client)
+  if (categories.length === 0) return null
+
+  const templates = allTemplates.filter((t) => categories.includes(t.category))
+  if (templates.length === 0) return null
+
+  const handleCopy = (id: string, body: string) => {
+    navigator.clipboard.writeText(body).then(() => {
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 1500)
+    })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <MessageSquare size={13} className="text-slate-400" />
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Шаблоны</p>
+        <span className="text-[10px] text-slate-400">({categories.join(', ')})</span>
+      </div>
+      <div className="space-y-1.5">
+        {templates.map((t) => (
+          <div
+            key={t.id}
+            className="flex items-start gap-2 px-3 py-2 bg-white border border-slate-100 rounded-lg"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-800">{t.title}</p>
+              <p className="text-xs text-slate-400 truncate mt-0.5">{t.body.slice(0, 80)}{t.body.length > 80 ? '…' : ''}</p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleCopy(t.id, t.body) }}
+              className={cn(
+                'shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all',
+                copiedId === t.id
+                  ? 'bg-emerald-50 text-emerald-600'
+                  : 'bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600'
+              )}
+            >
+              {copiedId === t.id ? <Check size={11} /> : <Copy size={11} />}
+              {copiedId === t.id ? 'Скопировано' : 'Копировать'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Client Row ────────────────────────────────────────────────────────────────
 
 function ClientRow({
@@ -371,7 +598,11 @@ function ClientRow({
     client.next_contact &&
     client.next_contact <= today &&
     client.status !== 'Архив' &&
-    client.status !== 'Сделка'
+    client.status !== 'Сделка' &&
+    client.status !== 'Неактивный'
+
+  const types = getClientTypes(client)
+  const active = isClientActive(client)
 
   useEffect(() => {
     if (highlighted && rowRef.current) {
@@ -400,20 +631,29 @@ function ClientRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-slate-900 truncate">{client.name}</span>
-            {client.client_type && (
-              <span className={cn(
-                'text-xs font-medium px-1.5 py-0.5 rounded-md',
-                CLIENT_TYPE_COLORS[client.client_type] ?? 'bg-slate-100 text-slate-600'
-              )}>
-                {CLIENT_TYPE_ICONS[client.client_type]} {client.client_type}
+            {/* Show all types */}
+            {types.map((t) => (
+              <span
+                key={t}
+                className={cn(
+                  'text-xs font-medium px-1.5 py-0.5 rounded-md',
+                  CLIENT_TYPE_COLORS[t] ?? 'bg-slate-100 text-slate-600'
+                )}
+              >
+                {CLIENT_TYPE_ICONS[t]} {t}
               </span>
-            )}
+            ))}
             {client.status && (
               <span className={cn(
                 'text-xs font-medium px-2 py-0.5 rounded-full',
                 CLIENT_STATUS_COLORS[client.status] ?? 'bg-slate-100 text-slate-600'
               )}>
                 {client.status}
+              </span>
+            )}
+            {!active && client.status !== 'Архив' && client.status !== 'Неактивный' && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                Неактивный
               </span>
             )}
             {isOverdue && (
@@ -480,6 +720,12 @@ function ClientRow({
                 <p className="text-sm text-slate-700">{client.contact_date}</p>
               </div>
             )}
+            {client.last_contact && (
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Последний контакт</p>
+                <p className="text-sm text-slate-700">{client.last_contact}</p>
+              </div>
+            )}
             {client.next_contact && (
               <div>
                 <p className="text-xs text-slate-400 mb-1">Следующий контакт</p>
@@ -492,6 +738,41 @@ function ClientRow({
               </div>
             )}
           </div>
+
+          {/* Seller: цена на руки */}
+          {types.includes('Продавец') && client.price_net != null && client.price_net > 0 && (
+            <div className="bg-emerald-50 rounded-lg px-3 py-2">
+              <p className="text-xs text-emerald-600 font-medium mb-0.5">Цена на руки</p>
+              <p className="text-sm font-semibold text-emerald-800">{formatPrice(client.price_net)}</p>
+            </div>
+          )}
+
+          {/* Landlord: rental info */}
+          {types.includes('Арендодатель') && (client.rental_price || client.rental_deposit || client.rental_utilities) && (
+            <div className="bg-amber-50 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-xs text-amber-700 font-medium mb-1">Условия аренды</p>
+              {client.rental_price != null && client.rental_price > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Аренда/мес</span>
+                  <span className="font-medium text-slate-800">{formatPrice(client.rental_price)}</span>
+                </div>
+              )}
+              {client.rental_deposit != null && client.rental_deposit > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Залог</span>
+                  <span className="font-medium text-slate-800">{formatPrice(client.rental_deposit)}</span>
+                </div>
+              )}
+              {client.rental_utilities && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Коммунальные</span>
+                  <span className="font-medium text-slate-800">
+                    {client.rental_utilities === 'included' ? 'Включены' : 'Отдельно'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {client.status && CLIENT_STATUS_PRIORITY[client.status] && (
             <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
@@ -520,14 +801,16 @@ function ClientRow({
             </div>
           )}
 
-          {/* Properties */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 size={13} className="text-slate-400" />
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Объекты</p>
+          {/* Properties (for sellers and landlords) */}
+          {(types.includes('Продавец') || types.includes('Арендодатель') || types.length === 0) && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 size={13} className="text-slate-400" />
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Объекты</p>
+              </div>
+              <ClientProperties clientId={client.id} />
             </div>
-            <ClientProperties clientId={client.id} />
-          </div>
+          )}
 
           {/* Deals */}
           <ClientDealsSection clientId={client.id} />
@@ -545,6 +828,9 @@ function ClientRow({
           <div className="border-t border-slate-50 pt-3">
             <Timeline entityType="client" entityId={client.id} />
           </div>
+
+          {/* Message templates (only for active clients) */}
+          <ClientTemplatesSection client={client} />
 
           <div className="flex gap-2 pt-1">
             <button
@@ -574,7 +860,6 @@ const TYPE_TABS = [
   { value: '', label: 'Все' },
   { value: 'Покупатель', label: '🛒 Покупатели' },
   { value: 'Продавец', label: '🏠 Продавцы' },
-  { value: 'Подрядчик-перекуп', label: '🔄 Перекупы' },
   { value: 'Арендодатель', label: '🔑 Арендодатели' },
   { value: 'Арендатор', label: '🏡 Арендаторы' },
 ]
@@ -628,7 +913,11 @@ export default function ClientsPage() {
 
   const filtered = useMemo(() => {
     const list = clients.filter((c) => {
-      if (typeFilter && c.client_type !== typeFilter) return false
+      // Type filter: check both client_types array and legacy client_type
+      if (typeFilter) {
+        const types = getClientTypes(c)
+        if (!types.includes(typeFilter)) return false
+      }
       if (statusFilter && c.status !== statusFilter) return false
       if (search) {
         const q = search.toLowerCase()
@@ -667,22 +956,25 @@ export default function ClientsPage() {
 
   const handleSave = async (data: ClientFormData) => {
     try {
+      const types = data.client_types ?? []
+      const needsDemand = (types.includes('Покупатель') || types.includes('Арендатор'))
+
       if (editingClient) {
         await updateClient.mutateAsync({ id: editingClient.id, data })
         toast.success('Клиент обновлён')
         setIsFormOpen(false)
         setEditingClient(null)
-        // If changed to buyer and no active demand — prompt
-        if (data.client_type === 'Покупатель' && !demandCounts[editingClient.id]) {
-          setPromptDemandClient({ ...editingClient, ...data })
+        // Prompt demand if switched to buyer/tenant and no active demand yet
+        if (needsDemand && !demandCounts[editingClient.id]) {
+          setPromptDemandClient({ ...editingClient, ...data } as Client)
         }
       } else {
         const newClient = await createClient.mutateAsync(data)
         toast.success('Клиент добавлен')
         setIsFormOpen(false)
         setEditingClient(null)
-        // If new buyer — prompt
-        if (data.client_type === 'Покупатель' && newClient) {
+        // Prompt demand for new buyers/tenants
+        if (needsDemand && newClient) {
           setPromptDemandClient(newClient as Client)
         }
       }
@@ -709,11 +1001,14 @@ export default function ClientsPage() {
     setIsFormOpen(true)
   }
 
-  // Count per type for tab badges
+  // Count per type for tab badges (check client_types array)
   const typeCounts = useMemo(() => {
     const map: Record<string, number> = {}
     for (const c of clients) {
-      if (c.client_type) map[c.client_type] = (map[c.client_type] ?? 0) + 1
+      const types = getClientTypes(c)
+      for (const t of types) {
+        map[t] = (map[t] ?? 0) + 1
+      }
     }
     return map
   }, [clients])
@@ -722,6 +1017,11 @@ export default function ClientsPage() {
     [...new Set(clients.map((c) => c.status).filter(Boolean))] as string[],
     [clients]
   )
+
+  // Demand type label for prompt modal
+  const promptDemandType = promptDemandClient
+    ? getClientTypes(promptDemandClient).includes('Арендатор') ? 'аренду' : 'покупку'
+    : 'покупку'
 
   return (
     <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
@@ -779,7 +1079,7 @@ export default function ClientsPage() {
               key={tab.value}
               onClick={() => setTypeFilter(tab.value)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
                 typeFilter === tab.value
                   ? 'bg-blue-600 text-white'
                   : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'
@@ -1011,7 +1311,7 @@ export default function ClientsPage() {
         </div>
       </Modal>
 
-      {/* Prompt: create demand for buyer */}
+      {/* Prompt: create demand for buyer or tenant */}
       <Modal
         isOpen={!!promptDemandClient}
         onClose={() => setPromptDemandClient(null)}
@@ -1022,8 +1322,8 @@ export default function ClientsPage() {
           <div className="flex items-center gap-2 mb-3">
             <ShoppingCart size={18} className="text-blue-500 shrink-0" />
             <p className="text-sm text-slate-700">
-              <span className="font-semibold">{promptDemandClient?.name}</span> помечен как Покупатель.
-              Создать для него спрос?
+              <span className="font-semibold">{promptDemandClient?.name}</span> ищет недвижимость для{' '}
+              <span className="font-medium">{promptDemandType}</span>. Создать спрос?
             </p>
           </div>
           <p className="text-xs text-slate-400 mb-5">
