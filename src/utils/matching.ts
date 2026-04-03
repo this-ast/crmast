@@ -1,4 +1,5 @@
 import type { Client, Property } from '@/types'
+import type { Demand } from '@/types/demand'
 
 // ─── Budget parsing ────────────────────────────────────────────────────────────
 
@@ -279,6 +280,213 @@ export function scorePropertyForClient(property: Property, client: Client): Matc
 
 export function scoreClientForProperty(client: Client, property: Property): MatchScore {
   return scorePropertyForClient(property, client)
+}
+
+// ─── Demand-based strict scoring ───────────────────────────────────────────────
+//
+// Max score breakdown (demand-based):
+// Budget          : 4
+// Rooms (apt)     : 3
+// District        : 3
+// Market type     : 2
+// Payment         : 2
+// Floor           : 2
+// Complex         : 3
+// Area            : 1
+// Renovation      : 1
+// Urgency bonus   : 1
+// ─────────────────
+// TOTAL           : 22
+
+export const MAX_DEMAND_MATCH_SCORE = 22
+
+// Maps demand property_type tokens → property type
+const APT_TOKENS = new Set(['studio', '1br', '2br', '3br', '4br+'])
+const HOUSE_TOKENS = new Set(['house', 'cottage', 'dacha'])
+const LAND_TOKENS = new Set(['land'])
+const COM_TOKENS = new Set(['commercial'])
+
+// Maps apartment token → room count
+const TOKEN_TO_ROOMS: Record<string, number> = {
+  studio: 0,
+  '1br':  1,
+  '2br':  2,
+  '3br':  3,
+  '4br+': 4,
+}
+
+export function scorePropertyForDemand(property: Property, demand: Demand): MatchScore {
+  let score = 0
+  const reasons: string[] = []
+  const mismatches: string[] = []
+  const pt = demand.property_types ?? []
+
+  // ── Hard excludes ────────────────────────────────────────────────────────────
+
+  // 1. Property type hard exclude
+  if (pt.length > 0) {
+    const wantsApt   = pt.some((t) => APT_TOKENS.has(t))
+    const wantsHouse = pt.some((t) => HOUSE_TOKENS.has(t))
+    const wantsLand  = pt.some((t) => LAND_TOKENS.has(t))
+    const wantsCom   = pt.some((t) => COM_TOKENS.has(t))
+
+    const propIsApt   = property.type === 'apartment'
+    const propIsHouse = property.type === 'house'
+    const propIsLand  = property.type === 'land'
+    const propIsCom   = property.type === 'commercial'
+
+    const typeOk =
+      (propIsApt   && wantsApt)   ||
+      (propIsHouse && wantsHouse) ||
+      (propIsLand  && wantsLand)  ||
+      (propIsCom   && wantsCom)
+
+    if (!typeOk) {
+      const wanted = [
+        wantsApt && 'Квартира', wantsHouse && 'Дом',
+        wantsLand && 'Участок', wantsCom && 'Коммерция',
+      ].filter(Boolean).join('/')
+      return { score: 0, reasons: [], mismatches: [`Тип: хочет ${wanted}`] }
+    }
+
+    // 2. Room count hard exclude (only for apartments)
+    if (propIsApt && wantsApt && property.rooms !== undefined) {
+      const wantedRooms = pt.filter((t) => APT_TOKENS.has(t)).map((t) => TOKEN_TO_ROOMS[t])
+      if (wantedRooms.length > 0) {
+        const propRoomKey = property.rooms >= 4 ? 4 : property.rooms
+        if (!wantedRooms.includes(propRoomKey)) {
+          const labels = wantedRooms.map((r) => (r === 0 ? 'Студия' : `${r}-комн.`))
+          return { score: 0, reasons: [], mismatches: [`Комнаты: хочет ${labels.join('/')}, объект ${property.rooms === 0 ? 'студия' : property.rooms + '-комн.'}`] }
+        }
+        score += 3
+        reasons.push(wantedRooms.map((r) => (r === 0 ? 'Студия' : `${r}-комн.`)).join('/'))
+      }
+    }
+  }
+
+  // 3. Floor max hard exclude
+  if (demand.floor_max && property.floor !== undefined && property.floor > demand.floor_max) {
+    return { score: 0, reasons: [], mismatches: [`Этаж ${property.floor} > макс. ${demand.floor_max}`] }
+  }
+
+  // 4. Budget hard exclude (>15% over budget_max)
+  const budgetMax = demand.budget_max
+  if (budgetMax && budgetMax > 0 && property.price > budgetMax * 1.15) {
+    const over = Math.round((property.price / budgetMax - 1) * 100)
+    return { score: 0, reasons: [], mismatches: [`Дорого: +${over}% выше бюджета`] }
+  }
+
+  // ── Scoring ──────────────────────────────────────────────────────────────────
+
+  // Budget (0-4)
+  if (budgetMax && budgetMax > 0) {
+    if (property.price <= budgetMax) {
+      score += 4; reasons.push('В бюджете')
+    } else if (property.price <= budgetMax * 1.08) {
+      score += 2; reasons.push('Чуть выше бюджета (+8%)')
+    } else {
+      score += 1; reasons.push('Немного выше бюджета')
+    }
+  } else if (demand.budget_min && property.price >= demand.budget_min) {
+    score += 1; reasons.push('Выше минимального бюджета')
+  }
+
+  // District (0-3)
+  const wantedDistricts = demand.districts ?? []
+  if (wantedDistricts.length > 0 && property.district) {
+    const propD = property.district.toLowerCase()
+    const matched = wantedDistricts.some((d) => {
+      const dl = d.toLowerCase()
+      return propD.includes(dl) || dl.includes(propD) || (dl.length >= 4 && propD.includes(dl.slice(0, 4)))
+    })
+    if (matched) {
+      score += 3; reasons.push(`Район: ${property.district}`)
+    } else {
+      mismatches.push(`Район не совпадает (хочет: ${wantedDistricts.slice(0, 2).join(', ')})`)
+    }
+  }
+
+  // Market type (0-2)
+  if (demand.market_type && demand.market_type !== 'any' && property.market_type) {
+    const demMkt = demand.market_type === 'primary' ? 'new_build' : 'secondary'
+    if (demMkt === property.market_type) {
+      score += 2
+      reasons.push(demMkt === 'new_build' ? 'Новостройка' : 'Вторичка')
+    } else {
+      mismatches.push(demMkt === 'new_build' ? 'Хочет новостройку' : 'Хочет вторичку')
+    }
+  }
+
+  // Payment (0-2)
+  const payTypes = demand.payment_types ?? []
+  if (payTypes.length > 0) {
+    const payOk =
+      (payTypes.includes('mortgage')     && property.has_mortgage)     ||
+      (payTypes.includes('installment')  && property.has_installment)  ||
+      (payTypes.includes('cash'))
+    if (payOk) {
+      const labels: Record<string, string> = { cash: 'Наличные', mortgage: 'Ипотека', installment: 'Рассрочка' }
+      const matched = payTypes.filter((p) => p === 'cash' || (p === 'mortgage' && property.has_mortgage) || (p === 'installment' && property.has_installment))
+      score += 2; reasons.push(matched.map((p) => labels[p]).filter(Boolean).join(', '))
+    } else {
+      mismatches.push('Способ оплаты не поддерживается')
+    }
+  }
+
+  // Floor min (0-2): only soft score (hard exclude already handled floor_max)
+  if (demand.floor_min && property.floor !== undefined) {
+    if (property.floor >= demand.floor_min) {
+      score += 2; reasons.push(`Этаж ${property.floor} подходит`)
+    } else {
+      mismatches.push(`Этаж ${property.floor} < мин. ${demand.floor_min}`)
+    }
+  } else if (!demand.floor_min && !demand.floor_max && property.floor !== undefined) {
+    score += 2; reasons.push(`Этаж ${property.floor}`)
+  }
+
+  // Complex (0-3)
+  const complexIds = demand.complex_ids ?? []
+  if (complexIds.length > 0 && property.complex_id) {
+    if (complexIds.includes(property.complex_id)) {
+      score += 3; reasons.push('ЖК совпадает')
+    } else {
+      mismatches.push('ЖК не в списке предпочтений')
+    }
+  }
+
+  // Area (0-1) — for apartments/houses use area; for land use area_sotki
+  const demAreaMin = demand.area_min
+  const demAreaMax = demand.area_max
+  if ((demAreaMin || demAreaMax) && property.area) {
+    const areaOk =
+      (demAreaMin === undefined || property.area >= demAreaMin) &&
+      (demAreaMax === undefined || property.area <= demAreaMax)
+    if (areaOk) { score += 1; reasons.push(`Площадь ${property.area} м²`) }
+    else { mismatches.push(`Площадь не в диапазоне`) }
+  } else {
+    const demSotkiMin = demand.area_sotki_min
+    const demSotkiMax = demand.area_sotki_max
+    if ((demSotkiMin || demSotkiMax) && property.area_sotki) {
+      const sotkiOk =
+        (demSotkiMin === undefined || property.area_sotki >= demSotkiMin) &&
+        (demSotkiMax === undefined || property.area_sotki <= demSotkiMax)
+      if (sotkiOk) { score += 1; reasons.push(`Участок ${property.area_sotki} сот.`) }
+      else { mismatches.push(`Площадь участка не в диапазоне`) }
+    }
+  }
+
+  return { score, reasons, mismatches }
+}
+
+export function getDemandMatchLevel(score: number): MatchLevel {
+  const pct = score / MAX_DEMAND_MATCH_SCORE
+  if (pct >= 0.65) return 'high'
+  if (pct >= 0.35) return 'medium'
+  return 'low'
+}
+
+export function getDemandMatchPercent(score: number): number {
+  return Math.min(100, Math.round((score / MAX_DEMAND_MATCH_SCORE) * 100))
 }
 
 // ─── Batch matchers ────────────────────────────────────────────────────────────

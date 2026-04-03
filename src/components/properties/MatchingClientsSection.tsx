@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { Users, Wand2, MessageCircle, BookMarked, ChevronDown, ChevronUp } from 'lucide-react'
 import { useClients } from '@/hooks/useClients'
+import { useDemands } from '@/hooks/useDemands'
 import { useCreateCollection } from '@/hooks/useCollections'
-import { getMatchingClients, getMatchLevel, getMatchPercent } from '@/utils/matching'
+import {
+  scorePropertyForClient,
+  getMatchLevel, getMatchPercent,
+  scorePropertyForDemand,
+  getDemandMatchLevel, getDemandMatchPercent,
+} from '@/utils/matching'
 import type { Property, Client } from '@/types'
-import { getClientTypes, isClientActive } from '@/types'
+import type { Demand } from '@/types/demand'
+import { getClientTypes, isClientActive, isBuyerTenantActive } from '@/types'
 import { formatPriceShort } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
@@ -24,15 +31,33 @@ interface MatchedClient extends Client {
   matchScore: number
   matchReasons: string[]
   matchMismatches: string[]
+  demandBased: boolean
+  demand?: Demand
 }
 
-function ClientRow({ client, property, onClientClick }: { client: MatchedClient; property: Property; onClientClick?: (c: MatchedClient) => void }) {
+function ClientRow({ client, property, onClientClick }: {
+  client: MatchedClient
+  property: Property
+  onClientClick?: (c: MatchedClient) => void
+}) {
   const [creating, setCreating] = useState(false)
   const createCollection = useCreateCollection()
-  const level = getMatchLevel(client.matchScore)
-  const percent = getMatchPercent(client.matchScore)
+
+  const level      = client.demandBased ? getDemandMatchLevel(client.matchScore) : getMatchLevel(client.matchScore)
+  const percent    = client.demandBased ? getDemandMatchPercent(client.matchScore) : getMatchPercent(client.matchScore)
   const levelStyle = LEVEL_STYLES[level]
-  const phone = client.phone?.replace(/\D/g, '')
+  const phone      = client.phone?.replace(/\D/g, '')
+
+  const budgetLabel = (() => {
+    if (client.demand?.budget_max || client.demand?.budget_min) {
+      const min = client.demand.budget_min ? formatPriceShort(client.demand.budget_min) : null
+      const max = client.demand.budget_max ? formatPriceShort(client.demand.budget_max) : null
+      if (min && max) return `${min} – ${max}`
+      if (max) return `до ${max}`
+      if (min) return `от ${min}`
+    }
+    return client.budget ?? null
+  })()
 
   async function handleCreateCollection() {
     setCreating(true)
@@ -45,12 +70,7 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
       toast.success(
         <span>
           Подборка создана!{' '}
-          <a
-            href={`/share/${collection.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline font-medium"
-          >
+          <a href={`/share/${collection.slug}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
             Открыть ссылку
           </a>
         </span>,
@@ -78,7 +98,9 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
             <span className="text-xs text-slate-400 font-mono">#{client.client_number}</span>
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-slate-500">
-            {client.budget && <span>Бюджет: <span className="font-medium text-slate-700">{client.budget}</span></span>}
+            {budgetLabel && (
+              <span>Бюджет: <span className="font-medium text-slate-700">{budgetLabel}</span></span>
+            )}
             {getClientTypes(client).length > 0 && (
               <span>· {getClientTypes(client).join(', ')}</span>
             )}
@@ -106,7 +128,6 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleCreateCollection}
@@ -133,31 +154,63 @@ function ClientRow({ client, property, onClientClick }: { client: MatchedClient;
 }
 
 export default function MatchingClientsSection({ property, onClientClick }: MatchingClientsSectionProps) {
-  const { data: clients = [], isLoading } = useClients()
+  const { data: clients = [], isLoading: clientsLoading } = useClients()
+  const { data: demands = [], isLoading: demandsLoading }  = useDemands()
   const [expanded, setExpanded] = useState(true)
-  const [showAll, setShowAll] = useState(false)
+  const [showAll, setShowAll]   = useState(false)
 
-  // Filter clients by deal type and active status before scoring
+  const isLoading = clientsLoading || demandsLoading
+
+  // clientId → first active demand
+  const demandMap = new Map<string, Demand>()
+  for (const d of demands) {
+    if (d.client_id && d.status !== 'archived' && d.status !== 'deal') {
+      if (!demandMap.has(d.client_id)) demandMap.set(d.client_id, d)
+    }
+  }
+
+  // Filter to active buyers/tenants matching deal type
   const eligibleClients = clients.filter((c) => {
-    // Exclude inactive/archived clients
     if (!isClientActive(c)) return false
-    if (c.status === 'Архив' || c.status === 'Неактивный') return false
+    if (c.status === 'Архив') return false
 
     const types = getClientTypes(c)
-    if (types.length === 0) return true // legacy clients without types: include
-
     if (property.deal_type === 'sale') {
-      // Sale property: only buyers (and legacy Подрядчик-перекуп)
-      return types.some((t) => t === 'Покупатель' || t === 'Подрядчик-перекуп')
+      if (types.length === 0) return true // legacy
+      if (!types.some((t) => t === 'Покупатель' || t === 'Подрядчик-перекуп')) return false
+      return isBuyerTenantActive(c)
     }
     if (property.deal_type === 'rent') {
-      // Rent property: only tenants
-      return types.includes('Арендатор')
+      if (!types.includes('Арендатор')) return false
+      return isBuyerTenantActive(c)
     }
     return true
   })
 
-  const matches = getMatchingClients(property, eligibleClients, 2)
+  // Score each client
+  const matches: MatchedClient[] = []
+  for (const c of eligibleClients) {
+    const demand = demandMap.get(c.id)
+    if (demand) {
+      const { score, reasons, mismatches } = scorePropertyForDemand(property, demand)
+      if (score > 0) {
+        matches.push({ ...c, matchScore: score, matchReasons: reasons, matchMismatches: mismatches, demandBased: true, demand })
+      }
+    } else {
+      const { score, reasons, mismatches } = scorePropertyForClient(property, c)
+      if (score >= 2) {
+        matches.push({ ...c, matchScore: score, matchReasons: reasons, matchMismatches: mismatches, demandBased: false })
+      }
+    }
+  }
+
+  // Sort by normalized percent (fair comparison between demand-based and legacy scores)
+  matches.sort((a, b) => {
+    const pa = a.demandBased ? getDemandMatchPercent(a.matchScore) : getMatchPercent(a.matchScore)
+    const pb = b.demandBased ? getDemandMatchPercent(b.matchScore) : getMatchPercent(b.matchScore)
+    return pb - pa
+  })
+
   const displayed = showAll ? matches : matches.slice(0, 5)
 
   if (isLoading) return null
@@ -185,12 +238,8 @@ export default function MatchingClientsSection({ property, onClientClick }: Matc
           {matches.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-5 bg-slate-50 rounded-xl text-center">
               <Users size={24} className="text-slate-300" />
-              <p className="text-xs text-slate-400">
-                Нет клиентов, подходящих под параметры объекта
-              </p>
-              <p className="text-[11px] text-slate-300">
-                Заполните клиентам поля: бюджет, запрос, тип
-              </p>
+              <p className="text-xs text-slate-400">Нет клиентов, подходящих под параметры объекта</p>
+              <p className="text-[11px] text-slate-300">Заполните клиентам поля: бюджет, запрос, тип</p>
             </div>
           ) : (
             <div className="space-y-2">

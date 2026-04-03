@@ -287,10 +287,12 @@ function DemandForm({
   isSubmitting: boolean
 }) {
   const districts = getOptionsWithDeletions('crm_districts')
+  const renovationOptions = getOptionsWithDeletions('crm_renovation')
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>(initial?.districts ?? [])
   const [selectedPropTypes, setSelectedPropTypes] = useState<string[]>(initial?.property_types ?? [])
   const [selectedPaymentTypes, setSelectedPaymentTypes] = useState<string[]>(initial?.payment_types ?? [])
   const [selectedComplexIds, setSelectedComplexIds] = useState<string[]>(initial?.complex_ids ?? [])
+  const [selectedRenovation, setSelectedRenovation] = useState<string[]>(initial?.renovation ?? [])
   const [clientId, setClientId] = useState(initial?.client_id ?? '')
 
   const { register, handleSubmit } = useForm<DemandFormData>({
@@ -329,6 +331,7 @@ function DemandForm({
       property_types: selectedPropTypes,
       payment_types: selectedPaymentTypes,
       complex_ids: selectedComplexIds,
+      renovation: selectedRenovation,
     })
   }
 
@@ -475,6 +478,16 @@ function DemandForm({
               ))}
             </div>
           </div>
+        )}
+
+        {/* Renovation */}
+        {(showApartmentFields || showHouseFields) && renovationOptions.length > 0 && (
+          <ChipSelect
+            label="Ремонт"
+            options={renovationOptions.map((r) => ({ value: r, label: r }))}
+            value={selectedRenovation}
+            onChange={setSelectedRenovation}
+          />
         )}
 
         {/* Notes */}

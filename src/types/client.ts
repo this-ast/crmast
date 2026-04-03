@@ -30,6 +30,8 @@ export interface Client {
   rental_deposit?: number
   /** Landlord: utilities — 'included' | 'separate' */
   rental_utilities?: string
+  /** Seller/Landlord role status: 'Активный' | 'Неактивный' */
+  seller_status?: string
   created_at: string
   updated_at: string
 }
@@ -55,6 +57,7 @@ export interface ClientFormData {
   rental_price?: number
   rental_deposit?: number
   rental_utilities?: string
+  seller_status?: string
 }
 
 export const FUNNEL_STAGES: { value: FunnelStage; label: string; color: string; bg: string; border: string }[] = [
@@ -155,11 +158,26 @@ export function getClientTypes(client: Pick<Client, 'client_types' | 'client_typ
   return []
 }
 
-/** True if the client is effectively active (for template display logic) */
-export function isClientActive(client: Pick<Client, 'status' | 'is_active'>): boolean {
-  if (client.status === 'Неактивный' || client.status === 'Архив') return false
-  if (client.is_active === false) return false
-  return true
+/** True if the client is effectively active (any role active — for template display) */
+export function isClientActive(client: Pick<Client, 'status' | 'is_active' | 'seller_status' | 'client_types' | 'client_type'>): boolean {
+  const types = getClientTypes(client)
+  const isBT = types.includes('Покупатель') || types.includes('Арендатор')
+  const isSL = types.includes('Продавец') || types.includes('Арендодатель')
+
+  if (isSL && !isBT) return client.seller_status !== 'Неактивный'
+  if (isBT && !isSL) return client.is_active !== false && client.status !== 'Архив'
+  if (isBT && isSL) {
+    const sellerActive = client.seller_status !== 'Неактивный'
+    const buyerActive = client.is_active !== false && client.status !== 'Архив'
+    return sellerActive || buyerActive
+  }
+  // Legacy / no type
+  return client.status !== 'Неактивный' && client.status !== 'Архив'
+}
+
+/** True if the buyer/tenant role specifically is active (used for matching) */
+export function isBuyerTenantActive(client: Pick<Client, 'is_active' | 'status'>): boolean {
+  return client.is_active !== false && client.status !== 'Архив' && client.status !== 'Неактивный'
 }
 
 /** Returns template categories relevant for this client */

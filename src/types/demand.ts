@@ -19,6 +19,7 @@ export interface Demand {
   area_sotki_max?: number
   market_type?: string        // 'primary','secondary','any'
   complex_ids?: string[]
+  renovation?: string[]
   funnel_stage?: DemandFunnelStage
   status?: DemandStatus
   notes?: string
@@ -44,6 +45,7 @@ export interface DemandFormData {
   area_sotki_max?: number
   market_type?: string
   complex_ids?: string[]
+  renovation?: string[]
   funnel_stage?: DemandFunnelStage
   status?: DemandStatus
   notes?: string
