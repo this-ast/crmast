@@ -19,6 +19,13 @@ import MediaUploader from '@/components/ui/MediaUploader'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Format integer with thousands spaces: 7700000 → "7 700 000"
+function fmtNum(val: number | string | null | undefined): string {
+  if (val == null || val === '') return ''
+  const digits = String(val).replace(/[\s\u00A0]/g, '').replace(/[^\d]/g, '')
+  return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') : ''
+}
+
 function parseFlexibleNumber(raw: string): number | null {
   // Accept: "5500000", "5 500 000", "5,500,000", "5.500.000", "65,5", "65.5"
   const clean = raw.trim()
@@ -605,10 +612,19 @@ export default function PropertyForm() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
     clearErrors,
   } = useForm<any>()
+
+  // Numeric change handler: strips non-digits, formats with thin spaces
+  const onNumeric = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/[\s\u00A0]/g, '').replace(/[^\d]/g, '')
+    const formatted = digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') : ''
+    setValue(name, formatted, { shouldValidate: false })
+    clearErrors(name as any)
+  }
 
   // Load editing data
   useEffect(() => {
@@ -628,9 +644,9 @@ export default function PropertyForm() {
       setIsRealtorProperty(editingProperty.is_realtor_property ?? false)
       reset({
         status:          editingProperty.status,
-        price:           editingProperty.price != null ? String(editingProperty.price) : '',
-        price_net:       editingProperty.price_net != null ? String(editingProperty.price_net) : '',
-        agent_commission: editingProperty.agent_commission != null ? String(editingProperty.agent_commission) : '',
+        price:           fmtNum(editingProperty.price),
+        price_net:       fmtNum(editingProperty.price_net),
+        agent_commission: fmtNum(editingProperty.agent_commission),
         area:            editingProperty.area  != null ? String(editingProperty.area)  : '',
         rooms:           editingProperty.rooms ?? '',
         floor:           editingProperty.floor ?? '',
@@ -937,9 +953,9 @@ export default function PropertyForm() {
             <input
               className={cn(inputCls, errors.price && 'border-red-400 focus:ring-red-400')}
               placeholder="5 500 000"
-              inputMode="decimal"
+              inputMode="numeric"
               {...register('price')}
-              onChange={(e) => { register('price').onChange(e); clearErrors('price') }}
+              onChange={onNumeric('price')}
             />
             <FieldError message={errors.price?.message as string} />
           </div>
@@ -963,19 +979,21 @@ export default function PropertyForm() {
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Цена на руки ₽</label>
             <input
-              type="number"
-              placeholder="Сумма собственнику"
+              inputMode="numeric"
+              placeholder="7 500 000"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               {...register('price_net')}
+              onChange={onNumeric('price_net')}
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Комиссия риэлтора ₽</label>
             <input
-              type="number"
-              placeholder="Комиссия"
+              inputMode="numeric"
+              placeholder="100 000"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               {...register('agent_commission')}
+              onChange={onNumeric('agent_commission')}
             />
           </div>
         </div>

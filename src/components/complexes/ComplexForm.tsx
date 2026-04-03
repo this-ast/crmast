@@ -710,10 +710,13 @@ export default function ComplexForm() {
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">₽/м²</span>
                       <input
-                        type="number"
-                        placeholder="Цена за м²"
-                        value={cond.price_per_sqm ?? ''}
-                        onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, price_per_sqm: e.target.value ? Number(e.target.value) : undefined } : c))}
+                        inputMode="numeric"
+                        placeholder="100 000"
+                        value={cond.price_per_sqm != null ? String(cond.price_per_sqm).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') : ''}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/[\s\u00A0]/g, '').replace(/[^\d]/g, '')
+                          setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, price_per_sqm: digits ? Number(digits) : undefined } : c))
+                        }}
                         className="flex-1 min-w-0 w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
