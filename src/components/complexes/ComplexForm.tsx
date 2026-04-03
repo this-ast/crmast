@@ -563,7 +563,7 @@ export default function ComplexForm() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5 w-full min-w-0">
         {/* Name */}
         <div>
           <FieldLabel>Название ЖК</FieldLabel>
@@ -679,18 +679,18 @@ export default function ComplexForm() {
             <div className="space-y-2">
               {pricingConditions.map((cond) => (
                 <div key={cond.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <input
                       type="text"
-                      placeholder="Название условия (напр. Рассрочка 24 мес, вид на горы)"
+                      placeholder="Название условия"
                       value={cond.label}
                       onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, label: e.target.value } : c))}
-                      className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <select
                       value={cond.payment_type}
                       onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, payment_type: e.target.value as PricingPaymentType } : c))}
-                      className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="shrink-0 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="cash">Наличный</option>
                       <option value="installment">Рассрочка</option>
@@ -707,21 +707,21 @@ export default function ComplexForm() {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">₽/м²</span>
                       <input
                         type="number"
                         placeholder="Цена за м²"
                         value={cond.price_per_sqm ?? ''}
                         onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, price_per_sqm: e.target.value ? Number(e.target.value) : undefined } : c))}
-                        className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 min-w-0 w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <input
                       type="date"
                       value={cond.updated_at ?? ''}
                       onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, updated_at: e.target.value || undefined } : c))}
-                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full min-w-0 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                   <input
@@ -890,32 +890,34 @@ export default function ComplexForm() {
             </div>
             <div className="space-y-2">
               {mgNames.map((mgName, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    defaultValue={mgName}
-                    onBlur={(e) => {
-                      const arr = [...mgNames]; arr[i] = e.target.value
-                      updateArray('manager_names', arr)
-                    }}
-                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Имя менеджера"
-                  />
-                  <input
-                    defaultValue={mgPhones[i] ?? ''}
-                    onBlur={(e) => {
-                      const arr = [...mgPhones]; arr[i] = e.target.value
-                      updateArray('manager_phones', arr)
-                    }}
-                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="+7 900 000-00-00"
-                  />
+                <div key={i} className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0 grid grid-cols-1 gap-1.5">
+                    <input
+                      defaultValue={mgName}
+                      onBlur={(e) => {
+                        const arr = [...mgNames]; arr[i] = e.target.value
+                        updateArray('manager_names', arr)
+                      }}
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Имя менеджера"
+                    />
+                    <input
+                      defaultValue={mgPhones[i] ?? ''}
+                      onBlur={(e) => {
+                        const arr = [...mgPhones]; arr[i] = e.target.value
+                        updateArray('manager_phones', arr)
+                      }}
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="+7 900 000-00-00"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       updateArray('manager_names', mgNames.filter((_, j) => j !== i))
                       updateArray('manager_phones', mgPhones.filter((_, j) => j !== i))
                     }}
-                    className="text-red-400 hover:text-red-600"
+                    className="mt-1 text-red-400 hover:text-red-600 shrink-0"
                   >
                     <Trash2 size={14} />
                   </button>
