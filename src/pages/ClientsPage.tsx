@@ -90,8 +90,8 @@ function ClientForm({
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="flex flex-col max-h-[85vh]">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">
               Имя <span className="text-red-500">*</span>
@@ -141,7 +141,7 @@ function ClientForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Бюджет</label>
             <input
@@ -160,7 +160,7 @@ function ClientForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Статус</label>
             <select
@@ -187,7 +187,7 @@ function ClientForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Последний контакт</label>
             <input
