@@ -102,34 +102,34 @@ export default function PropertyFilters() {
   const priceLabel = dealType === 'rent' ? 'Аренда/мес' : 'Цена'
 
   return (
-    <div className="space-y-3">
-      {/* ── Row 1: Search + Status + Фильтры button ── */}
-      <div className="flex gap-2">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Поиск по адресу, ЖК, артикулу..."
-            value={filters.search}
-            onChange={(e) => setFilter('search', e.target.value)}
-            className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          {filters.search && (
-            <button
-              onClick={() => setFilter('search', '')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
+    <div className="space-y-3 w-full">
+      {/* ── Row 1: Search (full width) ── */}
+      <div className="relative w-full">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Поиск по адресу, ЖК, артикулу..."
+          value={filters.search}
+          onChange={(e) => setFilter('search', e.target.value)}
+          className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        {filters.search && (
+          <button
+            onClick={() => setFilter('search', '')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
 
+      {/* ── Row 2: Status + Фильтры button ── */}
+      <div className="flex gap-2">
         {/* Status */}
         <select
           value={filters.status}
           onChange={(e) => setFilter('status', e.target.value as PropertyStatus | 'all')}
-          className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+          className="flex-1 min-w-0 py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {STATUSES.map(({ value, label }) => (
             <option key={value} value={value}>{label}</option>
@@ -186,7 +186,7 @@ export default function PropertyFilters() {
 
       {/* ── Advanced filters panel ── */}
       {showAdvanced && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
+        <div className="w-full bg-white border border-slate-200 rounded-2xl p-4 space-y-4 overflow-hidden">
 
           {/* Собственник */}
           <div className="space-y-1.5">
@@ -237,7 +237,7 @@ export default function PropertyFilters() {
                 placeholder="от"
                 value={filters.priceMin}
                 onChange={(e) => setFilter('priceMin', e.target.value)}
-                className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
               />
               <span className="text-slate-300 text-sm">—</span>
               <input
@@ -245,7 +245,7 @@ export default function PropertyFilters() {
                 placeholder="до"
                 value={filters.priceMax}
                 onChange={(e) => setFilter('priceMax', e.target.value)}
-                className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
               />
             </div>
           </div>
@@ -263,7 +263,7 @@ export default function PropertyFilters() {
                       placeholder="от"
                       value={filters.areaMin}
                       onChange={(e) => setFilter('areaMin', e.target.value)}
-                      className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                     <span className="text-slate-300 text-sm">—</span>
                     <input
@@ -271,7 +271,7 @@ export default function PropertyFilters() {
                       placeholder="до"
                       value={filters.areaMax}
                       onChange={(e) => setFilter('areaMax', e.target.value)}
-                      className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                   </div>
                 )}
@@ -283,7 +283,7 @@ export default function PropertyFilters() {
                       placeholder="от"
                       value={filters.areaSotkiMin}
                       onChange={(e) => setFilter('areaSotkiMin', e.target.value)}
-                      className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                     <span className="text-slate-300 text-sm">—</span>
                     <input
@@ -291,7 +291,7 @@ export default function PropertyFilters() {
                       placeholder="до"
                       value={filters.areaSotkiMax}
                       onChange={(e) => setFilter('areaSotkiMax', e.target.value)}
-                      className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                   </div>
                 )}
@@ -332,7 +332,7 @@ export default function PropertyFilters() {
                   placeholder="от"
                   value={filters.floorMin}
                   onChange={(e) => setFilter('floorMin', e.target.value)}
-                  className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
                 <span className="text-slate-300 text-sm">—</span>
                 <input
@@ -340,7 +340,7 @@ export default function PropertyFilters() {
                   placeholder="до"
                   value={filters.floorMax}
                   onChange={(e) => setFilter('floorMax', e.target.value)}
-                  className="flex-1 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
             </div>
@@ -411,11 +411,11 @@ export default function PropertyFilters() {
           {/* Дата */}
           <div className="space-y-1.5">
             <FilterLabel>Дата</FilterLabel>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="space-y-2">
               <select
                 value={filters.dateField}
                 onChange={(e) => setFilter('dateField', e.target.value as 'created_at' | 'updated_at')}
-                className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="created_at">Дата добавления</option>
                 <option value="updated_at">Дата изменения</option>
@@ -425,19 +425,19 @@ export default function PropertyFilters() {
                   type="date"
                   value={filters.dateFrom}
                   onChange={(e) => setFilter('dateFrom', e.target.value)}
-                  className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="text-slate-300 text-sm">—</span>
+                <span className="text-slate-300 text-sm shrink-0">—</span>
                 <input
                   type="date"
                   value={filters.dateTo}
                   onChange={(e) => setFilter('dateTo', e.target.value)}
-                  className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {(filters.dateFrom || filters.dateTo) && (
                   <button
                     onClick={() => { setFilter('dateFrom', ''); setFilter('dateTo', '') }}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-slate-400 hover:text-slate-600 shrink-0"
                   >
                     <X size={13} />
                   </button>

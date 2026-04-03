@@ -166,7 +166,7 @@ export default function PropertiesPage() {
     : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
 
   return (
-    <div className="p-4 sm:p-6 max-w-screen-xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-screen-xl mx-auto w-full min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
