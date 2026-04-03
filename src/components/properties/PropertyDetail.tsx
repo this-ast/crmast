@@ -711,7 +711,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
               <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
                 <FileText size={15} className="text-slate-400" />
               </div>
-              <p className="text-sm text-slate-700 leading-relaxed mt-1">{description}</p>
+              <p className="text-sm text-slate-700 leading-relaxed mt-1 whitespace-pre-wrap">{description}</p>
             </div>
           </div>
         )}
