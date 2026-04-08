@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
@@ -976,53 +976,37 @@ function ClientTemplatesSection({ client }: { client: Client }) {
   )
 }
 
-// ─── Active / Inactive Badge ──────────────────────────────────────────────────
+// ─── iOS Activity Toggle ──────────────────────────────────────────────────────
 
-function ActiveBadge({ client }: { client: Client }) {
-  const types = getClientTypes(client)
-  const isSL = types.includes('Продавец') || types.includes('Арендодатель')
-  const isBT = types.includes('Покупатель') || types.includes('Арендатор')
-
-  const sellerActive = client.seller_status !== 'Неактивный'
-  const buyerActive  = client.is_active !== false
-
-  if (!isSL && !isBT) {
-    // Legacy: use status
-    const active = client.status !== 'Неактивный' && client.status !== 'Архив'
-    return (
-      <span className={cn(
-        'text-xs font-medium px-2 py-0.5 rounded-full',
-        active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-      )}>
-        {active ? 'Активный' : 'Неактивный'}
-      </span>
-    )
-  }
-
+function IOSToggle({
+  isActive,
+  onToggle,
+}: {
+  isActive: boolean
+  onToggle: (e: React.MouseEvent) => void
+}) {
   return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {isSL && (
-        <span className={cn(
-          'text-xs font-medium px-2 py-0.5 rounded-full',
-          sellerActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-        )}>
-          {isSL && isBT ? (isSeller(types) ? '🏠' : '🔑') + ' ' : ''}{sellerActive ? 'Активный' : 'Неактивный'}
-        </span>
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        'relative inline-flex h-[22px] w-[40px] shrink-0 cursor-pointer rounded-full border-2 border-transparent',
+        'transition-colors duration-200 ease-in-out focus:outline-none active:scale-95',
+        isActive ? 'bg-emerald-500' : 'bg-slate-300'
       )}
-      {isBT && (
-        <span className={cn(
-          'text-xs font-medium px-2 py-0.5 rounded-full',
-          buyerActive ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'
-        )}>
-          {isSL ? (isBT && types.includes('Покупатель') ? '🛒 ' : '🏡 ') : ''}{buyerActive ? 'Активный' : 'Неактивный'}
-        </span>
-      )}
-    </div>
+      role="switch"
+      aria-checked={isActive}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none inline-block h-[18px] w-[18px] rounded-full bg-white shadow ring-0',
+          'transition-transform duration-200 ease-in-out',
+          isActive ? 'translate-x-[18px]' : 'translate-x-0'
+        )}
+      />
+    </button>
   )
-}
-
-function isSeller(types: string[]) {
-  return types.includes('Продавец')
 }
 
 // ─── Client Row ───────────────────────────────────────────────────────────────
@@ -1030,20 +1014,18 @@ function isSeller(types: string[]) {
 function ClientRow({
   client,
   highlighted,
-  onEdit,
-  onDelete,
+  onOpen,
   taskCount = 0,
   activeDemandCount = 0,
+  twoCol = false,
 }: {
   client: Client
   highlighted: boolean
-  onEdit: (c: Client) => void
-  onDelete: (c: Client) => void
+  onOpen: (c: Client) => void
   taskCount?: number
   activeDemandCount?: number
+  twoCol?: boolean
 }) {
-  const [expanded, setExpanded] = useState(highlighted)
-  const [phoneRevealed, setPhoneRevealed] = useState(false)
   const rowRef = useRef<HTMLDivElement>(null)
   const updateClient = useUpdateClient()
 
@@ -1064,231 +1046,315 @@ function ClientRow({
     }
   }, [highlighted])
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const isSL = types.includes('Продавец') || types.includes('Арендодатель')
+    const isBT = types.includes('Покупатель') || types.includes('Арендатор')
+    if (isSL && !isBT) {
+      const nowActive = client.seller_status !== 'Неактивный'
+      updateClient.mutate({ id: client.id, data: { seller_status: nowActive ? 'Неактивный' : 'Активный' } })
+    } else if (isBT) {
+      updateClient.mutate({ id: client.id, data: { is_active: client.is_active === false } })
+    } else {
+      const nowActive = client.status !== 'Неактивный' && client.status !== 'Архив'
+      updateClient.mutate({ id: client.id, data: { status: nowActive ? 'Неактивный' : '' } })
+    }
+  }
+
   return (
     <div
       ref={rowRef}
       className={cn(
-        'bg-white rounded-xl border overflow-hidden transition-all',
-        !clientIsActive ? 'opacity-70' : '',
+        'bg-white rounded-xl border overflow-hidden transition-all cursor-pointer select-none',
+        'hover:shadow-sm hover:border-slate-200 active:scale-[0.99]',
+        !clientIsActive ? 'opacity-65' : '',
         highlighted ? 'border-blue-400 shadow-sm shadow-blue-100' :
         isOverdue ? 'border-amber-300' : 'border-slate-100'
       )}
+      onClick={() => onOpen(client)}
     >
-      <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-          <span className="text-xs font-bold text-blue-600">#{client.client_number}</span>
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        {/* Number avatar */}
+        <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+          <span className="text-[10px] font-bold text-blue-600">#{client.client_number}</span>
         </div>
 
+        {/* Main info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 mb-0.5">
             <span className="text-sm font-semibold text-slate-900 truncate">{client.name}</span>
+            {isOverdue && <span className="shrink-0 text-[11px]">⏰</span>}
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
             {types.map((t) => (
-              <span key={t} className={cn('text-xs font-medium px-1.5 py-0.5 rounded-md', CLIENT_TYPE_COLORS[t] ?? 'bg-slate-100 text-slate-600')}>
-                {CLIENT_TYPE_ICONS[t]} {t}
+              <span
+                key={t}
+                className={cn(
+                  'text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap',
+                  CLIENT_TYPE_COLORS[t] ?? 'bg-slate-100 text-slate-600'
+                )}
+              >
+                {twoCol ? CLIENT_TYPE_ICONS[t] : `${CLIENT_TYPE_ICONS[t]} ${t}`}
               </span>
             ))}
-            {/* Temperature status for buyers */}
-            {client.status && (CLIENT_STATUS_COLORS[client.status]) && (
-              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', CLIENT_STATUS_COLORS[client.status])}>
+            {client.status && CLIENT_STATUS_COLORS[client.status] && (
+              <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap', CLIENT_STATUS_COLORS[client.status])}>
                 {client.status}
               </span>
             )}
-            {/* Clickable active/inactive toggle — works for all clients */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                const types = getClientTypes(client)
-                const isSL = types.includes('Продавец') || types.includes('Арендодатель')
-                const isBT = types.includes('Покупатель') || types.includes('Арендатор')
-                if (isSL && !isBT) {
-                  const nowActive = client.seller_status !== 'Неактивный'
-                  updateClient.mutate({ id: client.id, data: { seller_status: nowActive ? 'Неактивный' : 'Активный' } })
-                } else if (isBT) {
-                  updateClient.mutate({ id: client.id, data: { is_active: client.is_active === false } })
-                } else {
-                  // legacy: toggle via status
-                  const nowActive = client.status !== 'Неактивный' && client.status !== 'Архив'
-                  updateClient.mutate({ id: client.id, data: { status: nowActive ? 'Неактивный' : '' } })
-                }
-              }}
-              className="shrink-0"
-            >
-              <ActiveBadge client={client} />
-            </button>
-            {isOverdue && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏰ Контакт</span>
-            )}
           </div>
-          {client.request && <p className="text-xs text-slate-500 truncate mt-0.5">{client.request}</p>}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {activeDemandCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
-              <ShoppingCart size={11} />{activeDemandCount}
-            </span>
+        {/* Right: iOS toggle + task/demand badges */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <IOSToggle isActive={clientIsActive} onToggle={handleToggle} />
+          {(activeDemandCount > 0 || taskCount > 0) && (
+            <div className="flex items-center gap-1">
+              {activeDemandCount > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                  <ShoppingCart size={9} />{activeDemandCount}
+                </span>
+              )}
+              {taskCount > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                  <ClipboardList size={9} />{taskCount}
+                </span>
+              )}
+            </div>
           )}
-          {taskCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-              <ClipboardList size={11} />{taskCount}
-            </span>
-          )}
-          {expanded ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
         </div>
       </div>
+    </div>
+  )
+}
 
-      {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-slate-50">
-          <div className="grid grid-cols-2 gap-3 pt-3">
-            {client.phone && (
-              <div className="col-span-2">
-                <p className="text-xs text-slate-400 mb-1">Телефон</p>
-                <div className="flex items-center gap-2">
-                  <Phone size={13} className="text-slate-400 shrink-0" />
-                  <span className="text-sm font-mono text-slate-700">
-                    {phoneRevealed ? formatPhone(client.phone) : maskPhone(client.phone)}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPhoneRevealed(v => !v) }}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {phoneRevealed ? 'Скрыть' : 'Показать'}
-                  </button>
-                </div>
-              </div>
-            )}
-            {client.first_contact && (
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Первый контакт</p>
-                <p className="text-sm text-slate-700">{client.first_contact}</p>
-              </div>
-            )}
-            {client.last_contact && (
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Последний контакт</p>
-                <p className="text-sm text-slate-700">{client.last_contact}</p>
-              </div>
-            )}
-            {client.next_contact && (
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Следующий контакт</p>
-                <p className={cn('text-sm font-medium', isOverdue ? 'text-amber-600' : 'text-slate-700')}>
-                  {isOverdue ? '⏰ ' : ''}{client.next_contact}
-                </p>
-              </div>
-            )}
+// ─── Client Detail Modal ───────────────────────────────────────────────────────
+
+function ClientDetailModal({
+  client,
+  isOpen,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  client: Client | null
+  isOpen: boolean
+  onClose: () => void
+  onEdit: (c: Client) => void
+  onDelete: (c: Client) => void
+}) {
+  const [phoneRevealed, setPhoneRevealed] = useState(false)
+  const updateClient = useUpdateClient()
+
+  useEffect(() => {
+    if (!isOpen) setPhoneRevealed(false)
+  }, [isOpen])
+
+  if (!client) return null
+
+  const today = new Date().toISOString().slice(0, 10)
+  const isOverdue =
+    client.next_contact &&
+    client.next_contact <= today &&
+    client.status !== 'Архив' &&
+    client.status !== 'Неактивный' &&
+    client.seller_status !== 'Неактивный'
+
+  const types = getClientTypes(client)
+  const clientIsActive = isClientActive(client)
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const isSL = types.includes('Продавец') || types.includes('Арендодатель')
+    const isBT = types.includes('Покупатель') || types.includes('Арендатор')
+    if (isSL && !isBT) {
+      const nowActive = client.seller_status !== 'Неактивный'
+      updateClient.mutate({ id: client.id, data: { seller_status: nowActive ? 'Неактивный' : 'Активный' } })
+    } else if (isBT) {
+      updateClient.mutate({ id: client.id, data: { is_active: client.is_active === false } })
+    } else {
+      const nowActive = client.status !== 'Неактивный' && client.status !== 'Архив'
+      updateClient.mutate({ id: client.id, data: { status: nowActive ? 'Неактивный' : '' } })
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={client.name} size="lg">
+      <div className="px-5 pb-6 space-y-4 pt-3">
+        {/* Header: number + types + status + active toggle */}
+        <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <span className="text-sm font-bold text-blue-600">#{client.client_number}</span>
           </div>
-
-          {/* Seller info */}
-          {types.includes('Продавец') && client.price_net != null && client.price_net > 0 && (
-            <div className="bg-emerald-50 rounded-lg px-3 py-2">
-              <p className="text-xs text-emerald-600 font-medium mb-0.5">Цена на руки</p>
-              <p className="text-sm font-semibold text-emerald-800">{formatPrice(client.price_net)}</p>
-            </div>
-          )}
-
-          {/* Landlord info */}
-          {types.includes('Арендодатель') && (client.rental_price || client.rental_deposit || client.rental_utilities) && (
-            <div className="bg-amber-50 rounded-lg px-3 py-2 space-y-1">
-              <p className="text-xs text-amber-700 font-medium mb-1">Условия аренды</p>
-              {client.rental_price != null && client.rental_price > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Аренда/мес</span>
-                  <span className="font-medium text-slate-800">{formatPrice(client.rental_price)}</span>
-                </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {types.map((t) => (
+                <span key={t} className={cn('text-xs font-medium px-2 py-0.5 rounded-md', CLIENT_TYPE_COLORS[t] ?? 'bg-slate-100 text-slate-600')}>
+                  {CLIENT_TYPE_ICONS[t]} {t}
+                </span>
+              ))}
+              {client.status && CLIENT_STATUS_COLORS[client.status] && (
+                <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', CLIENT_STATUS_COLORS[client.status])}>
+                  {client.status}
+                </span>
               )}
-              {client.rental_deposit != null && client.rental_deposit > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Залог</span>
-                  <span className="font-medium text-slate-800">{formatPrice(client.rental_deposit)}</span>
-                </div>
-              )}
-              {client.rental_utilities && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Коммунальные</span>
-                  <span className="font-medium text-slate-800">
-                    {client.rental_utilities === 'included' ? 'Включены' : 'Отдельно'}
-                  </span>
-                </div>
+              {isOverdue && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏰ Контакт</span>
               )}
             </div>
-          )}
-
-          {client.status && CLIENT_STATUS_PRIORITY[client.status] && (
-            <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-              {CLIENT_STATUS_PRIORITY[client.status]}
-            </div>
-          )}
-
-          {client.request && (
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Запрос</p>
-              <p className="text-sm text-slate-700 leading-relaxed">{client.request}</p>
-            </div>
-          )}
-
-          {client.next_step && (
-            <div className="bg-amber-50 rounded-lg px-3 py-2">
-              <p className="text-xs text-amber-600 font-medium mb-0.5">Следующий шаг</p>
-              <p className="text-sm text-amber-800">{client.next_step}</p>
-            </div>
-          )}
-
-          {client.notes && (
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Заметки</p>
-              <p className="text-sm text-slate-600">{client.notes}</p>
-            </div>
-          )}
-
-          {/* Objects (sellers/landlords) */}
-          {(types.includes('Продавец') || types.includes('Арендодатель') || types.length === 0) && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 size={13} className="text-slate-400" />
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Объекты</p>
-              </div>
-              <ClientProperties clientId={client.id} />
-            </div>
-          )}
-
-          <ClientDealsSection clientId={client.id} />
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <ClipboardList size={13} className="text-slate-400" />
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Задачи</p>
-            </div>
-            <LinkedTasksSection linkedType="client" linkedId={client.id} />
           </div>
-
-          <div className="border-t border-slate-50 pt-3">
-            <Timeline entityType="client" entityId={client.id} />
-          </div>
-
-          <ClientTemplatesSection client={client} />
-
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(client) }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-            >
-              <Pencil size={13} /> Редактировать
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(client) }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
-            >
-              <Trash2 size={13} /> Удалить
-            </button>
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <IOSToggle isActive={clientIsActive} onToggle={handleToggle} />
+            <span className="text-[10px] text-slate-400">{clientIsActive ? 'Активный' : 'Неактивный'}</span>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Contact info */}
+        <div className="grid grid-cols-2 gap-3">
+          {client.phone && (
+            <div className="col-span-2">
+              <p className="text-xs text-slate-400 mb-1">Телефон</p>
+              <div className="flex items-center gap-2">
+                <Phone size={13} className="text-slate-400 shrink-0" />
+                <span className="text-sm font-mono text-slate-700">
+                  {phoneRevealed ? formatPhone(client.phone) : maskPhone(client.phone)}
+                </span>
+                <button
+                  onClick={() => setPhoneRevealed(v => !v)}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {phoneRevealed ? 'Скрыть' : 'Показать'}
+                </button>
+              </div>
+            </div>
+          )}
+          {client.first_contact && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Первый контакт</p>
+              <p className="text-sm text-slate-700">{client.first_contact}</p>
+            </div>
+          )}
+          {client.last_contact && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Последний контакт</p>
+              <p className="text-sm text-slate-700">{client.last_contact}</p>
+            </div>
+          )}
+          {client.next_contact && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Следующий контакт</p>
+              <p className={cn('text-sm font-medium', isOverdue ? 'text-amber-600' : 'text-slate-700')}>
+                {isOverdue ? '⏰ ' : ''}{client.next_contact}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Seller info */}
+        {types.includes('Продавец') && client.price_net != null && client.price_net > 0 && (
+          <div className="bg-emerald-50 rounded-lg px-3 py-2">
+            <p className="text-xs text-emerald-600 font-medium mb-0.5">Цена на руки</p>
+            <p className="text-sm font-semibold text-emerald-800">{formatPrice(client.price_net)}</p>
+          </div>
+        )}
+
+        {/* Landlord info */}
+        {types.includes('Арендодатель') && (client.rental_price || client.rental_deposit || client.rental_utilities) && (
+          <div className="bg-amber-50 rounded-lg px-3 py-2 space-y-1">
+            <p className="text-xs text-amber-700 font-medium mb-1">Условия аренды</p>
+            {client.rental_price != null && client.rental_price > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Аренда/мес</span>
+                <span className="font-medium text-slate-800">{formatPrice(client.rental_price)}</span>
+              </div>
+            )}
+            {client.rental_deposit != null && client.rental_deposit > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Залог</span>
+                <span className="font-medium text-slate-800">{formatPrice(client.rental_deposit)}</span>
+              </div>
+            )}
+            {client.rental_utilities && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Коммунальные</span>
+                <span className="font-medium text-slate-800">
+                  {client.rental_utilities === 'included' ? 'Включены' : 'Отдельно'}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {client.status && CLIENT_STATUS_PRIORITY[client.status] && (
+          <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+            {CLIENT_STATUS_PRIORITY[client.status]}
+          </div>
+        )}
+
+        {client.request && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1">Запрос</p>
+            <p className="text-sm text-slate-700 leading-relaxed">{client.request}</p>
+          </div>
+        )}
+
+        {client.next_step && (
+          <div className="bg-amber-50 rounded-lg px-3 py-2">
+            <p className="text-xs text-amber-600 font-medium mb-0.5">Следующий шаг</p>
+            <p className="text-sm text-amber-800">{client.next_step}</p>
+          </div>
+        )}
+
+        {client.notes && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1">Заметки</p>
+            <p className="text-sm text-slate-600">{client.notes}</p>
+          </div>
+        )}
+
+        {/* Objects (sellers/landlords) */}
+        {(types.includes('Продавец') || types.includes('Арендодатель') || types.length === 0) && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 size={13} className="text-slate-400" />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Объекты</p>
+            </div>
+            <ClientProperties clientId={client.id} />
+          </div>
+        )}
+
+        <ClientDealsSection clientId={client.id} />
+
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardList size={13} className="text-slate-400" />
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Задачи</p>
+          </div>
+          <LinkedTasksSection linkedType="client" linkedId={client.id} />
+        </div>
+
+        <div className="border-t border-slate-50 pt-3">
+          <Timeline entityType="client" entityId={client.id} />
+        </div>
+
+        <ClientTemplatesSection client={client} />
+
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => { onEdit(client); onClose() }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+          >
+            <Pencil size={13} /> Редактировать
+          </button>
+          <button
+            onClick={() => { onDelete(client); onClose() }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            <Trash2 size={13} /> Удалить
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -1335,6 +1401,8 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
   const [promptDemandClient, setPromptDemandClient] = useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const demandCounts = useMemo(() => {
     const m: Record<string, number> = {}
@@ -1462,10 +1530,22 @@ export default function ClientsPage() {
     }
   }
 
-  const openEdit = (client: Client) => {
+  const openEdit = useCallback((client: Client) => {
     setEditingClient(client)
     setIsFormOpen(true)
-  }
+  }, [])
+
+  const openDetail = useCallback((client: Client) => {
+    setSelectedClient(client)
+    setIsDetailOpen(true)
+  }, [])
+
+  // Auto-open detail modal when navigating with ?highlight=id
+  useEffect(() => {
+    if (!highlightId || isLoading || clients.length === 0) return
+    const client = clients.find(c => c.id === highlightId)
+    if (client) openDetail(client)
+  }, [highlightId, clients, isLoading, openDetail])
 
   const typeCounts = useMemo(() => {
     const map: Record<string, number> = {}
@@ -1710,14 +1790,23 @@ export default function ClientsPage() {
               key={client.id}
               client={client}
               highlighted={client.id === highlightId}
-              onEdit={openEdit}
-              onDelete={setDeletingClient}
+              onOpen={openDetail}
               taskCount={taskCounts[client.id] ?? 0}
               activeDemandCount={demandCounts[client.id] ?? 0}
+              twoCol={twoCol}
             />
           ))}
         </div>
       )}
+
+      {/* Client Detail Modal */}
+      <ClientDetailModal
+        client={selectedClient}
+        isOpen={isDetailOpen}
+        onClose={() => { setIsDetailOpen(false); setSelectedClient(null) }}
+        onEdit={openEdit}
+        onDelete={setDeletingClient}
+      />
 
       {/* Form Modal */}
       <Modal

@@ -39,6 +39,9 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -46,7 +49,7 @@ export default defineConfig({
             options: {
               cacheName: 'supabase-cache',
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-              networkTimeoutSeconds: 5,
+              networkTimeoutSeconds: 8,
             },
           },
         ],
@@ -56,6 +59,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['@headlessui/react', 'framer-motion', 'lucide-react'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-form': ['react-hook-form'],
+        },
+      },
     },
   },
 })
