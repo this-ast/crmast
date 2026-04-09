@@ -1,18 +1,50 @@
-import { Building2, Home, Layers, X } from 'lucide-react'
+import { useState } from 'react'
+import { Building2, Home, Layers, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import type { ComplexUnit } from '@/types'
 import { formatPriceShort } from '@/utils/format'
 
 interface UnitDetailModalProps {
-  unit: ComplexUnit & { complex_name?: string }
+  unit: ComplexUnit & { complex_name?: string; complex_photos?: string[] }
   onClose: () => void
 }
 
 export default function UnitDetailModal({ unit, onClose }: UnitDetailModalProps) {
   const label = unit.title || (unit.rooms ? `${unit.rooms}-комн. квартира` : 'Объект')
+  const photos = unit.photos?.length ? unit.photos : (unit.complex_photos ?? [])
+  const [photoIdx, setPhotoIdx] = useState(0)
 
   return (
     <div className="flex flex-col max-h-[85vh]">
+      {/* Photos */}
+      {photos.length > 0 && (
+        <div className="relative w-full aspect-video bg-slate-900 shrink-0 overflow-hidden">
+          <img src={photos[photoIdx]} alt={label} className="w-full h-full object-cover" />
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {photos.slice(0, 7).map((_, i) => (
+                  <button key={i} onClick={() => setPhotoIdx(i)}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIdx ? 'bg-white' : 'bg-white/40'}`} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
         <div className="min-w-0">

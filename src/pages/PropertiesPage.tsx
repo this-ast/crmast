@@ -4,7 +4,7 @@ import { Plus, Building2, AlertCircle, Loader2, Settings, Search, LayoutList, La
 import { useProperties } from '@/hooks/useProperties'
 import { usePropertyStore, categoryToFilters } from '@/store/usePropertyStore'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
-import { useAllComplexUnits } from '@/hooks/useComplexes'
+import { useAllComplexUnits, useComplexes } from '@/hooks/useComplexes'
 import PropertyCard from '@/components/properties/PropertyCard'
 import PropertyFilters from '@/components/properties/PropertyFilters'
 import PropertyDetail from '@/components/properties/PropertyDetail'
@@ -109,11 +109,13 @@ function filterProperties(
 export default function PropertiesPage() {
   const { data: properties = [], isLoading, error } = useProperties()
   const { data: allUnits = [], isLoading: unitsLoading } = useAllComplexUnits()
+  const { data: complexes = [] } = useComplexes()
+  const complexMap = useMemo(() => new Map(complexes.map(c => [c.id, c])), [complexes])
   const taskCounts = useActiveTaskCounts()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<'all' | 'developer'>('all')
   const [unitSearch, setUnitSearch] = useState('')
-  const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string }) | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string; complex_photos?: string[] }) | null>(null)
   const [showUnitForm, setShowUnitForm] = useState(false)
   const {
     filters,
@@ -332,46 +334,61 @@ export default function PropertiesPage() {
 
           {!unitsLoading && filteredUnits.length > 0 && (
             <div className={gridClass}>
-              {filteredUnits.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => setSelectedUnit(u)}
-                  className="bg-white rounded-2xl border border-slate-100 p-4 text-left hover:shadow-md hover:border-emerald-200 transition-all group"
-                >
-                  <div className="w-full h-24 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-100 mb-3 flex items-center justify-center">
-                    <Building2 size={28} className="text-emerald-300" />
-                  </div>
-                  <p className="font-semibold text-slate-900 text-sm group-hover:text-emerald-700 line-clamp-1">
-                    {u.title || (u.rooms ? `${u.rooms}-комн. квартира` : 'Объект')}
-                    {u.area ? ` · ${u.area} м²` : ''}
-                  </p>
-                  {u.complex_name && (
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
-                      <Building2 size={10} />{u.complex_name}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {u.floor != null && (
-                      <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
-                        {u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.
-                      </span>
+              {filteredUnits.map((u) => {
+                const cx = complexMap.get(u.complex_id)
+                const coverPhoto = u.photos?.[0] ?? cx?.photos?.[0] ?? null
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => setSelectedUnit({ ...u, complex_photos: cx?.photos })}
+                    className="bg-white rounded-2xl border border-slate-100 overflow-hidden text-left hover:shadow-md hover:border-emerald-200 transition-all group"
+                  >
+                    {coverPhoto ? (
+                      <img
+                        src={coverPhoto}
+                        alt=""
+                        className="w-full h-28 object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-28 bg-gradient-to-br from-emerald-50 to-slate-100 flex items-center justify-center">
+                        <Building2 size={28} className="text-emerald-300" />
+                      </div>
                     )}
-                    {u.price != null && (
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        {formatPriceShort(u.price)}
-                      </span>
-                    )}
-                  </div>
-                  {taskCounts[u.id] > 0 && (
-                    <div className="mt-2">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-                        {taskCounts[u.id]} {taskCounts[u.id] === 1 ? 'задача' : taskCounts[u.id] < 5 ? 'задачи' : 'задач'}
-                      </span>
+                    <div className="p-3">
+                      <p className="font-semibold text-slate-900 text-sm group-hover:text-emerald-700 line-clamp-1">
+                        {u.title || (u.rooms ? `${u.rooms}-комн. квартира` : 'Объект')}
+                        {u.area ? ` · ${u.area} м²` : ''}
+                      </p>
+                      {u.complex_name && (
+                        <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                          <Building2 size={10} />{u.complex_name}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {u.floor != null && (
+                          <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
+                            {u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.
+                          </span>
+                        )}
+                        {u.price != null && (
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            {formatPriceShort(u.price)}
+                          </span>
+                        )}
+                      </div>
+                      {taskCounts[u.id] > 0 && (
+                        <div className="mt-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                            {taskCounts[u.id]} {taskCounts[u.id] === 1 ? 'задача' : taskCounts[u.id] < 5 ? 'задачи' : 'задач'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
         </>

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { useCollections, useCreateCollection, useUpdateCollection, useDeleteCollection } from '@/hooks/useCollections'
 import { useClients } from '@/hooks/useClients'
 import { useProperties } from '@/hooks/useProperties'
+import { useAllComplexUnits } from '@/hooks/useComplexes'
 import type { CollectionFormData, CollectionWithClient, PropertyWithOwner, Client } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
 import { formatPriceShort } from '@/utils/format'
@@ -21,6 +22,7 @@ interface CollectionFormProps {
 function CollectionForm({ initial, onClose }: CollectionFormProps) {
   const { data: clients = [] } = useClients()
   const { data: allProperties = [] } = useProperties()
+  const { data: allUnits = [] } = useAllComplexUnits()
   const createMutation = useCreateCollection()
   const updateMutation = useUpdateCollection()
 
@@ -30,7 +32,12 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     new Set(initial?.property_ids ?? [])
   )
+  const [selectedUnitIds, setSelectedUnitIds] = useState<Set<string>>(
+    new Set(initial?.unit_ids ?? [])
+  )
   const [propSearch, setPropSearch] = useState('')
+  const [unitSearch, setUnitSearch] = useState('')
+  const [objectTab, setObjectTab] = useState<'props' | 'units'>('props')
   const [clientSearch, setClientSearch] = useState('')
   const [showClientDropdown, setShowClientDropdown] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -84,6 +91,24 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
     })
   }
 
+  function toggleUnit(id: string) {
+    setSelectedUnitIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const filteredUnits = allUnits.filter((u) => {
+    const q = unitSearch.toLowerCase()
+    const label = u.title || (u.rooms ? `${u.rooms}-комн.` : '')
+    return (
+      label.toLowerCase().includes(q) ||
+      (u.complex_name ?? '').toLowerCase().includes(q)
+    )
+  })
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -94,6 +119,7 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
         client_id: clientId || undefined,
         comment: comment || undefined,
         property_ids: Array.from(selectedIds),
+        unit_ids: Array.from(selectedUnitIds),
       }
       if (initial) {
         await updateMutation.mutateAsync({ id: initial.id, data: formData })
@@ -229,18 +255,18 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
               />
             </div>
 
-            {/* Property selection */}
+            {/* Object selection tabs */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-slate-700">
                   Объекты
-                  {selectedIds.size > 0 && (
+                  {(selectedIds.size + selectedUnitIds.size) > 0 && (
                     <span className="ml-2 text-xs font-normal text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                      {selectedIds.size} выбрано
+                      {selectedIds.size + selectedUnitIds.size} выбрано
                     </span>
                   )}
                 </label>
-                {clientId && (
+                {clientId && objectTab === 'props' && (
                   <button
                     type="button"
                     onClick={handleAutoMatch}
@@ -252,53 +278,115 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
                 )}
               </div>
 
-              <div className="relative mb-2">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={propSearch}
-                  onChange={(e) => setPropSearch(e.target.value)}
-                  placeholder="Поиск по адресу или артикулу..."
-                  className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              {/* Tab switcher */}
+              <div className="flex gap-1 mb-2 p-0.5 bg-slate-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setObjectTab('props')}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${objectTab === 'props' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Все объекты {selectedIds.size > 0 && `(${selectedIds.size})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setObjectTab('units')}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${objectTab === 'units' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  От застройщика {selectedUnitIds.size > 0 && `(${selectedUnitIds.size})`}
+                </button>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
-                  {filteredProps.length === 0 && (
-                    <div className="px-4 py-6 text-center text-sm text-slate-400">
-                      Объекты не найдены
+              {objectTab === 'props' && (
+                <>
+                  <div className="relative mb-2">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={propSearch}
+                      onChange={(e) => setPropSearch(e.target.value)}
+                      placeholder="Поиск по адресу или артикулу..."
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                      {filteredProps.length === 0 && (
+                        <div className="px-4 py-6 text-center text-sm text-slate-400">Объекты не найдены</div>
+                      )}
+                      {filteredProps.map((p) => (
+                        <label key={p.id} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(p.id)}
+                            onChange={() => toggleProperty(p.id)}
+                            className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{PROPERTY_TYPE_ICONS[p.type]}</span>
+                              <span className="text-xs font-mono text-slate-400">{p.article}</span>
+                              <span className="text-sm font-medium text-slate-900 truncate">{p.address}</span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+                              <span>{formatPriceShort(p.price)}</span>
+                              <span>{p.area} м²</span>
+                              {p.rooms !== undefined && <span>{p.rooms === 0 ? 'Студия' : `${p.rooms}к`}</span>}
+                              {p.complex_name && <span className="text-slate-400">{p.complex_name}</span>}
+                              {p.owner && <span className="text-slate-400">· {p.owner.name}</span>}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
-                  )}
-                  {filteredProps.map((p) => (
-                    <label
-                      key={p.id}
-                      className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(p.id)}
-                        onChange={() => toggleProperty(p.id)}
-                        className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{PROPERTY_TYPE_ICONS[p.type]}</span>
-                          <span className="text-xs font-mono text-slate-400">{p.article}</span>
-                          <span className="text-sm font-medium text-slate-900 truncate">{p.address}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
-                          <span>{formatPriceShort(p.price)}</span>
-                          <span>{p.area} м²</span>
-                          {p.rooms !== undefined && <span>{p.rooms === 0 ? 'Студия' : `${p.rooms}к`}</span>}
-                          {p.complex_name && <span className="text-slate-400">{p.complex_name}</span>}
-                          {p.owner && <span className="text-slate-400">· {p.owner.name}</span>}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
+
+              {objectTab === 'units' && (
+                <>
+                  <div className="relative mb-2">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={unitSearch}
+                      onChange={(e) => setUnitSearch(e.target.value)}
+                      placeholder="Поиск по ЖК, комнатам..."
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                      {filteredUnits.length === 0 && (
+                        <div className="px-4 py-6 text-center text-sm text-slate-400">Объекты от застройщика не найдены</div>
+                      )}
+                      {filteredUnits.map((u) => (
+                        <label key={u.id} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedUnitIds.has(u.id)}
+                            onChange={() => toggleUnit(u.id)}
+                            className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">🏗</span>
+                              <span className="text-sm font-medium text-slate-900 truncate">
+                                {u.title || (u.rooms != null ? (u.rooms === 0 ? 'Студия' : `${u.rooms}-комн. кв.`) : 'Квартира')}
+                                {u.area ? ` · ${u.area} м²` : ''}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+                              {u.price != null && <span className="font-semibold text-emerald-600">{formatPriceShort(u.price)}</span>}
+                              {u.floor != null && <span>{u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.</span>}
+                              {u.complex_name && <span className="text-slate-400">{u.complex_name}</span>}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -355,7 +443,9 @@ interface CollectionCardProps {
 }
 
 function CollectionCard({ collection, onEdit, onDelete }: CollectionCardProps) {
-  const count = collection.property_ids.length
+  const propCount = collection.property_ids.length
+  const unitCount = collection.unit_ids?.length ?? 0
+  const count = propCount + unitCount
   const date = new Date(collection.created_at).toLocaleDateString('ru-RU', {
     day: '2-digit', month: 'short', year: 'numeric',
   })

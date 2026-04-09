@@ -136,6 +136,7 @@ export function useUpdateCollection() {
       if (data.client_id !== undefined) payload.client_id = data.client_id || null
       if (data.comment !== undefined) payload.comment = data.comment || null
       if (data.property_ids !== undefined) payload.property_ids = data.property_ids
+      if (data.unit_ids !== undefined) payload.unit_ids = data.unit_ids
 
       if (!navigator.onLine) {
         await enqueue({ entity: 'collections', operation: 'update', data: payload, entityId: id })
