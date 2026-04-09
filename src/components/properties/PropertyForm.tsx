@@ -593,6 +593,7 @@ export default function PropertyForm() {
   const [propType,    setPropType]    = useState<PropertyType>('apartment')
   const [dealType,    setDealType]    = useState<'sale' | 'rent'>('sale')
   const [marketType,  setMarketType]  = useState<'secondary' | 'new_build' | undefined>(undefined)
+  const [buildReadiness, setBuildReadiness] = useState<'ready' | 'unready' | null>(null)
   const [ownerId,     setOwnerId]     = useState('')
   const [complexId,   setComplexId]   = useState('')
   const [complexName, setComplexName] = useState('')
@@ -631,7 +632,10 @@ export default function PropertyForm() {
     if (editingProperty && editingPropertyId) {
       setPropType(editingProperty.type ?? 'apartment')
       setDealType(editingProperty.deal_type ?? 'sale')
-      setMarketType(editingProperty.market_type ?? undefined)
+      const mt = editingProperty.market_type
+      if (mt === 'new_build_ready') { setMarketType('new_build'); setBuildReadiness('ready') }
+      else if (mt === 'new_build_unready') { setMarketType('new_build'); setBuildReadiness('unready') }
+      else { setMarketType((mt as 'secondary' | 'new_build' | undefined) ?? undefined); setBuildReadiness(null) }
       setOwnerId(editingProperty.owner_id ?? '')
       setComplexId(editingProperty.complex_id ?? '')
       setComplexName(editingProperty.complex_name ?? '')
@@ -718,7 +722,9 @@ export default function PropertyForm() {
       type:          propType,
       status:        raw.status ?? 'active',
       deal_type:     dealType,
-      market_type:   marketType,
+      market_type:   marketType === 'new_build'
+        ? (buildReadiness === 'ready' ? 'new_build_ready' : buildReadiness === 'unready' ? 'new_build_unready' : 'new_build')
+        : marketType,
       has_mortgage:  !!raw.has_mortgage,
       has_installment: !!raw.has_installment,
       has_trade_in:  !!raw.has_trade_in,
@@ -919,7 +925,7 @@ export default function PropertyForm() {
               <FieldLabel>Рынок</FieldLabel>
               <div className="flex gap-1">
                 {([undefined, 'secondary', 'new_build'] as const).map((mt) => (
-                  <button key={mt ?? 'none'} type="button" onClick={() => setMarketType(mt)}
+                  <button key={mt ?? 'none'} type="button" onClick={() => { setMarketType(mt); if (mt !== 'new_build') setBuildReadiness(null) }}
                     className={cn(
                       'flex-1 py-2 rounded-lg text-xs font-medium border transition-all',
                       marketType === mt
@@ -931,6 +937,28 @@ export default function PropertyForm() {
                   </button>
                 ))}
               </div>
+              {marketType === 'new_build' && (
+                <div className="mt-2 flex gap-2 pl-1">
+                  {([
+                    { value: 'ready' as const,   label: '✅ Сданный дом'    },
+                    { value: 'unready' as const, label: '🏗 Не сдан'        },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setBuildReadiness(buildReadiness === opt.value ? null : opt.value)}
+                      className={cn(
+                        'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                        buildReadiness === opt.value
+                          ? 'bg-blue-100 text-blue-700 border-blue-300'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -7,7 +7,9 @@ import {
   Banknote, MapPin, Home, ArrowRight, Filter, ClipboardList,
   Archive, ArchiveRestore, BookMarked, Building2, ExternalLink,
   Layers, CreditCard, Maximize2, MoveVertical, Wrench, LayoutGrid,
+  List, GitMerge,
 } from 'lucide-react'
+import SalesFunnel from '@/components/clients/SalesFunnel'
 import { useDemands, useCreateDemand, useUpdateDemand, useDeleteDemand } from '@/hooks/useDemands'
 import { useActiveTaskCounts } from '@/hooks/useTasks'
 import { useClients } from '@/hooks/useClients'
@@ -298,6 +300,14 @@ function DemandForm({
   const [selectedRenovation, setSelectedRenovation] = useState<string[]>(initial?.renovation ?? [])
   const [clientId, setClientId] = useState(initial?.client_id ?? '')
 
+  const _imt = initial?.market_type
+  const [marketMain, setMarketMain] = useState<string>(
+    _imt === 'primary_ready' || _imt === 'primary_unready' ? 'primary' : (_imt ?? 'any')
+  )
+  const [primarySubs, setPrimarySubs] = useState<string[]>(
+    _imt === 'primary_ready' ? ['primary_ready'] : _imt === 'primary_unready' ? ['primary_unready'] : []
+  )
+
   const { register, handleSubmit } = useForm<DemandFormData>({
     defaultValues: {
       title: initial?.title ?? '',
@@ -309,7 +319,6 @@ function DemandForm({
       area_max: initial?.area_max,
       area_sotki_min: initial?.area_sotki_min,
       area_sotki_max: initial?.area_sotki_max,
-      market_type: initial?.market_type ?? 'any',
       funnel_stage: initial?.funnel_stage ?? 'new',
       status: initial?.status ?? 'active',
       notes: initial?.notes ?? '',
@@ -327,6 +336,9 @@ function DemandForm({
   const showComplexes = (showApartmentFields || showCommercialFields) && complexes.length > 0
 
   const handleSave = (data: DemandFormData) => {
+    const computedMarketType = marketMain !== 'primary'
+      ? marketMain
+      : primarySubs.length === 1 ? primarySubs[0] : 'primary'
     onSave({
       ...data,
       client_id: clientId || undefined,
@@ -335,6 +347,7 @@ function DemandForm({
       payment_types: selectedPaymentTypes,
       complex_ids: selectedComplexIds,
       renovation: selectedRenovation,
+      market_type: computedMarketType,
     })
   }
 
@@ -430,14 +443,48 @@ function DemandForm({
         {showMarketType && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1.5">Рынок</label>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <div className="flex flex-wrap gap-2">
               {DEMAND_MARKET_TYPES.map((m) => (
-                <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" value={m.value} {...register('market_type')} className="accent-blue-600" />
-                  <span className="text-sm text-slate-700">{m.label}</span>
-                </label>
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => { setMarketMain(m.value); if (m.value !== 'primary') setPrimarySubs([]) }}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                    marketMain === m.value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
+                  )}
+                >
+                  {m.label}
+                </button>
               ))}
             </div>
+            {marketMain === 'primary' && (
+              <div className="mt-2 flex flex-wrap gap-2 pl-2">
+                {[
+                  { value: 'primary_ready',   label: 'Сданный дом'    },
+                  { value: 'primary_unready', label: 'Не сданный дом' },
+                ].map((sub) => (
+                  <button
+                    key={sub.value}
+                    type="button"
+                    onClick={() => setPrimarySubs(prev =>
+                      prev.includes(sub.value) ? prev.filter(x => x !== sub.value) : [...prev, sub.value]
+                    )}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                      primarySubs.includes(sub.value)
+                        ? 'bg-blue-100 text-blue-700 border-blue-300'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+                    )}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+                <p className="w-full text-[10px] text-slate-400">Можно выбрать оба варианта</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -804,7 +851,18 @@ function DemandCard({
     .map((v) => DEMAND_PROPERTY_TYPES.find((x) => x.value === v)?.label ?? v)
   const payLabels = (demand.payment_types ?? [])
     .map((v) => DEMAND_PAYMENT_TYPES.find((x) => x.value === v)?.label ?? v)
-  const marketLabel = DEMAND_MARKET_TYPES.find((m) => m.value === demand.market_type && demand.market_type !== 'any')?.label
+  const marketLabel = (() => {
+    const mt = demand.market_type
+    if (!mt || mt === 'any') return null
+    const top = DEMAND_MARKET_TYPES.find(m => m.value === mt)
+    if (top) return top.label
+    // sub-type: primary_ready / primary_unready
+    for (const m of DEMAND_MARKET_TYPES) {
+      const sub = m.sub?.find(s => s.value === mt)
+      if (sub) return `${m.label} · ${sub.label}`
+    }
+    return mt
+  })()
 
   const budgetStr = (() => {
     if (!demand.budget_min && !demand.budget_max) return null
@@ -1077,6 +1135,7 @@ export default function DemandsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editDemand, setEditDemand] = useState<Demand | null>(null)
   const [twoCol, setTwoCol] = useState(false)
+  const [view, setView] = useState<'list' | 'funnel'>('list')
 
   // ── filtering ──
   const filtered = useMemo(() => {
@@ -1177,6 +1236,22 @@ export default function DemandsPage() {
           <p className="text-xs text-slate-400 mt-0.5">Запросы покупателей и работа с лидами</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 rounded-xl p-1">
+            <button
+              onClick={() => setView('list')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                view === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}
+            >
+              <List size={13} /> Список
+            </button>
+            <button
+              onClick={() => setView('funnel')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                view === 'funnel' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}
+            >
+              <GitMerge size={13} /> Воронка
+            </button>
+          </div>
           <button
             onClick={() => setShowArchived((v) => !v)}
             className={cn(
@@ -1187,24 +1262,26 @@ export default function DemandsPage() {
             )}
           >
             {showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-            {showArchived ? 'Архив' : 'Активные'}
+            <span className="hidden sm:inline">{showArchived ? 'Архив' : 'Активные'}</span>
           </button>
-          <button
-            onClick={() => setTwoCol((v) => !v)}
-            title={twoCol ? 'Одна колонка' : 'Две колонки'}
-            className={cn(
-              'p-2 rounded-xl border transition-all',
-              twoCol ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-            )}
-          >
-            <LayoutGrid size={15} />
-          </button>
+          {view === 'list' && (
+            <button
+              onClick={() => setTwoCol((v) => !v)}
+              title={twoCol ? 'Одна колонка' : 'Две колонки'}
+              className={cn(
+                'p-2 rounded-xl border transition-all',
+                twoCol ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              )}
+            >
+              <LayoutGrid size={15} />
+            </button>
+          )}
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
           >
             <Plus size={15} />
-            Добавить
+            <span className="hidden sm:inline">Добавить</span>
           </button>
         </div>
       </div>
@@ -1351,20 +1428,26 @@ export default function DemandsPage() {
         </div>
       )}
 
-      <div className={twoCol ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
-        {filtered.map((d) => (
-          <DemandCard
-            key={d.id}
-            demand={d}
-            complexesMap={complexesMap}
-            onEdit={setEditDemand}
-            onDelete={handleDelete}
-            onStageChange={handleStageChange}
-            onArchiveToggle={handleArchiveToggle}
-            taskCount={taskCounts[d.id] ?? 0}
-          />
-        ))}
-      </div>
+      {view === 'funnel' && !isLoading && (
+        <SalesFunnel clients={clients} />
+      )}
+
+      {view === 'list' && (
+        <div className={twoCol ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
+          {filtered.map((d) => (
+            <DemandCard
+              key={d.id}
+              demand={d}
+              complexesMap={complexesMap}
+              onEdit={setEditDemand}
+              onDelete={handleDelete}
+              onStageChange={handleStageChange}
+              onArchiveToggle={handleArchiveToggle}
+              taskCount={taskCounts[d.id] ?? 0}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Create modal */}
       <Modal

@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Users, Phone, X, Loader2, AlertCircle,
   Pencil, Trash2, ChevronDown, ChevronUp, Building2, Bell,
-  ArrowUp, ArrowDown, List, GitMerge, ClipboardList, Bookmark,
+  ArrowUp, ArrowDown, List, ClipboardList, Bookmark,
   ShoppingCart, ArrowRight, MessageSquare, Copy, Check,
   ToggleLeft, ToggleRight, LayoutGrid,
 } from 'lucide-react'
@@ -18,7 +18,6 @@ import { useSavedFilters, useCreateSavedFilter } from '@/hooks/useSavedFilters'
 import { useTemplates } from '@/hooks/useTemplates'
 import { useComplexes } from '@/hooks/useComplexes'
 import Timeline from '@/components/timeline/Timeline'
-import SalesFunnel from '@/components/clients/SalesFunnel'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import type { Client, ClientFormData, Demand, DemandFormData } from '@/types'
 import {
@@ -200,7 +199,10 @@ function PopupChipSelect({
         <span className="truncate">
           {value.length === 0
             ? <span className="text-slate-400">Выбрать...</span>
-            : <span className="font-medium">{value.slice(0, 3).join(', ')}{value.length > 3 ? ` +${value.length - 3}` : ''}</span>
+            : <span className="font-medium">
+                {value.slice(0, 3).map(v => options.find(o => o.value === v)?.label ?? v).join(', ')}
+                {value.length > 3 ? ` +${value.length - 3}` : ''}
+              </span>
           }
         </span>
         <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
@@ -332,7 +334,13 @@ function ClientForm({
   const [demandAreaMax, setDemandAreaMax] = useState<number | undefined>(initialDemand?.area_max)
   const [demandAreaSotkiMin, setDemandAreaSotkiMin] = useState<number | undefined>(initialDemand?.area_sotki_min)
   const [demandAreaSotkiMax, setDemandAreaSotkiMax] = useState<number | undefined>(initialDemand?.area_sotki_max)
-  const [demandMarketType, setDemandMarketType] = useState<string>(initialDemand?.market_type ?? 'any')
+  const _initMt = initialDemand?.market_type
+  const [demandMarketMain, setDemandMarketMain] = useState<string>(
+    _initMt === 'primary_ready' || _initMt === 'primary_unready' ? 'primary' : (_initMt ?? 'any')
+  )
+  const [demandPrimarySubs, setDemandPrimarySubs] = useState<string[]>(
+    _initMt === 'primary_ready' ? ['primary_ready'] : _initMt === 'primary_unready' ? ['primary_unready'] : []
+  )
   const [demandFunnelStage, setDemandFunnelStage] = useState<string>(initialDemand?.funnel_stage ?? 'new')
   const [demandNotes, setDemandNotes] = useState<string>(initialDemand?.notes ?? '')
 
@@ -406,7 +414,9 @@ function ClientForm({
         area_max: demandAreaMax,
         area_sotki_min: demandAreaSotkiMin,
         area_sotki_max: demandAreaSotkiMax,
-        market_type: demandMarketType,
+        market_type: demandMarketMain !== 'primary'
+          ? demandMarketMain
+          : demandPrimarySubs.length === 1 ? demandPrimarySubs[0] : 'primary',
         funnel_stage: demandFunnelStage as any,
         notes: demandNotes,
         status: 'active',
@@ -592,10 +602,10 @@ function ClientForm({
                     <button
                       key={m.value}
                       type="button"
-                      onClick={() => setDemandMarketType(demandMarketType === m.value ? 'any' : m.value)}
+                      onClick={() => { setDemandMarketMain(m.value); if (m.value !== 'primary') setDemandPrimarySubs([]) }}
                       className={cn(
                         'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                        demandMarketType === m.value
+                        demandMarketMain === m.value
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
                       )}
@@ -604,20 +614,22 @@ function ClientForm({
                     </button>
                   ))}
                 </div>
-                {/* Sub-options when Новостройка selected */}
-                {(demandMarketType === 'primary' || demandMarketType === 'primary_ready' || demandMarketType === 'primary_unready') && (
+                {/* Sub-options when Новостройка selected — multi-select */}
+                {demandMarketMain === 'primary' && (
                   <div className="mt-2 flex flex-wrap gap-2 pl-2">
                     {[
                       { value: 'primary_ready',   label: 'Сданный дом'    },
-                      { value: 'primary_unready',  label: 'Не сданный дом' },
+                      { value: 'primary_unready', label: 'Не сданный дом' },
                     ].map((sub) => (
                       <button
                         key={sub.value}
                         type="button"
-                        onClick={() => setDemandMarketType(demandMarketType === sub.value ? 'primary' : sub.value)}
+                        onClick={() => setDemandPrimarySubs(prev =>
+                          prev.includes(sub.value) ? prev.filter(x => x !== sub.value) : [...prev, sub.value]
+                        )}
                         className={cn(
                           'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
-                          demandMarketType === sub.value
+                          demandPrimarySubs.includes(sub.value)
                             ? 'bg-blue-100 text-blue-700 border-blue-300'
                             : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
                         )}
@@ -625,6 +637,7 @@ function ClientForm({
                         {sub.label}
                       </button>
                     ))}
+                    <p className="w-full text-[10px] text-slate-400">Можно выбрать оба варианта</p>
                   </div>
                 )}
               </div>
@@ -1396,7 +1409,6 @@ export default function ClientsPage() {
   const [activeFilter, setActiveFilter] = useState<'' | 'active' | 'inactive'>('')
   const [sortBy, setSortBy] = useState<'client_number' | 'created_at' | 'updated_at' | 'last_contact'>('client_number')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [view, setView] = useState<'list' | 'funnel'>('list')
   const [twoCol, setTwoCol] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -1577,22 +1589,6 @@ export default function ClientsPage() {
           <p className="text-sm text-slate-500 mt-0.5">{filtered.length} из {clients.length}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 rounded-xl p-1">
-            <button
-              onClick={() => setView('list')}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                view === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}
-            >
-              <List size={13} /> Список
-            </button>
-            <button
-              onClick={() => setView('funnel')}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                view === 'funnel' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}
-            >
-              <GitMerge size={13} /> Воронка
-            </button>
-          </div>
           <button
             onClick={() => setTwoCol((v) => !v)}
             title={twoCol ? 'Одна колонка' : 'Две колонки'}
@@ -1605,9 +1601,10 @@ export default function ClientsPage() {
           </button>
           <button
             onClick={() => { setEditingClient(null); setIsFormOpen(true) }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
           >
-            <Plus size={16} /> Добавить клиента
+            <Plus size={16} />
+            <span className="hidden sm:inline">Добавить клиента</span>
           </button>
         </div>
       </div>
@@ -1782,9 +1779,7 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {!isLoading && view === 'funnel' && <SalesFunnel clients={filtered} />}
-
-      {!isLoading && view === 'list' && filtered.length > 0 && (
+      {!isLoading && filtered.length > 0 && (
         <div className={twoCol ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
           {filtered.map((client) => (
             <ClientRow

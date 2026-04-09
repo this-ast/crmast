@@ -1,6 +1,6 @@
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial'
 export type PropertyStatus = 'active' | 'sold' | 'reserved' | 'withdrawn'
-export type MarketType = 'secondary' | 'new_build'
+export type MarketType = 'secondary' | 'new_build' | 'new_build_ready' | 'new_build_unready'
 export type DealType = 'sale' | 'rent'
 
 export interface Property {
@@ -178,6 +178,8 @@ export const PROPERTY_STATUS_COLORS: Record<PropertyStatus, string> = {
 export const MARKET_TYPE_LABELS: Record<MarketType, string> = {
   secondary: 'Вторичка',
   new_build: 'Новострой',
+  new_build_ready: 'Новострой · Сданный дом',
+  new_build_unready: 'Новострой · Не сдан',
 }
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
