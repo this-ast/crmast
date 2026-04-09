@@ -80,6 +80,9 @@ export interface Property {
   // Source
   is_realtor_property: boolean  // объект передан риэлтором в работу
 
+  // New build completion date (free text: "Сдан", "Q4 2027", etc.)
+  completion_date?: string
+
   created_at: string
   updated_at: string
 }
@@ -145,6 +148,8 @@ export interface PropertyFormData {
   entrance_groups?: number
   // Source
   is_realtor_property?: boolean
+  // New build completion date
+  completion_date?: string
 }
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {

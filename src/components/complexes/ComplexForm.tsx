@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, Pencil, Plus, Trash2, Upload, X, ChevronDown, Search, Check } from 'lucide-react'
+import CompletionDatePicker from '@/components/ui/CompletionDatePicker'
 import {
   useCreateComplex,
   useUpdateComplex,
@@ -587,10 +588,9 @@ export default function ComplexForm() {
           </div>
           <div>
             <FieldLabel>Срок сдачи</FieldLabel>
-            <Input
-              placeholder="Q4 2025"
+            <CompletionDatePicker
               value={completionDate}
-              onChange={(e) => setCompletionDate(e.target.value)}
+              onChange={setCompletionDate}
             />
           </div>
         </div>
