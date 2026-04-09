@@ -4,9 +4,9 @@ import { useCollectionBySlug } from '@/hooks/useCollections'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
-import type { PropertyWithOwner, AgentSettings } from '@/types'
+import type { PropertyWithOwner, AgentSettings, ComplexUnit, Complex } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS, DEAL_TYPE_LABELS } from '@/types'
-import { formatPriceShort, formatPrice } from '@/utils/format'
+import { formatPriceShort } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import {
   Phone, MessageCircle, Send, MapPin,
@@ -162,6 +162,121 @@ function PropertyCard({ property, index, onOpen }: {
   )
 }
 
+// ─── Developer Unit Card ───────────────────────────────────────────────────────
+
+function UnitCard({ unit, complex, index }: {
+  unit: ComplexUnit & { complex_name?: string }
+  complex: Complex | undefined
+  index: number
+}) {
+  const photos = (unit.photos?.length ? unit.photos : complex?.photos) ?? []
+  const label = unit.title
+    ? unit.title
+    : unit.rooms
+      ? (unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн. квартира`)
+      : 'Квартира'
+
+  const specs: string[] = []
+  if (unit.area) specs.push(`${unit.area} м²`)
+  if (unit.rooms !== undefined) specs.push(unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн.`)
+  if (unit.floor && unit.total_floors) specs.push(`${unit.floor}/${unit.total_floors} эт.`)
+  else if (unit.floor) specs.push(`${unit.floor} эт.`)
+
+  const paymentTypes: string[] = []
+  if (complex?.pricing_conditions?.length) {
+    complex.pricing_conditions.forEach((pc) => {
+      if (pc.payment_type === 'mortgage') paymentTypes.push('Ипотека')
+      if (pc.payment_type === 'installment') paymentTypes.push('Рассрочка')
+      if (pc.payment_type === 'escrow') paymentTypes.push('Эскроу')
+    })
+  }
+
+  const location = [complex?.address, complex?.district].filter(Boolean).join(', ')
+
+  return (
+    <article className="bg-white border border-gray-100 overflow-hidden print:break-inside-avoid">
+      <CardPhoto photos={photos} alt={label} />
+
+      <div className="p-6 md:p-8">
+        {/* Number + badge */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-gray-300 text-xs font-bold uppercase tracking-[0.2em]">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              🏗 Новостройка
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 text-white"
+              style={{ background: GOLD }}>
+              От застройщика
+            </span>
+          </div>
+        </div>
+
+        {/* Price */}
+        {unit.price != null && (
+          <div className="mb-4">
+            <div className="serif text-3xl font-normal italic">
+              {formatPriceShort(unit.price)}
+            </div>
+            {unit.area && (
+              <p className="text-gray-400 text-xs mt-0.5">
+                {Math.round(unit.price / unit.area).toLocaleString('ru-RU')} ₽/м²
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="h-px w-8 mb-4" style={{ background: GOLD }} />
+
+        {/* Specs */}
+        {specs.length > 0 && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mb-4">
+            {specs.map((s) => (
+              <span key={s} className="text-sm font-semibold text-gray-800">{s}</span>
+            ))}
+          </div>
+        )}
+
+        {/* ЖК name + location */}
+        <div className="flex items-start gap-1.5 mb-4">
+          <MapPin size={13} className="shrink-0 mt-0.5 text-gray-300" />
+          <div>
+            {complex?.name && (
+              <p className="text-sm text-gray-600">ЖК «{complex.name}»</p>
+            )}
+            {location && <p className="text-xs text-gray-400 mt-0.5">{location}</p>}
+            {complex?.developer && (
+              <p className="text-xs text-gray-400 mt-0.5">Застройщик: {complex.developer}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Description = complex description + unit notes */}
+        {(complex?.description || unit.notes) && (
+          <p className="text-sm text-gray-500 leading-relaxed mb-5 line-clamp-2">
+            {[complex?.description, unit.notes].filter(Boolean).join(' · ')}
+          </p>
+        )}
+
+        {/* Payment tags */}
+        {paymentTypes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {[...new Set(paymentTypes)].map((t) => (
+              <span key={t} className="text-[9px] uppercase font-bold tracking-widest px-2.5 py-1 border border-gray-200 text-gray-400">{t}</span>
+            ))}
+          </div>
+        )}
+
+        {complex?.completion_date && (
+          <p className="text-xs text-gray-400 mb-5">Срок сдачи: {complex.completion_date}</p>
+        )}
+      </div>
+    </article>
+  )
+}
+
 // ─── Agent Footer ─────────────────────────────────────────────────────────────
 
 function AgentFooter({ agent }: { agent: AgentSettings }) {
@@ -252,7 +367,33 @@ export default function CollectionPublicPage() {
     enabled: !!collection,
   })
 
-  if (loadingCollection || loadingProps) {
+  const { data: units = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['public-collection-units', collection?.id],
+    queryFn: async (): Promise<(ComplexUnit & { complex_name?: string })[]> => {
+      const ids = collection?.unit_ids ?? []
+      if (!ids.length) return []
+      const { data, error } = await supabase.from('complex_units').select('*').in('id', ids)
+      if (error) throw new Error(error.message)
+      const map = new Map((data ?? []).map(u => [u.id, u]))
+      return ids.map(id => map.get(id)).filter(Boolean) as ComplexUnit[]
+    },
+    enabled: !!collection,
+  })
+
+  const complexIds = [...new Set(units.map(u => u.complex_id).filter(Boolean))]
+  const { data: complexesForUnits = [] } = useQuery({
+    queryKey: ['public-collection-complexes', complexIds.join(',')],
+    queryFn: async (): Promise<Complex[]> => {
+      if (!complexIds.length) return []
+      const { data, error } = await supabase.from('complexes').select('*').in('id', complexIds)
+      if (error) throw new Error(error.message)
+      return (data ?? []) as Complex[]
+    },
+    enabled: complexIds.length > 0,
+  })
+  const complexMap = new Map(complexesForUnits.map(c => [c.id, c]))
+
+  if (loadingCollection || loadingProps || loadingUnits) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -275,13 +416,20 @@ export default function CollectionPublicPage() {
     )
   }
 
-  const prices = properties.map(p => p.price).filter(Boolean).sort((a, b) => a - b)
-  const priceRange = prices.length > 1
-    ? `${formatPriceShort(prices[0])} — ${formatPriceShort(prices[prices.length - 1])}`
-    : prices.length === 1 ? formatPriceShort(prices[0]) : null
+  const allPrices = [
+    ...properties.map(p => p.price),
+    ...units.map(u => u.price),
+  ].filter((v): v is number => v != null && v > 0).sort((a, b) => a - b)
+  const priceRange = allPrices.length > 1
+    ? `${formatPriceShort(allPrices[0])} — ${formatPriceShort(allPrices[allPrices.length - 1])}`
+    : allPrices.length === 1 ? formatPriceShort(allPrices[0]) : null
 
-  // Cover photo = first photo of first property
-  const coverPhoto = properties[0]?.photos?.[0] ?? null
+  const totalCount = properties.length + units.length
+
+  // Cover photo = first photo of first property or first complex
+  const coverPhoto = properties[0]?.photos?.[0]
+    ?? complexesForUnits[0]?.photos?.[0]
+    ?? null
 
   return (
     <div className="min-h-screen bg-white" ref={contentRef}>
@@ -319,7 +467,7 @@ export default function CollectionPublicPage() {
           )}
           <div className="flex items-center gap-4 mt-4 flex-wrap">
             <span className="text-white/50 text-xs uppercase tracking-widest">
-              {properties.length} {properties.length === 1 ? 'объект' : properties.length < 5 ? 'объекта' : 'объектов'}
+              {totalCount} {totalCount === 1 ? 'объект' : totalCount < 5 ? 'объекта' : 'объектов'}
             </span>
             {priceRange && (
               <span className="text-xs font-bold" style={{ color: GOLD }}>
@@ -341,13 +489,21 @@ export default function CollectionPublicPage() {
 
       {/* ── Property list ──────────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-10 space-y-6">
-        {properties.length === 0 && (
+        {totalCount === 0 && (
           <p className="text-center text-gray-400 py-16 text-sm uppercase tracking-widest">
             Объекты не найдены
           </p>
         )}
         {properties.map((p, i) => (
           <PropertyCard key={p.id} property={p} index={i} onOpen={() => navigate(`/p/${p.id}`)} />
+        ))}
+        {units.map((u, i) => (
+          <UnitCard
+            key={u.id}
+            unit={u}
+            complex={complexMap.get(u.complex_id)}
+            index={properties.length + i}
+          />
         ))}
       </div>
 

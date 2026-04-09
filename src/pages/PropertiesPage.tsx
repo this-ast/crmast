@@ -12,6 +12,7 @@ import PropertyForm from '@/components/properties/PropertyForm'
 import Modal from '@/components/ui/Modal'
 import OptionsManager from '@/components/settings/OptionsManager'
 import UnitDetailModal from '@/components/complexes/UnitDetailModal'
+import DeveloperUnitForm from '@/components/complexes/DeveloperUnitForm'
 import type { PropertyWithOwner, ComplexUnit } from '@/types'
 import { formatPriceShort } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -113,6 +114,7 @@ export default function PropertiesPage() {
   const [tab, setTab] = useState<'all' | 'developer'>('all')
   const [unitSearch, setUnitSearch] = useState('')
   const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string }) | null>(null)
+  const [showUnitForm, setShowUnitForm] = useState(false)
   const {
     filters,
     selectedPropertyId,
@@ -212,6 +214,15 @@ export default function PropertiesPage() {
               data-tour="add-property"
               onClick={() => openForm()}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Добавить объект
+            </button>
+          )}
+          {tab === 'developer' && (
+            <button
+              onClick={() => setShowUnitForm(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
             >
               <Plus size={16} />
               Добавить объект
@@ -383,6 +394,11 @@ export default function PropertiesPage() {
         {selectedUnit && (
           <UnitDetailModal unit={selectedUnit} onClose={() => setSelectedUnit(null)} />
         )}
+      </Modal>
+
+      {/* Developer Unit Form Modal */}
+      <Modal isOpen={showUnitForm} onClose={() => setShowUnitForm(false)} size="md">
+        <DeveloperUnitForm onClose={() => setShowUnitForm(false)} />
       </Modal>
 
       <OptionsManager
