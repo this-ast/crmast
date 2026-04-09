@@ -33,6 +33,9 @@ interface PropertyFilters {
   filterParking: boolean
   filterActiveBusiness: boolean
   filterWetPoints: boolean
+  // New build sub-types
+  filterNewBuildReady: boolean
+  filterNewBuildUnready: boolean
   // Source
   filterRealtorProperty: boolean
   // Date range
@@ -79,6 +82,8 @@ const defaultFilters: PropertyFilters = {
   filterParking: false,
   filterActiveBusiness: false,
   filterWetPoints: false,
+  filterNewBuildReady: false,
+  filterNewBuildUnready: false,
   filterRealtorProperty: false,
   dateField: 'created_at',
   dateFrom: '',
@@ -110,6 +115,8 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
         filterParking: false,
         filterActiveBusiness: false,
         filterWetPoints: false,
+        filterNewBuildReady: false,
+        filterNewBuildUnready: false,
       },
     })),
 

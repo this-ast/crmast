@@ -26,8 +26,23 @@ function filterProperties(
   return properties.filter((p) => {
     // Category filters
     if (type !== 'all' && p.type !== type) return false
-    if (marketType !== 'all' && p.market_type !== marketType) return false
+    if (marketType !== 'all') {
+      // new_build category matches all three new_build variants
+      if (marketType === 'new_build') {
+        if (!['new_build', 'new_build_ready', 'new_build_unready'].includes(p.market_type ?? '')) return false
+      } else {
+        if (p.market_type !== marketType) return false
+      }
+    }
     if (dealType !== 'all' && p.deal_type !== dealType) return false
+
+    // New build sub-type filters
+    if (filters.filterNewBuildReady || filters.filterNewBuildUnready) {
+      const allowed: string[] = []
+      if (filters.filterNewBuildReady) allowed.push('new_build_ready')
+      if (filters.filterNewBuildUnready) allowed.push('new_build_unready')
+      if (!allowed.includes(p.market_type ?? '')) return false
+    }
 
     // Status — by default hide sold/withdrawn; show them only when explicitly selected
     if (filters.status === 'all') {

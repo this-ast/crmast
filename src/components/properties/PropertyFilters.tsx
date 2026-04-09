@@ -87,6 +87,8 @@ export default function PropertyFilters() {
     filters.filterParking,
     filters.filterActiveBusiness,
     filters.filterWetPoints,
+    filters.filterNewBuildReady,
+    filters.filterNewBuildUnready,
     filters.filterRealtorProperty,
     filters.dateFrom !== '',
     filters.dateTo !== '',
@@ -183,6 +185,34 @@ export default function PropertyFilters() {
           </button>
         )}
       </div>
+
+      {/* New build sub-filters */}
+      {category === 'new_build' && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setFilter('filterNewBuildReady', !filters.filterNewBuildReady)}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              filters.filterNewBuildReady
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400 hover:text-emerald-600'
+            )}
+          >
+            ✅ Сданный дом
+          </button>
+          <button
+            onClick={() => setFilter('filterNewBuildUnready', !filters.filterNewBuildUnready)}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              filters.filterNewBuildUnready
+                ? 'bg-orange-500 text-white border-orange-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-orange-400 hover:text-orange-600'
+            )}
+          >
+            🏗 Не сдан
+          </button>
+        </div>
+      )}
 
       {/* ── Advanced filters panel ── */}
       {showAdvanced && (
