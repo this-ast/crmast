@@ -24,6 +24,7 @@ import {
   TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS, TASK_PRIORITY_DOT,
 } from '@/types'
 import type { Task, TaskFormData, TaskPriority, TaskLinkedType, TaskAlsoLink } from '@/types'
+import { useCrossPreview } from '@/store/useCrossPreview'
 import toast from 'react-hot-toast'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -512,6 +513,7 @@ function TasksWidget({
   complexes: { id: string; name: string }[]
 }) {
   const navigate = useNavigate()
+  const openPreview = useCrossPreview((s) => s.open)
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
@@ -577,10 +579,10 @@ function TasksWidget({
 
   const linkedNavigate = (task: Task) => {
     if (!task.linked_type || !task.linked_id) return undefined
-    if (task.linked_type === 'client') return () => navigate(`/clients?highlight=${task.linked_id}`)
-    if (task.linked_type === 'property') return () => navigate(`/properties?open=${task.linked_id}`)
+    if (task.linked_type === 'client') return () => openPreview('client', task.linked_id!)
+    if (task.linked_type === 'property') return () => openPreview('property', task.linked_id!)
     if (task.linked_type === 'deal') return () => navigate(`/deals?open=${task.linked_id}`)
-    if (task.linked_type === 'complex') return () => navigate(`/complexes?open=${task.linked_id}`)
+    if (task.linked_type === 'complex') return () => openPreview('complex', task.linked_id!)
   }
 
   const handleSave = async (data: TaskFormData) => {
@@ -1047,6 +1049,7 @@ function AnalyticsWidget({
 
 function MiniCRM({ clients }: { clients: any[] }) {
   const navigate = useNavigate()
+  const openPreview = useCrossPreview((s) => s.open)
 
   const priorityOrder = ['Горячий', 'Тёплый', 'Думает', 'Воздухан', 'Холодный']
   const topClients = useMemo(() => {
@@ -1079,7 +1082,7 @@ function MiniCRM({ clients }: { clients: any[] }) {
           {topClients.map((c: any) => (
             <button
               key={c.id}
-              onClick={() => navigate(`/clients?highlight=${c.id}`)}
+              onClick={() => openPreview('client', c.id)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all text-left group"
             >
               <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">

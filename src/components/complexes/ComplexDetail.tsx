@@ -17,6 +17,8 @@ import ComplexPdfButton from '@/components/pdf/ComplexPdfButton'
 interface ComplexDetailProps {
   complexId: string
   onClose: () => void
+  previewMode?: boolean
+  onCrossNavigate?: (type: 'property' | 'client' | 'complex' | 'deal', id: string) => void
 }
 
 const DOC_TYPE_LABELS = {
@@ -217,7 +219,7 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
   )
 }
 
-export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps) {
+export default function ComplexDetail({ complexId, onClose, previewMode, onCrossNavigate }: ComplexDetailProps) {
   const { data: complex, isLoading } = useComplex(complexId)
   const { data: agentSettings } = useAgentSettings()
   const deleteComplex = useDeleteComplex()
@@ -432,6 +434,10 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
   }
 
   const handlePropertyClick = (propertyId: string) => {
+    if (onCrossNavigate) {
+      onCrossNavigate('property', propertyId)
+      return
+    }
     onClose()
     setTimeout(() => navigate(`/properties?open=${propertyId}`), 150)
   }
@@ -509,12 +515,14 @@ export default function ComplexDetail({ complexId, onClose }: ComplexDetailProps
           >
             <Trash2 size={16} />
           </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-1"
-          >
-            <X size={18} />
-          </button>
+          {!previewMode && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-1"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 

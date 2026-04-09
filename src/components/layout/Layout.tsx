@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import MobileBottomNav from './MobileBottomNav'
 import OnboardingTour from '@/components/onboarding/OnboardingTour'
 import NetworkStatusBar from '@/components/ui/NetworkStatusBar'
+import CrossSectionPreview from '@/components/ui/CrossSectionPreview'
 import { useOnboarding } from '@/store/useOnboarding'
 import { useSync } from '@/hooks/useSync'
 
@@ -54,6 +55,7 @@ export default function Layout() {
 
       <MobileBottomNav />
       <OnboardingTour />
+      <CrossSectionPreview />
     </div>
   )
 }

@@ -305,6 +305,8 @@ function PhotoGallery({ photos, propertyId, onDelete, onReorder }: {
 interface PropertyDetailProps {
   property: PropertyWithOwner
   onClose: () => void
+  previewMode?: boolean
+  onCrossNavigate?: (type: 'property' | 'client' | 'complex' | 'deal', id: string) => void
 }
 
 function InfoRow({
@@ -329,7 +331,7 @@ function InfoRow({
   )
 }
 
-export default function PropertyDetail({ property, onClose }: PropertyDetailProps) {
+export default function PropertyDetail({ property, onClose, previewMode, onCrossNavigate }: PropertyDetailProps) {
   const [phoneRevealed, setPhoneRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [inlineClient, setInlineClient] = useState<(Client & { matchReasons?: string[]; matchMismatches?: string[] }) | null>(null)
@@ -389,6 +391,10 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
   }
 
   const handleGoToClient = (id: string) => {
+    if (onCrossNavigate) {
+      onCrossNavigate('client', id)
+      return
+    }
     onClose()
     setTimeout(() => navigate(`/clients?highlight=${id}`), 150)
   }
@@ -478,12 +484,14 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
           >
             <Trash2 size={16} />
           </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-1"
-          >
-            <X size={18} />
-          </button>
+          {!previewMode && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors ml-1"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -684,7 +692,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 value={
                   property.complex_id ? (
                     <button
-                      onClick={() => { onClose(); setTimeout(() => navigate(`/complexes?open=${property.complex_id}`), 150) }}
+                      onClick={() => { if (onCrossNavigate && property.complex_id) { onCrossNavigate('complex', property.complex_id) } else { onClose(); setTimeout(() => navigate(`/complexes?open=${property.complex_id}`), 150) } }}
                       className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
                     >
                       {complex_name}
@@ -764,7 +772,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
 
         {/* Matching clients */}
         <div>
-          <MatchingClientsSection property={property} onClientClick={(c) => setInlineClient(c)} />
+          <MatchingClientsSection property={property} onClientClick={(c) => { if (onCrossNavigate) { onCrossNavigate('client', c.id) } else { setInlineClient(c) } }} />
         </div>
 
         {/* Documents */}
@@ -901,7 +909,7 @@ export default function PropertyDetail({ property, onClose }: PropertyDetailProp
                 return (
                   <button
                     key={deal.id}
-                    onClick={() => { onClose(); setTimeout(() => navigate(`/deals?open=${deal.id}`), 150) }}
+                    onClick={() => { if (onCrossNavigate) { onCrossNavigate('deal', deal.id) } else { onClose(); setTimeout(() => navigate(`/deals?open=${deal.id}`), 150) } }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors text-left group"
                   >
                     <HeartHandshake size={15} className="text-emerald-500 shrink-0" />

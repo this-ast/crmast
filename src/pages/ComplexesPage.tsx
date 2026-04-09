@@ -15,6 +15,7 @@ import Modal from '@/components/ui/Modal'
 import ComplexFilters, { ComplexFilterState, defaultComplexFilters } from '@/components/complexes/ComplexFilters'
 import OptionsManager from '@/components/settings/OptionsManager'
 import { cn } from '@/utils/cn'
+import { useCrossPreview } from '@/store/useCrossPreview'
 
 export default function ComplexesPage() {
   const { data: complexes = [], isLoading, error } = useComplexes()
@@ -35,6 +36,7 @@ export default function ComplexesPage() {
     ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
     : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
   const navigate = useNavigate()
+  const openPreview = useCrossPreview((s) => s.open)
 
   const {
     selectedComplexId,
@@ -354,7 +356,7 @@ export default function ComplexesPage() {
                 modalProperties.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => { setPropertiesModalComplexId(null); setTimeout(() => navigate(`/properties?open=${p.id}`), 150) }}
+                    onClick={() => { setPropertiesModalComplexId(null); openPreview('property', p.id) }}
                     className="w-full flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all text-left group"
                   >
                     <PropertyTypeIcon type={p.type} size="sm" />

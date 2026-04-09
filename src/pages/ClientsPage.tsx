@@ -35,6 +35,7 @@ import { formatPrice, formatPhone, maskPhone } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { getOptionsWithDeletions } from '@/lib/customOptions'
 import Modal from '@/components/ui/Modal'
+import { useCrossPreview } from '@/store/useCrossPreview'
 import toast from 'react-hot-toast'
 
 // ─── Overdue Contact Banner ───────────────────────────────────────────────────
@@ -865,8 +866,8 @@ function ClientForm({
 // ─── Client Properties mini-list ──────────────────────────────────────────────
 
 function ClientProperties({ clientId }: { clientId: string }) {
-  const navigate = useNavigate()
   const { data: props = [], isLoading } = usePropertiesByOwner(clientId)
+  const openPreview = useCrossPreview((s) => s.open)
   if (isLoading) return <p className="text-xs text-slate-400">Загрузка...</p>
   if (props.length === 0) return <p className="text-xs text-slate-400">Объектов нет</p>
   return (
@@ -874,7 +875,7 @@ function ClientProperties({ clientId }: { clientId: string }) {
       {props.map((p) => (
         <button
           key={p.id}
-          onClick={(e) => { e.stopPropagation(); navigate(`/properties?open=${p.id}`) }}
+          onClick={(e) => { e.stopPropagation(); openPreview('property', p.id) }}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all text-left group"
         >
           <span className="text-base">{PROPERTY_TYPE_ICONS[p.type]}</span>
@@ -894,7 +895,7 @@ function ClientProperties({ clientId }: { clientId: string }) {
 // ─── Client Deals ─────────────────────────────────────────────────────────────
 
 function ClientDealsSection({ clientId }: { clientId: string }) {
-  const navigate = useNavigate()
+  const openPreview = useCrossPreview((s) => s.open)
   const { data: deals = [], isLoading } = useDealsByClient(clientId)
   if (isLoading || deals.length === 0) return null
   return (
@@ -909,7 +910,7 @@ function ClientDealsSection({ clientId }: { clientId: string }) {
           return (
             <button
               key={d.id}
-              onClick={(e) => { e.stopPropagation(); navigate(`/deals?open=${d.id}`) }}
+              onClick={(e) => { e.stopPropagation(); openPreview('deal', d.id) }}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all text-left group"
             >
               <div className="flex-1 min-w-0">

@@ -14,6 +14,7 @@ import { DEAL_STATUSES, PAYMENT_METHODS, PROPERTY_TYPE_LABELS } from '@/types'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import Modal from '@/components/ui/Modal'
+import { useCrossPreview } from '@/store/useCrossPreview'
 import toast from 'react-hot-toast'
 
 // ─── Client Selector ──────────────────────────────────────────────────────────
@@ -402,6 +403,7 @@ function DealCard({
   onDelete: (d: Deal) => void
 }) {
   const navigate = useNavigate()
+  const openPreview = useCrossPreview((s) => s.open)
   const [expanded, setExpanded] = useState(defaultExpanded)
   const cardRef = useRef<HTMLDivElement>(null)
   const statusMeta = DEAL_STATUSES.find((s) => s.value === deal.status)
@@ -469,7 +471,7 @@ function DealCard({
           <div className="grid grid-cols-2 gap-3">
             {deal.buyer && (
               <button
-                onClick={(e) => { e.stopPropagation(); navigate(`/clients?highlight=${deal.buyer!.id}`) }}
+                onClick={(e) => { e.stopPropagation(); openPreview('client', deal.buyer!.id) }}
                 className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-left hover:bg-blue-100 transition-colors group"
               >
                 <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
@@ -485,7 +487,7 @@ function DealCard({
             )}
             {deal.seller && (
               <button
-                onClick={(e) => { e.stopPropagation(); navigate(`/clients?highlight=${deal.seller!.id}`) }}
+                onClick={(e) => { e.stopPropagation(); openPreview('client', deal.seller!.id) }}
                 className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl text-left hover:bg-emerald-100 transition-colors group"
               >
                 <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
@@ -517,7 +519,7 @@ function DealCard({
           {/* Property */}
           {deal.property && (
             <button
-              onClick={(e) => { e.stopPropagation(); navigate(`/properties?open=${deal.property!.id}`) }}
+              onClick={(e) => { e.stopPropagation(); openPreview('property', deal.property!.id) }}
               className="w-full flex items-center gap-3 px-3 py-2.5 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group text-left"
             >
               <div className="w-7 h-7 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">

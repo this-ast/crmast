@@ -34,6 +34,27 @@ export function useClients() {
   })
 }
 
+export function useClient(id: string) {
+  return useQuery({
+    queryKey: [QUERY_KEY, id],
+    queryFn: async (): Promise<Client | null> => {
+      const all = await getCachedEntities<Client>(QUERY_KEY)
+      const cached = all.find((c) => c.id === id)
+      if (cached) return cached
+
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      return data
+    },
+    enabled: !!id,
+  })
+}
+
 export function useCreateClient() {
   const queryClient = useQueryClient()
 
