@@ -132,7 +132,19 @@ export function useCreateProperty() {
         .select()
         .single()
 
-      if (error) throw new Error(error.message ?? JSON.stringify(error))
+      if (error) {
+        if (error.message?.includes('completion_date')) {
+          const { completion_date: _cd, ...dataWithout } = data as any
+          const { data: created2, error: error2 } = await supabase
+            .from('properties')
+            .insert({ ...dataWithout, article, photos: [], videos: [] })
+            .select()
+            .single()
+          if (error2) throw new Error(error2.message ?? JSON.stringify(error2))
+          return created2 as Property
+        }
+        throw new Error(error.message ?? JSON.stringify(error))
+      }
       return created as Property
     },
     onSuccess: (result) => {
@@ -173,6 +185,18 @@ export function useUpdateProperty() {
 
       if (error) {
         console.error('[useUpdateProperty] error:', error)
+        if (error.message?.includes('completion_date')) {
+          const { completion_date: _cd, ...payloadWithout } = payload as any
+          const { data: updated2, error: error2 } = await supabase
+            .from('properties')
+            .update(payloadWithout)
+            .eq('id', id)
+            .select()
+            .single()
+          if (error2) throw new Error(error2.message ?? JSON.stringify(error2))
+          if (!updated2) throw new Error('Объект не найден или нет прав на обновление')
+          return updated2 as Property
+        }
         throw new Error(error.message ?? JSON.stringify(error))
       }
       if (!updated) {
