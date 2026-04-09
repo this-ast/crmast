@@ -112,11 +112,18 @@ export function useCreateCollection() {
         } as unknown as Collection
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('collections').insert(payload).select().single()
       if (error) {
-        console.error('[useCreateCollection] error:', error)
-        throw new Error(error.message ?? JSON.stringify(error))
+        if (error.message?.includes('unit_ids')) {
+          const { unit_ids: _, ...payloadWithout } = payload as any
+          const res = await supabase.from('collections').insert(payloadWithout).select().single()
+          if (res.error) throw new Error(res.error.message ?? JSON.stringify(res.error))
+          data = res.data
+        } else {
+          console.error('[useCreateCollection] error:', error)
+          throw new Error(error.message ?? JSON.stringify(error))
+        }
       }
       return data as Collection
     },
@@ -144,9 +151,18 @@ export function useUpdateCollection() {
         return OFFLINE_MARKER
       }
 
-      const { data: updated, error } = await supabase
+      let { data: updated, error } = await supabase
         .from('collections').update(payload).eq('id', id).select().single()
-      if (error) throw new Error(error.message)
+      if (error) {
+        if (error.message?.includes('unit_ids')) {
+          const { unit_ids: _, ...payloadWithout } = payload as any
+          const res = await supabase.from('collections').update(payloadWithout).eq('id', id).select().single()
+          if (res.error) throw new Error(res.error.message)
+          updated = res.data
+        } else {
+          throw new Error(error.message)
+        }
+      }
       return updated as Collection
     },
     onSuccess: (result) => {

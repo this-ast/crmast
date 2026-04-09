@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Loader2, X } from 'lucide-react'
-import { useComplexes, useCreateComplexUnit } from '@/hooks/useComplexes'
+import { ChevronDown, Loader2, X, Plus, Trash2 } from 'lucide-react'
+import { useComplexes, useCreateComplexUnit, useUploadComplexUnitPhoto } from '@/hooks/useComplexes'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 import type { Complex } from '@/types'
@@ -113,7 +113,11 @@ function ComplexPicker({
 
 export default function DeveloperUnitForm({ onClose }: Props) {
   const createUnit = useCreateComplexUnit()
+  const uploadPhoto = useUploadComplexUnitPhoto()
   const [complexId, setComplexId] = useState('')
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
+  const [pendingPreviewUrls, setPendingPreviewUrls] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: '',
     rooms: '',
@@ -124,13 +128,28 @@ export default function DeveloperUnitForm({ onClose }: Props) {
     notes: '',
   })
 
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setPendingPhotos((prev) => [...prev, ...files])
+    const urls = files.map((f) => URL.createObjectURL(f))
+    setPendingPreviewUrls((prev) => [...prev, ...urls])
+    e.target.value = ''
+  }
+
+  function removePhoto(idx: number) {
+    URL.revokeObjectURL(pendingPreviewUrls[idx])
+    setPendingPhotos((prev) => prev.filter((_, i) => i !== idx))
+    setPendingPreviewUrls((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   const handleSave = async () => {
     if (!complexId) {
       toast.error('Выберите ЖК')
       return
     }
     try {
-      await createUnit.mutateAsync({
+      const created = await createUnit.mutateAsync({
         complexId,
         data: {
           title: form.title || undefined,
@@ -142,6 +161,12 @@ export default function DeveloperUnitForm({ onClose }: Props) {
           notes: form.notes || undefined,
         },
       })
+      // Upload any pending photos
+      for (const file of pendingPhotos) {
+        try {
+          await uploadPhoto.mutateAsync({ unitId: created.id, complexId, file })
+        } catch { /* best-effort */ }
+      }
       toast.success('Объект добавлен')
       onClose()
     } catch (err) {
@@ -239,6 +264,35 @@ export default function DeveloperUnitForm({ onClose }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
           />
         </div>
+
+        {/* Photos */}
+        <div>
+          <FieldLabel>Фотографии</FieldLabel>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors w-full justify-center"
+          >
+            <Plus size={14} /> Добавить фото
+          </button>
+          {pendingPreviewUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {pendingPreviewUrls.map((url, i) => (
+                <div key={i} className="relative group">
+                  <img src={url} alt="" className="w-16 h-16 object-cover rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer */}
@@ -253,10 +307,10 @@ export default function DeveloperUnitForm({ onClose }: Props) {
         <button
           type="button"
           onClick={handleSave}
-          disabled={createUnit.isPending}
+          disabled={createUnit.isPending || uploadPhoto.isPending}
           className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
         >
-          {createUnit.isPending && <Loader2 size={14} className="animate-spin" />}
+          {(createUnit.isPending || uploadPhoto.isPending) && <Loader2 size={14} className="animate-spin" />}
           Сохранить
         </button>
       </div>

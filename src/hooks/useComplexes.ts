@@ -393,6 +393,7 @@ export function useCreateComplexUnit() {
     },
     onSuccess: (_, { complexId }) => {
       queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+      queryClient.invalidateQueries({ queryKey: ['complex_units_all'] })
     },
   })
 }
@@ -408,6 +409,7 @@ export function useUpdateComplexUnit() {
     },
     onSuccess: (_, { complexId }) => {
       queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+      queryClient.invalidateQueries({ queryKey: ['complex_units_all'] })
     },
   })
 }
@@ -421,6 +423,60 @@ export function useDeleteComplexUnit() {
     },
     onSuccess: (_, { complexId }) => {
       queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+      queryClient.invalidateQueries({ queryKey: ['complex_units_all'] })
+    },
+  })
+}
+
+export function useUploadComplexUnitPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ unitId, complexId, file }: { unitId: string; complexId: string; file: File }) => {
+      await ensureBucket('complex-photos')
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `units/${unitId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('complex-photos')
+        .upload(path, file, { contentType: getMimeType(file), upsert: false })
+      if (uploadError) throw new Error(uploadError.message)
+      const { data: { publicUrl } } = supabase.storage.from('complex-photos').getPublicUrl(path)
+
+      const { data: unit } = await supabase.from('complex_units').select('photos').eq('id', unitId).single()
+      const existing: string[] = (unit as any)?.photos ?? []
+      const { error: updateError } = await supabase
+        .from('complex_units')
+        .update({ photos: [...existing, publicUrl] })
+        .eq('id', unitId)
+      if (updateError) throw new Error(updateError.message)
+      return publicUrl
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+      queryClient.invalidateQueries({ queryKey: ['complex_units_all'] })
+    },
+  })
+}
+
+export function useDeleteComplexUnitPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ unitId, complexId, photoUrl }: { unitId: string; complexId: string; photoUrl: string }) => {
+      const { data: unit } = await supabase.from('complex_units').select('photos').eq('id', unitId).single()
+      const existing: string[] = (unit as any)?.photos ?? []
+      const updated = existing.filter((u) => u !== photoUrl)
+      const { error } = await supabase.from('complex_units').update({ photos: updated }).eq('id', unitId)
+      if (error) throw new Error(error.message)
+
+      // Try to delete from storage
+      try {
+        const url = new URL(photoUrl)
+        const storagePath = url.pathname.split('/complex-photos/')[1]
+        if (storagePath) await supabase.storage.from('complex-photos').remove([storagePath])
+      } catch { /* ignore storage cleanup errors */ }
+    },
+    onSuccess: (_, { complexId }) => {
+      queryClient.invalidateQueries({ queryKey: ['complex_units', complexId] })
+      queryClient.invalidateQueries({ queryKey: ['complex_units_all'] })
     },
   })
 }
