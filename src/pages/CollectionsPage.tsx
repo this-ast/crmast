@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Plus, Link2, Pencil, Trash2, Copy, Check, Search, Wand2, X, ChevronDown, ExternalLink,
 } from 'lucide-react'
@@ -6,11 +6,12 @@ import toast from 'react-hot-toast'
 import { useCollections, useCreateCollection, useUpdateCollection, useDeleteCollection } from '@/hooks/useCollections'
 import { useClients } from '@/hooks/useClients'
 import { useProperties } from '@/hooks/useProperties'
-import { useAllComplexUnits } from '@/hooks/useComplexes'
+import { useAllComplexUnits, useComplexes } from '@/hooks/useComplexes'
+import { useDemands } from '@/hooks/useDemands'
 import type { CollectionFormData, CollectionWithClient, PropertyWithOwner, Client } from '@/types'
 import { PROPERTY_TYPE_LABELS, PROPERTY_TYPE_ICONS } from '@/types'
 import { formatPriceShort } from '@/utils/format'
-import { getMatchingProperties } from '@/utils/matching'
+import { getMatchingProperties, scorePropertyForDemand, scoreUnitForDemand } from '@/utils/matching'
 
 // ─── Collection Form Modal ────────────────────────────────────────────────────
 
@@ -23,8 +24,11 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
   const { data: clients = [] } = useClients()
   const { data: allProperties = [] } = useProperties()
   const { data: allUnits = [] } = useAllComplexUnits()
+  const { data: allComplexes = [] } = useComplexes()
+  const { data: allDemands = [] } = useDemands()
   const createMutation = useCreateCollection()
   const updateMutation = useUpdateCollection()
+  const complexMap = useMemo(() => new Map(allComplexes.map(c => [c.id, c])), [allComplexes])
 
   const [title, setTitle] = useState(initial?.title ?? '')
   const [clientId, setClientId] = useState(initial?.client_id ?? '')
@@ -77,9 +81,37 @@ function CollectionForm({ initial, onClose }: CollectionFormProps) {
 
   function handleAutoMatch() {
     if (!selectedClient) return
-    const matches = getMatchingProperties(selectedClient as Client, allProperties, 2)
-    const ids = new Set(matches.map((p) => p.id))
-    setSelectedIds(ids)
+
+    // Use client's structured demands for precise matching
+    const clientDemands = allDemands.filter(
+      (d) => d.client_id === clientId && d.status !== 'archived'
+    )
+
+    if (clientDemands.length > 0) {
+      const propIds = new Set<string>()
+      const unitIds = new Set<string>()
+
+      for (const demand of clientDemands) {
+        // Match regular properties
+        for (const prop of allProperties) {
+          const { score } = scorePropertyForDemand(prop, demand)
+          if (score >= 3) propIds.add(prop.id)
+        }
+        // Match developer units
+        for (const unit of allUnits) {
+          const complex = complexMap.get(unit.complex_id)
+          const { score } = scoreUnitForDemand({ ...unit, complex }, demand)
+          if (score >= 3) unitIds.add(unit.id)
+        }
+      }
+
+      setSelectedIds(propIds)
+      setSelectedUnitIds(unitIds)
+    } else {
+      // Fallback: text-based match when no structured demands exist
+      const matches = getMatchingProperties(selectedClient as Client, allProperties, 3)
+      setSelectedIds(new Set(matches.map((p) => p.id)))
+    }
   }
 
   function toggleProperty(id: string) {

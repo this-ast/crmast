@@ -1,4 +1,5 @@
 import type { Client, Property } from '@/types'
+import type { Complex, ComplexUnit } from '@/types/complex'
 import type { Demand } from '@/types/demand'
 
 // ─── Budget parsing ────────────────────────────────────────────────────────────
@@ -406,14 +407,28 @@ export function scorePropertyForDemand(property: Property, demand: Demand): Matc
     }
   }
 
-  // Market type (0-2)
-  if (demand.market_type && demand.market_type !== 'any' && property.market_type) {
-    const demMkt = demand.market_type === 'primary' ? 'new_build' : 'secondary'
-    if (demMkt === property.market_type) {
-      score += 2
-      reasons.push(demMkt === 'new_build' ? 'Новостройка' : 'Вторичка')
-    } else {
-      mismatches.push(demMkt === 'new_build' ? 'Хочет новостройку' : 'Хочет вторичку')
+  // Market type (0-2) — hard exclude on mismatch
+  if (demand.market_type && demand.market_type !== 'any') {
+    const dm = demand.market_type
+    const pm = property.market_type ?? ''
+    const newBuildVariants = ['new_build', 'new_build_ready', 'new_build_unready']
+
+    if (dm === 'primary') {
+      if (!newBuildVariants.includes(pm))
+        return { score: 0, reasons: [], mismatches: ['Хочет новостройку, объект вторичка'] }
+      score += 2; reasons.push('Новостройка')
+    } else if (dm === 'primary_ready') {
+      if (pm !== 'new_build_ready')
+        return { score: 0, reasons: [], mismatches: ['Хочет сданный дом'] }
+      score += 2; reasons.push('Новостройка · Сданный дом')
+    } else if (dm === 'primary_unready') {
+      if (pm !== 'new_build_unready' && pm !== 'new_build')
+        return { score: 0, reasons: [], mismatches: ['Хочет не сданный дом'] }
+      score += 2; reasons.push('Новостройка · Не сдан')
+    } else if (dm === 'secondary') {
+      if (pm !== 'secondary')
+        return { score: 0, reasons: [], mismatches: ['Хочет вторичку, объект новостройка'] }
+      score += 2; reasons.push('Вторичка')
     }
   }
 
@@ -487,6 +502,132 @@ export function getDemandMatchLevel(score: number): MatchLevel {
 
 export function getDemandMatchPercent(score: number): number {
   return Math.min(100, Math.round((score / MAX_DEMAND_MATCH_SCORE) * 100))
+}
+
+// ─── Developer unit scoring ────────────────────────────────────────────────────
+//
+// Units are always new_build apartments. Score breakdown:
+// Market type     : 2   (hard exclude if secondary/land/commercial demand)
+// Rooms           : 3   (hard exclude if rooms mismatch)
+// Budget          : 4   (hard exclude if >15% over)
+// District        : 3
+// Complex match   : 3
+// Area            : 1
+// ─────────────────
+// TOTAL           : 16
+
+export const MAX_UNIT_MATCH_SCORE = 16
+
+export function scoreUnitForDemand(
+  unit: ComplexUnit & { complex?: Complex | undefined },
+  demand: Demand,
+): MatchScore {
+  let score = 0
+  const reasons: string[] = []
+  const mismatches: string[] = []
+
+  const dm = demand.market_type ?? 'any'
+  const newBuildDemands = ['any', 'primary', 'primary_ready', 'primary_unready']
+
+  // Hard exclude: client doesn't want new_build at all
+  if (dm !== 'any' && !newBuildDemands.includes(dm)) {
+    return { score: 0, reasons: [], mismatches: ['Клиент хочет вторичку'] }
+  }
+
+  // Hard exclude: client wants non-apartment property type
+  const pt = demand.property_types ?? []
+  if (pt.length > 0) {
+    const wantsApt = pt.some((t) => APT_TOKENS.has(t))
+    if (!wantsApt) {
+      const nonApt = [
+        pt.some((t) => HOUSE_TOKENS.has(t)) && 'дом',
+        pt.some((t) => LAND_TOKENS.has(t)) && 'участок',
+        pt.some((t) => COM_TOKENS.has(t)) && 'коммерцию',
+      ].filter(Boolean).join('/')
+      return { score: 0, reasons: [], mismatches: [`Хочет ${nonApt}`] }
+    }
+
+    // Room count hard exclude
+    if (unit.rooms !== undefined) {
+      const wantedRooms = pt.filter((t) => APT_TOKENS.has(t)).map((t) => TOKEN_TO_ROOMS[t])
+      if (wantedRooms.length > 0) {
+        const key = unit.rooms >= 4 ? 4 : unit.rooms
+        if (!wantedRooms.includes(key)) {
+          const labels = wantedRooms.map((r) => (r === 0 ? 'студию' : `${r}-комн.`))
+          return { score: 0, reasons: [], mismatches: [`Хочет ${labels.join('/')}`] }
+        }
+        score += 3
+        reasons.push(unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн.`)
+      }
+    }
+  }
+
+  // Budget hard exclude (>15% over)
+  const budgetMax = demand.budget_max
+  if (budgetMax && budgetMax > 0 && unit.price != null) {
+    if (unit.price > budgetMax * 1.15) {
+      const over = Math.round((unit.price / budgetMax - 1) * 100)
+      return { score: 0, reasons: [], mismatches: [`Дорого: +${over}% выше бюджета`] }
+    }
+    if (unit.price <= budgetMax) {
+      score += 4; reasons.push('В бюджете')
+    } else if (unit.price <= budgetMax * 1.08) {
+      score += 2; reasons.push('Чуть выше бюджета (+8%)')
+    } else {
+      score += 1
+    }
+  }
+
+  // Market type bonus
+  if (dm !== 'any') {
+    const complexDate = unit.complex?.completion_date ?? ''
+    const isReady = complexDate === 'Сдан' || complexDate.toLowerCase().includes('сдан')
+    if (dm === 'primary_ready' && !isReady) {
+      return { score: 0, reasons: [], mismatches: ['Хочет сданный дом'] }
+    }
+    if (dm === 'primary_unready' && isReady) {
+      return { score: 0, reasons: [], mismatches: ['Хочет не сданный дом'] }
+    }
+    score += 2; reasons.push('Новостройка')
+  } else {
+    score += 2; reasons.push('Новостройка')
+  }
+
+  // Complex match bonus
+  const complexIds = demand.complex_ids ?? []
+  if (complexIds.length > 0 && unit.complex_id) {
+    if (complexIds.includes(unit.complex_id)) {
+      score += 3; reasons.push(`ЖК: ${unit.complex?.name ?? 'совпадает'}`)
+    } else {
+      mismatches.push('ЖК не в предпочтениях')
+    }
+  }
+
+  // District
+  const wantedDistricts = demand.districts ?? []
+  if (wantedDistricts.length > 0 && unit.complex?.district) {
+    const propD = unit.complex.district.toLowerCase()
+    const matched = wantedDistricts.some((d) => {
+      const dl = d.toLowerCase()
+      return propD.includes(dl) || dl.includes(propD) || (dl.length >= 4 && propD.includes(dl.slice(0, 4)))
+    })
+    if (matched) {
+      score += 3; reasons.push(`Район: ${unit.complex.district}`)
+    } else {
+      mismatches.push(`Район не совпадает`)
+    }
+  }
+
+  // Area
+  if ((demand.area_min || demand.area_max) && unit.area) {
+    const ok =
+      (!demand.area_min || unit.area >= demand.area_min) &&
+      (!demand.area_max || unit.area <= demand.area_max)
+    if (ok) { score += 1; reasons.push(`Площадь ${unit.area} м²`) }
+    else { mismatches.push('Площадь не в диапазоне') }
+  }
+
+  return { score, reasons, mismatches }
 }
 
 // ─── Batch matchers ────────────────────────────────────────────────────────────
