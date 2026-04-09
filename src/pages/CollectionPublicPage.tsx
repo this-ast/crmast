@@ -10,7 +10,7 @@ import { formatPriceShort } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import {
   Phone, MessageCircle, Send, MapPin,
-  ChevronLeft, ChevronRight, Building2, ArrowRight, Printer, Loader2,
+  ChevronLeft, ChevronRight, Building2, ArrowRight, Printer, Loader2, X,
 } from 'lucide-react'
 import { downloadElementAsPdf } from '@/utils/downloadPdf'
 
@@ -162,12 +162,173 @@ function PropertyCard({ property, index, onOpen }: {
   )
 }
 
+// ─── Developer Unit Full Detail (overlay) ─────────────────────────────────────
+
+function UnitFullDetail({ unit, complex, onClose }: {
+  unit: ComplexUnit & { complex_name?: string }
+  complex: Complex | undefined
+  onClose: () => void
+}) {
+  const [photoIdx, setPhotoIdx] = useState(0)
+  const photos = unit.photos?.length ? unit.photos : (complex?.photos ?? [])
+  const label = unit.title
+    ? unit.title
+    : unit.rooms != null
+      ? (unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн. квартира`)
+      : 'Квартира'
+
+  const specs: string[] = []
+  if (unit.area) specs.push(`${unit.area} м²`)
+  if (unit.rooms != null) specs.push(unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн.`)
+  if (unit.floor && unit.total_floors) specs.push(`${unit.floor}/${unit.total_floors} эт.`)
+  else if (unit.floor) specs.push(`${unit.floor} эт.`)
+
+  const paymentTypes: string[] = []
+  if (complex?.pricing_conditions?.length) {
+    complex.pricing_conditions.forEach((pc) => {
+      if (pc.payment_type === 'mortgage') paymentTypes.push('Ипотека')
+      if (pc.payment_type === 'installment') paymentTypes.push('Рассрочка')
+      if (pc.payment_type === 'escrow') paymentTypes.push('Эскроу')
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white overflow-y-auto no-print">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+        <div>
+          <p className="font-bold text-gray-900 text-sm">{label}</p>
+          {complex?.name && <p className="text-xs text-gray-400 mt-0.5">ЖК «{complex.name}»</p>}
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+        >
+          <X size={20} className="text-gray-600" />
+        </button>
+      </div>
+
+      {/* Photos */}
+      {photos.length > 0 && (
+        <div className="relative w-full bg-gray-900 group" style={{ height: 'min(60vh, 480px)' }}>
+          <img src={photos[photoIdx]} alt={label} className="w-full h-full object-cover" />
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ChevronRight size={20} />
+              </button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {photos.slice(0, 9).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPhotoIdx(i)}
+                    className={cn('w-2 h-2 rounded-full transition-all', i === photoIdx ? 'bg-white' : 'bg-white/40')}
+                  />
+                ))}
+              </div>
+              <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1">
+                {photos.length} фото
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="max-w-2xl mx-auto px-6 md:px-10 py-10">
+        {/* Badges */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">🏗 Новостройка</span>
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 text-white"
+            style={{ background: GOLD }}
+          >
+            От застройщика
+          </span>
+        </div>
+
+        {/* Price */}
+        {unit.price != null && (
+          <div className="mb-4">
+            <div className="serif text-4xl font-normal italic">{formatPriceShort(unit.price)}</div>
+            {unit.area && (
+              <p className="text-gray-400 text-sm mt-1">
+                {Math.round(unit.price / unit.area).toLocaleString('ru-RU')} ₽/м²
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="h-px w-12 mb-6" style={{ background: GOLD }} />
+
+        {/* Specs */}
+        {specs.length > 0 && (
+          <div className="flex flex-wrap gap-x-6 gap-y-2 mb-6">
+            {specs.map(s => (
+              <span key={s} className="text-lg font-semibold text-gray-800">{s}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Location */}
+        {(complex?.name || complex?.address || complex?.district || complex?.developer) && (
+          <div className="flex items-start gap-2 mb-6">
+            <MapPin size={15} className="shrink-0 mt-0.5 text-gray-300" />
+            <div>
+              {complex?.name && <p className="text-sm text-gray-700 font-medium">ЖК «{complex.name}»</p>}
+              {complex?.address && <p className="text-sm text-gray-500 mt-0.5">{complex.address}</p>}
+              {complex?.district && <p className="text-xs text-gray-400 mt-0.5">{complex.district}</p>}
+              {complex?.developer && (
+                <p className="text-xs text-gray-400 mt-0.5">Застройщик: {complex.developer}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Description */}
+        {(complex?.description || unit.notes) && (
+          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            {[complex?.description, unit.notes].filter(Boolean).join('\n\n')}
+          </p>
+        )}
+
+        {/* Payment tags */}
+        {paymentTypes.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[...new Set(paymentTypes)].map(t => (
+              <span key={t} className="text-[9px] uppercase font-bold tracking-widest px-3 py-1.5 border border-gray-200 text-gray-400">
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {complex?.completion_date && (
+          <p className="text-sm text-gray-400">
+            Срок сдачи: <span className="font-medium text-gray-600">{complex.completion_date}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Developer Unit Card ───────────────────────────────────────────────────────
 
-function UnitCard({ unit, complex, index }: {
+function UnitCard({ unit, complex, index, onOpen }: {
   unit: ComplexUnit & { complex_name?: string }
   complex: Complex | undefined
   index: number
+  onOpen: () => void
 }) {
   const photos = (unit.photos?.length ? unit.photos : complex?.photos) ?? []
   const label = unit.title
@@ -272,6 +433,15 @@ function UnitCard({ unit, complex, index }: {
         {complex?.completion_date && (
           <p className="text-xs text-gray-400 mb-5">Срок сдачи: {complex.completion_date}</p>
         )}
+
+        {/* CTA */}
+        <button
+          onClick={onOpen}
+          className="flex items-center gap-2 px-6 py-2.5 text-white text-[10px] font-bold uppercase tracking-[0.15em] hover:opacity-90 transition-opacity no-print"
+          style={{ background: '#111' }}
+        >
+          Подробнее <ArrowRight size={13} />
+        </button>
       </div>
     </article>
   )
@@ -341,6 +511,10 @@ export default function CollectionPublicPage() {
   const navigate = useNavigate()
   const contentRef = useRef<HTMLDivElement>(null)
   const [generating, setGenerating] = useState(false)
+  const [openUnit, setOpenUnit] = useState<{
+    unit: ComplexUnit & { complex_name?: string }
+    complex: Complex | undefined
+  } | null>(null)
   const { data: collection, isLoading: loadingCollection } = useCollectionBySlug(slug ?? '')
   const { data: agent } = useAgentSettings()
 
@@ -503,6 +677,7 @@ export default function CollectionPublicPage() {
             unit={u}
             complex={complexMap.get(u.complex_id)}
             index={properties.length + i}
+            onOpen={() => setOpenUnit({ unit: u, complex: complexMap.get(u.complex_id) })}
           />
         ))}
       </div>
@@ -529,6 +704,15 @@ export default function CollectionPublicPage() {
           В диалоге выбери «Сохранить как PDF»
         </p>
       </div>
+
+      {/* Unit full detail overlay */}
+      {openUnit && (
+        <UnitFullDetail
+          unit={openUnit.unit}
+          complex={openUnit.complex}
+          onClose={() => setOpenUnit(null)}
+        />
+      )}
     </div>
   )
 }
