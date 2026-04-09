@@ -84,12 +84,20 @@ export function useProperty(id: string) {
 
 async function getNextArticle(type: Property['type']): Promise<string> {
   const prefix = ARTICLE_PREFIXES[type]
-  const { count } = await supabase
+  const { data } = await supabase
     .from('properties')
-    .select('*', { count: 'exact', head: true })
-    .eq('type', type)
+    .select('article')
+    .like('article', `${prefix}-%`)
+    .order('article', { ascending: false })
+    .limit(1)
 
-  return generateArticle(prefix, (count ?? 0) + 1)
+  let maxNum = 0
+  if (data && data.length > 0) {
+    const match = data[0].article.match(/-(\d+)$/)
+    if (match) maxNum = parseInt(match[1], 10)
+  }
+
+  return generateArticle(prefix, maxNum + 1)
 }
 
 export function useCreateProperty() {
