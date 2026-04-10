@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Building2, Home, Layers, X, ChevronLeft, ChevronRight, Pencil, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Building2, Home, Layers, X, ChevronLeft, ChevronRight, Pencil, Loader2, Plus, Trash2, Share2 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
 import type { ComplexUnit } from '@/types'
 import { formatPriceShort } from '@/utils/format'
@@ -187,6 +187,18 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-3">
+          {!editing && (
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/u/${unit.id}`
+                navigator.clipboard.writeText(url).then(() => toast.success('Ссылка на презентацию скопирована'))
+              }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+              title="Скопировать ссылку на презентацию"
+            >
+              <Share2 size={16} />
+            </button>
+          )}
           {!editing && agentSettings && (
             <UnitPdfButton unit={unit} complex={complex} agentSettings={agentSettings} />
           )}

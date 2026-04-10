@@ -15,6 +15,7 @@ const DemandsPage          = lazy(() => import('@/pages/DemandsPage'))
 const CollectionPublicPage = lazy(() => import('@/pages/CollectionPublicPage'))
 const PropertyPublicPage   = lazy(() => import('@/pages/PropertyPublicPage'))
 const ComplexPublicPage    = lazy(() => import('@/pages/ComplexPublicPage'))
+const UnitPublicPage       = lazy(() => import('@/pages/UnitPublicPage'))
 
 function PageLoader() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/share/:slug" element={<CollectionPublicPage />} />
         <Route path="/p/:id" element={<PropertyPublicPage />} />
         <Route path="/c/:id" element={<ComplexPublicPage />} />
+        <Route path="/u/:id" element={<UnitPublicPage />} />
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
