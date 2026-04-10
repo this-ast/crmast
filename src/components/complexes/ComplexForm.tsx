@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, Pencil, Plus, Trash2, Upload, X, ChevronDown, Search, Check } from 'lucide-react'
 import CompletionDatePicker from '@/components/ui/CompletionDatePicker'
+import Modal from '@/components/ui/Modal'
+import UnitDetailModal from './UnitDetailModal'
 import {
   useCreateComplex,
   useUpdateComplex,
@@ -13,7 +15,6 @@ import {
   useDeleteComplexLayout,
   useComplexUnits,
   useCreateComplexUnit,
-  useUpdateComplexUnit,
   useDeleteComplexUnit,
 } from '@/hooks/useComplexes'
 import { useComplexStore } from '@/store/useComplexStore'
@@ -243,10 +244,9 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
   const { data: complex } = useComplex(complexId)
   const paymentOptions = complex?.pricing_conditions ?? []
   const createUnit = useCreateComplexUnit()
-  const updateUnit = useUpdateComplexUnit()
   const deleteUnit = useDeleteComplexUnit()
-  const [editingUnit, setEditingUnit] = useState<ComplexUnit | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedUnitForModal, setSelectedUnitForModal] = useState<ComplexUnit | null>(null)
 
   const emptyForm = { title: '', rooms: '', area: '', floor: '', floor_to: '', total_floors: '', price: '', price_per_m2: '', payment_type: '', notes: '' }
   const [form, setForm] = useState<typeof emptyForm>(emptyForm)
@@ -276,32 +276,6 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
     }
   }
 
-  const handleUpdate = async (unit: ComplexUnit) => {
-    if (!editingUnit) return
-    try {
-      await updateUnit.mutateAsync({
-        id: unit.id,
-        complexId,
-        data: {
-          title: form.title || undefined,
-          rooms: form.rooms ? Number(form.rooms) : undefined,
-          area: form.area ? Number(form.area) : undefined,
-          floor: form.floor ? Number(form.floor) : undefined,
-          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
-          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
-          price: form.price_per_m2 && form.area ? Number(form.price_per_m2) * Number(form.area) : (form.price ? Number(form.price) : undefined),
-          payment_type: form.payment_type || undefined,
-          notes: form.notes || undefined,
-        },
-      })
-      setEditingUnit(null)
-      toast.success('Обновлено')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Ошибка')
-    }
-  }
-
   const handleDelete = async (unit: ComplexUnit) => {
     try {
       await deleteUnit.mutateAsync({ id: unit.id, complexId })
@@ -309,23 +283,6 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка')
     }
-  }
-
-  const startEdit = (unit: ComplexUnit) => {
-    setEditingUnit(unit)
-    setForm({
-      title: unit.title ?? '',
-      rooms: unit.rooms != null ? String(unit.rooms) : '',
-      area: unit.area != null ? String(unit.area) : '',
-      floor: unit.floor != null ? String(unit.floor) : '',
-      floor_to: unit.floor_to != null ? String(unit.floor_to) : '',
-      total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
-      price: unit.price != null ? String(unit.price) : '',
-      price_per_m2: unit.price_per_m2 != null ? String(unit.price_per_m2) : '',
-      payment_type: unit.payment_type ?? '',
-      notes: unit.notes ?? '',
-    })
-    setShowAddForm(false)
   }
 
   const UnitForm = ({ onSave, onCancel, saving }: { onSave: () => void; onCancel: () => void; saving?: boolean }) => (
@@ -356,13 +313,20 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
           <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Форма оплаты</p>
           <div className="flex flex-wrap gap-1">
             <button type="button"
-              onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'cash' ? '' : 'cash' }))}
+              onClick={() => setForm(f => {
+                const newPt = f.payment_type === 'cash' ? '' : 'cash'
+                const cashCond = paymentOptions.find(c => c.payment_type === 'cash')
+                return { ...f, payment_type: newPt, price_per_m2: newPt && cashCond?.price_per_sqm ? String(cashCond.price_per_sqm) : f.price_per_m2 }
+              })}
               className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${form.payment_type === 'cash' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               💵 Наличные
             </button>
             {paymentOptions.map((opt) => (
               <button key={opt.id} type="button"
-                onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === opt.id ? '' : opt.id }))}
+                onClick={() => setForm(f => {
+                  const newPt = f.payment_type === opt.id ? '' : opt.id
+                  return { ...f, payment_type: newPt, price_per_m2: newPt && opt.price_per_sqm ? String(opt.price_per_sqm) : f.price_per_m2 }
+                })}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${form.payment_type === opt.id ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
                 {opt.payment_type === 'installment' && opt.installment_months && (
@@ -392,7 +356,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
     <div>
       <div className="flex items-center justify-between mb-2">
         <FieldLabel>Объекты от застройщика</FieldLabel>
-        {!showAddForm && !editingUnit && (
+        {!showAddForm && (
           <button type="button" onClick={() => { setShowAddForm(true); setForm(emptyForm) }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
             <Plus size={12} /> Добавить
           </button>
@@ -407,44 +371,43 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
       )}
       <div className="space-y-2">
         {units.map((unit) => (
-          <div key={unit.id}>
-            {editingUnit?.id === unit.id ? (
-              <UnitForm
-                onSave={() => handleUpdate(unit)}
-                onCancel={() => setEditingUnit(null)}
-                saving={updateUnit.isPending}
-              />
-            ) : (
-              <div className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
-                    {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
-                    {unit.area ? ` · ${unit.area} м²` : ''}
-                    {unit.floor ? ` · ${unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
-                  </p>
-                  {unit.price != null && (
-                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">
-                      💵 {new Intl.NumberFormat('ru-RU').format(unit.price)} ₽
-                    </p>
-                  )}
-                  {unit.notes && <p className="text-xs text-slate-400 truncate mt-0.5">{unit.notes}</p>}
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <button type="button" onClick={() => startEdit(unit)} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50">
-                    <Pencil size={13} />
-                  </button>
-                  <button type="button" onClick={() => handleDelete(unit)} className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            )}
+          <div
+            key={unit.id}
+            className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-blue-200 hover:bg-blue-50/30 transition-colors"
+            onClick={() => setSelectedUnitForModal(unit)}
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-800 truncate">
+                {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
+                {unit.area ? ` · ${unit.area} м²` : ''}
+                {unit.floor ? ` · ${unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+              </p>
+              {unit.price != null && (
+                <p className="text-xs font-semibold text-emerald-600 mt-0.5">
+                  💵 {new Intl.NumberFormat('ru-RU').format(unit.price)} ₽
+                </p>
+              )}
+              {unit.notes && <p className="text-xs text-slate-400 truncate mt-0.5">{unit.notes}</p>}
+            </div>
+            <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={() => handleDelete(unit)} className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
         ))}
         {units.length === 0 && !showAddForm && (
           <p className="text-xs text-slate-400">Нет объектов от застройщика</p>
         )}
       </div>
+      {selectedUnitForModal && (
+        <Modal isOpen={true} onClose={() => setSelectedUnitForModal(null)} size="md">
+          <UnitDetailModal
+            unit={{ ...selectedUnitForModal, complex_name: complex?.name, complex_photos: complex?.photos }}
+            onClose={() => setSelectedUnitForModal(null)}
+          />
+        </Modal>
+      )}
     </div>
   )
 }

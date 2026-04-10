@@ -255,13 +255,20 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
                 <FieldLabel>Форма оплаты</FieldLabel>
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button"
-                    onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'cash' ? '' : 'cash' }))}
+                    onClick={() => setForm(f => {
+                      const newPt = f.payment_type === 'cash' ? '' : 'cash'
+                      const cashCond = complex?.pricing_conditions?.find(c => c.payment_type === 'cash')
+                      return { ...f, payment_type: newPt, price_per_m2: newPt && cashCond?.price_per_sqm ? String(cashCond.price_per_sqm) : f.price_per_m2 }
+                    })}
                     className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${form.payment_type === 'cash' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
                     💵 Наличные
                   </button>
                   {(complex.pricing_conditions ?? []).map((opt) => (
                     <button key={opt.id} type="button"
-                      onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === opt.id ? '' : opt.id }))}
+                      onClick={() => setForm(f => {
+                        const newPt = f.payment_type === opt.id ? '' : opt.id
+                        return { ...f, payment_type: newPt, price_per_m2: newPt && opt.price_per_sqm ? String(opt.price_per_sqm) : f.price_per_m2 }
+                      })}
                       className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${form.payment_type === opt.id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
                       {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
                       {opt.payment_type === 'installment' && opt.installment_months ? ` · ${opt.installment_months} мес.` : ''}
