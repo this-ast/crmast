@@ -46,7 +46,7 @@ export default function Layout() {
             animate="animate"
             exit="exit"
             transition={pageTransition}
-            className="h-full"
+            className="min-h-full"
           >
             <Outlet />
           </motion.div>
