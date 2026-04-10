@@ -4,6 +4,8 @@ import { useComplexes, useCreateComplexUnit, useUploadComplexUnitPhoto } from '@
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
 import type { Complex } from '@/types'
+import { calcInstallment, calcMortgage } from '@/utils/unitCalc'
+import { formatPriceShort } from '@/utils/format'
 
 interface Props {
   onClose: () => void
@@ -115,6 +117,7 @@ export default function DeveloperUnitForm({ onClose }: Props) {
   const createUnit = useCreateComplexUnit()
   const uploadPhoto = useUploadComplexUnitPhoto()
   const [complexId, setComplexId] = useState('')
+  const [selectedComplex, setSelectedComplex] = useState<Complex | null>(null)
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([])
   const [pendingPreviewUrls, setPendingPreviewUrls] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -126,6 +129,11 @@ export default function DeveloperUnitForm({ onClose }: Props) {
     floor_to: '',
     total_floors: '',
     price: '',
+    price_per_m2: '',
+    payment_type: '',
+    mortgage_rate: '',
+    mortgage_years: '',
+    mortgage_down_payment_pct: '',
     notes: '',
   })
 
@@ -159,7 +167,14 @@ export default function DeveloperUnitForm({ onClose }: Props) {
           floor: form.floor ? Number(form.floor) : undefined,
           floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
+          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+          price: form.price_per_m2 && form.area
+            ? Number(form.price_per_m2) * Number(form.area)
+            : (form.price ? Number(form.price.replace(/\s/g, '')) : undefined),
+          payment_type: form.payment_type || undefined,
+          mortgage_rate: form.mortgage_rate ? Number(form.mortgage_rate) : undefined,
+          mortgage_years: form.mortgage_years ? Number(form.mortgage_years) : undefined,
+          mortgage_down_payment_pct: form.mortgage_down_payment_pct ? Number(form.mortgage_down_payment_pct) : undefined,
           notes: form.notes || undefined,
         },
       })
@@ -190,7 +205,7 @@ export default function DeveloperUnitForm({ onClose }: Props) {
         {/* ЖК selector */}
         <div>
           <FieldLabel>Жилой комплекс *</FieldLabel>
-          <ComplexPicker complexId={complexId} onChange={(id) => setComplexId(id)} />
+          <ComplexPicker complexId={complexId} onChange={(id, c) => { setComplexId(id); setSelectedComplex(c) }} />
         </div>
 
         {/* Title */}
@@ -256,15 +271,126 @@ export default function DeveloperUnitForm({ onClose }: Props) {
           </div>
         </div>
 
-        {/* Price */}
+        {/* Price per m² + calculator */}
         <div>
-          <FieldLabel>Цена (наличный)</FieldLabel>
+          <FieldLabel>Цена за м² (₽/м²)</FieldLabel>
           <Input
-            placeholder="5 500 000"
-            value={form.price}
-            onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+            type="number"
+            placeholder="100 000"
+            value={form.price_per_m2}
+            onChange={(e) => setForm((f) => ({ ...f, price_per_m2: e.target.value }))}
           />
+          {form.price_per_m2 && form.area && (
+            <p className="text-xs text-slate-500 mt-1 pl-1">
+              Общая стоимость:{' '}
+              <span className="font-semibold text-slate-800">
+                {new Intl.NumberFormat('ru-RU').format(Math.round(Number(form.price_per_m2) * Number(form.area)))} ₽
+              </span>
+            </p>
+          )}
         </div>
+
+        {/* Payment type selector */}
+        {complexId && selectedComplex && (
+          <div>
+            <FieldLabel>Форма оплаты</FieldLabel>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button"
+                onClick={() => setForm((f) => ({ ...f, payment_type: f.payment_type === 'cash' ? '' : 'cash' }))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === 'cash' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                💵 Наличные
+              </button>
+              {(selectedComplex.pricing_conditions ?? []).map((opt) => (
+                <button key={opt.id} type="button"
+                  onClick={() => setForm((f) => ({ ...f, payment_type: f.payment_type === opt.id ? '' : opt.id }))}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === opt.id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                  {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
+                  {opt.payment_type === 'installment' && opt.installment_months ? ` · ${opt.installment_months} мес.` : ''}
+                </button>
+              ))}
+              <button type="button"
+                onClick={() => setForm((f) => ({ ...f, payment_type: f.payment_type === 'mortgage' ? '' : 'mortgage' }))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === 'mortgage' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                🏦 Ипотека
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Mortgage inputs */}
+        {form.payment_type === 'mortgage' && (
+          <div className="space-y-2 p-3 bg-purple-50 rounded-xl border border-purple-100">
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Параметры ипотеки</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <FieldLabel>Ставка %</FieldLabel>
+                <Input type="number" placeholder="10" value={form.mortgage_rate}
+                  onChange={(e) => setForm((f) => ({ ...f, mortgage_rate: e.target.value }))} />
+              </div>
+              <div>
+                <FieldLabel>Срок (лет)</FieldLabel>
+                <Input type="number" placeholder="20" value={form.mortgage_years}
+                  onChange={(e) => setForm((f) => ({ ...f, mortgage_years: e.target.value }))} />
+              </div>
+              <div>
+                <FieldLabel>ПВ %</FieldLabel>
+                <Input type="number" placeholder="20" value={form.mortgage_down_payment_pct}
+                  onChange={(e) => setForm((f) => ({ ...f, mortgage_down_payment_pct: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Calculator results */}
+        {(() => {
+          const area = Number(form.area) || 0
+          const ppm2 = Number(form.price_per_m2) || 0
+          if (!area || !ppm2) return null
+          const total = ppm2 * area
+          const selectedCondition = form.payment_type && form.payment_type !== 'cash' && form.payment_type !== 'mortgage'
+            ? (selectedComplex?.pricing_conditions ?? []).find((c) => c.id === form.payment_type)
+            : null
+          let result = null
+          if (selectedCondition?.payment_type === 'installment' &&
+            selectedCondition.installment_months && selectedCondition.installment_down_payment_pct != null) {
+            result = calcInstallment(total, selectedCondition.installment_months, selectedCondition.installment_down_payment_pct)
+          } else if (form.payment_type === 'mortgage' && form.mortgage_rate && form.mortgage_years && form.mortgage_down_payment_pct) {
+            result = calcMortgage(total, Number(form.mortgage_rate), Number(form.mortgage_years), Number(form.mortgage_down_payment_pct))
+          }
+          if (!result && form.payment_type !== 'cash') return null
+          return (
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Расчёт стоимости</p>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Общая стоимость</span>
+                  <span className="font-semibold text-slate-800">{new Intl.NumberFormat('ru-RU').format(Math.round(total))} ₽</span>
+                </div>
+                {result && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Первоначальный взнос</span>
+                      <span className="font-medium text-slate-700">{new Intl.NumberFormat('ru-RU').format(result.downPayment)} ₽</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">{form.payment_type === 'mortgage' ? 'Сумма кредита' : 'Остаток'}</span>
+                      <span className="font-medium text-slate-700">{new Intl.NumberFormat('ru-RU').format(result.remainder)} ₽</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Срок</span>
+                      <span className="font-medium text-slate-700">{result.termMonths} мес.</span>
+                    </div>
+                    <div className="h-px bg-slate-200 my-1" />
+                    <div className="flex justify-between">
+                      <span className="text-sm font-semibold text-slate-700">Ежемесячный платёж</span>
+                      <span className="text-base font-bold text-blue-600">{new Intl.NumberFormat('ru-RU').format(result.monthlyPayment)} ₽</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Notes */}
         <div>

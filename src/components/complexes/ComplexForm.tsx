@@ -207,15 +207,48 @@ function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
   )
 }
 
+// ─── Installment Term Field ───────────────────────────────────────────────────
+
+function InstallmentTermField({ months, onChange }: { months?: number; onChange: (v: number | undefined) => void }) {
+  const [unit, setUnit] = useState<'мес' | 'лет'>('мес')
+  const displayValue = months != null
+    ? (unit === 'мес' ? String(months) : String(Math.round(months / 12)))
+    : ''
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number"
+        min="1"
+        value={displayValue}
+        placeholder={unit === 'мес' ? '24' : '2'}
+        onChange={(e) => {
+          const v = e.target.value ? Number(e.target.value) : undefined
+          onChange(v == null ? undefined : (unit === 'лет' ? v * 12 : v))
+        }}
+        className="flex-1 min-w-0 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+      <button
+        type="button"
+        onClick={() => setUnit((u) => (u === 'мес' ? 'лет' : 'мес'))}
+        className="shrink-0 px-2 py-1 text-[10px] bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-500 font-medium transition-colors"
+      >
+        {unit}
+      </button>
+    </div>
+  )
+}
+
 function DeveloperUnitsSection({ complexId }: { complexId: string }) {
   const { data: units = [] } = useComplexUnits(complexId)
+  const { data: complex } = useComplex(complexId)
+  const paymentOptions = complex?.pricing_conditions ?? []
   const createUnit = useCreateComplexUnit()
   const updateUnit = useUpdateComplexUnit()
   const deleteUnit = useDeleteComplexUnit()
   const [editingUnit, setEditingUnit] = useState<ComplexUnit | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const emptyForm = { title: '', rooms: '', area: '', floor: '', floor_to: '', total_floors: '', price: '', notes: '' }
+  const emptyForm = { title: '', rooms: '', area: '', floor: '', floor_to: '', total_floors: '', price: '', price_per_m2: '', payment_type: '', notes: '' }
   const [form, setForm] = useState<typeof emptyForm>(emptyForm)
 
   const handleAdd = async () => {
@@ -229,7 +262,9 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
           floor: form.floor ? Number(form.floor) : undefined,
           floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price) : undefined,
+          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+          price: form.price_per_m2 && form.area ? Number(form.price_per_m2) * Number(form.area) : (form.price ? Number(form.price) : undefined),
+          payment_type: form.payment_type || undefined,
           notes: form.notes || undefined,
         },
       })
@@ -254,7 +289,9 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
           floor: form.floor ? Number(form.floor) : undefined,
           floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price) : undefined,
+          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+          price: form.price_per_m2 && form.area ? Number(form.price_per_m2) * Number(form.area) : (form.price ? Number(form.price) : undefined),
+          payment_type: form.payment_type || undefined,
           notes: form.notes || undefined,
         },
       })
@@ -284,6 +321,8 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
       floor_to: unit.floor_to != null ? String(unit.floor_to) : '',
       total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
       price: unit.price != null ? String(unit.price) : '',
+      price_per_m2: unit.price_per_m2 != null ? String(unit.price_per_m2) : '',
+      payment_type: unit.payment_type ?? '',
       notes: unit.notes ?? '',
     })
     setShowAddForm(false)
@@ -301,7 +340,44 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
         <Input type="number" placeholder="Этаж до" value={form.floor_to} onChange={(e) => setForm(f => ({ ...f, floor_to: e.target.value }))} />
         <Input type="number" placeholder="Всего эт." value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
       </div>
-      <Input type="number" placeholder="Цена (наличный)" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+      {/* Price per m² */}
+      <div>
+        <Input type="number" placeholder="Цена за м² (₽/м²)" value={form.price_per_m2}
+          onChange={(e) => setForm(f => ({ ...f, price_per_m2: e.target.value }))} />
+        {form.price_per_m2 && form.area && (
+          <p className="text-xs text-emerald-600 font-semibold mt-1 pl-1">
+            Итого: {new Intl.NumberFormat('ru-RU').format(Number(form.price_per_m2) * Number(form.area))} ₽
+          </p>
+        )}
+      </div>
+      {/* Payment type */}
+      {paymentOptions.length > 0 && (
+        <div>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Форма оплаты</p>
+          <div className="flex flex-wrap gap-1">
+            <button type="button"
+              onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'cash' ? '' : 'cash' }))}
+              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${form.payment_type === 'cash' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              💵 Наличные
+            </button>
+            {paymentOptions.map((opt) => (
+              <button key={opt.id} type="button"
+                onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === opt.id ? '' : opt.id }))}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${form.payment_type === opt.id ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
+                {opt.payment_type === 'installment' && opt.installment_months && (
+                  <span className="ml-1 text-[10px] opacity-70">{opt.installment_months} мес.</span>
+                )}
+              </button>
+            ))}
+            <button type="button"
+              onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'mortgage' ? '' : 'mortgage' }))}
+              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${form.payment_type === 'mortgage' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              🏦 Ипотека
+            </button>
+          </div>
+        </div>
+      )}
       <Input placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
       <div className="flex gap-2">
         <button type="button" onClick={onCancel} className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100">Отмена</button>
@@ -738,6 +814,36 @@ export default function ComplexForm() {
                     onChange={(e) => setPricingConditions((prev) => prev.map((c) => c.id === cond.id ? { ...c, notes: e.target.value } : c))}
                     className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300"
                   />
+                  {cond.payment_type === 'installment' && (
+                    <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100 mt-0.5">
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Срок рассрочки</p>
+                        <InstallmentTermField
+                          months={cond.installment_months}
+                          onChange={(v) => setPricingConditions((prev) =>
+                            prev.map((c) => c.id === cond.id ? { ...c, installment_months: v } : c)
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">ПВ %</p>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="20"
+                          value={cond.installment_down_payment_pct ?? ''}
+                          onChange={(e) => setPricingConditions((prev) =>
+                            prev.map((c) => c.id === cond.id ? {
+                              ...c,
+                              installment_down_payment_pct: e.target.value ? Number(e.target.value) : undefined,
+                            } : c)
+                          )}
+                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

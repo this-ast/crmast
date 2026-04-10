@@ -27,6 +27,8 @@ export interface PricingCondition {
   price_per_sqm?: number
   notes?: string
   updated_at?: string
+  installment_months?: number
+  installment_down_payment_pct?: number
 }
 
 export interface Complex {
@@ -97,6 +99,11 @@ export interface ComplexUnit {
   floor_to?: number
   total_floors?: number
   price?: number
+  price_per_m2?: number
+  payment_type?: string
+  mortgage_rate?: number
+  mortgage_years?: number
+  mortgage_down_payment_pct?: number
   notes?: string
   photos: string[]
   created_at: string
@@ -111,6 +118,11 @@ export interface ComplexUnitFormData {
   floor_to?: number
   total_floors?: number
   price?: number
+  price_per_m2?: number
+  payment_type?: string
+  mortgage_rate?: number
+  mortgage_years?: number
+  mortgage_down_payment_pct?: number
   notes?: string
 }
 

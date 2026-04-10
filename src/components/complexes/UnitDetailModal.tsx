@@ -7,8 +7,10 @@ import {
   useUpdateComplexUnit,
   useUploadComplexUnitPhoto,
   useDeleteComplexUnitPhoto,
+  useComplexes,
 } from '@/hooks/useComplexes'
 import toast from 'react-hot-toast'
+import { calcInstallment, calcMortgage } from '@/utils/unitCalc'
 
 interface UnitDetailModalProps {
   unit: ComplexUnit & { complex_name?: string; complex_photos?: string[] }
@@ -40,6 +42,11 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
     floor_to: unit.floor_to != null ? String(unit.floor_to) : '',
     total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
     price: unit.price != null ? String(unit.price) : '',
+    price_per_m2: unit.price_per_m2 != null ? String(unit.price_per_m2) : '',
+    payment_type: unit.payment_type ?? '',
+    mortgage_rate: unit.mortgage_rate != null ? String(unit.mortgage_rate) : '',
+    mortgage_years: unit.mortgage_years != null ? String(unit.mortgage_years) : '',
+    mortgage_down_payment_pct: unit.mortgage_down_payment_pct != null ? String(unit.mortgage_down_payment_pct) : '',
     notes: unit.notes ?? '',
   })
 
@@ -47,6 +54,8 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
   const uploadPhoto = useUploadComplexUnitPhoto()
   const deletePhoto = useDeleteComplexUnitPhoto()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { data: allComplexes = [] } = useComplexes()
+  const complex = allComplexes.find((c) => c.id === unit.complex_id)
 
   const label = unit.title || (unit.rooms ? `${unit.rooms}-комн. квартира` : 'Объект')
   const photos = unit.photos?.length ? unit.photos : (unit.complex_photos ?? [])
@@ -63,7 +72,14 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
           floor: form.floor ? Number(form.floor) : undefined,
           floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
+          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+          price: form.price_per_m2 && form.area
+            ? Number(form.price_per_m2) * Number(form.area)
+            : (form.price ? Number(form.price.replace(/\s/g, '')) : undefined),
+          payment_type: form.payment_type || undefined,
+          mortgage_rate: form.mortgage_rate ? Number(form.mortgage_rate) : undefined,
+          mortgage_years: form.mortgage_years ? Number(form.mortgage_years) : undefined,
+          mortgage_down_payment_pct: form.mortgage_down_payment_pct ? Number(form.mortgage_down_payment_pct) : undefined,
           notes: form.notes || undefined,
         },
       })
@@ -76,7 +92,14 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
         floor: form.floor ? Number(form.floor) : undefined,
         floor_to: form.floor_to ? Number(form.floor_to) : undefined,
         total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-        price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
+        price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+        price: form.price_per_m2 && form.area
+          ? Number(form.price_per_m2) * Number(form.area)
+          : (form.price ? Number(form.price.replace(/\s/g, '')) : undefined),
+        payment_type: form.payment_type || undefined,
+        mortgage_rate: form.mortgage_rate ? Number(form.mortgage_rate) : undefined,
+        mortgage_years: form.mortgage_years ? Number(form.mortgage_years) : undefined,
+        mortgage_down_payment_pct: form.mortgage_down_payment_pct ? Number(form.mortgage_down_payment_pct) : undefined,
         notes: form.notes || undefined,
       }))
       setEditing(false)
@@ -214,10 +237,67 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
               </div>
             </div>
             <div>
-              <FieldLabel>Цена</FieldLabel>
-              <Input placeholder="5 500 000" value={form.price}
-                onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+              <FieldLabel>Цена за м² (₽/м²)</FieldLabel>
+              <Input type="number" placeholder="100 000" value={form.price_per_m2}
+                onChange={(e) => setForm(f => ({ ...f, price_per_m2: e.target.value }))} />
+              {form.price_per_m2 && form.area && (
+                <p className="text-xs text-slate-500 mt-1 pl-1">
+                  Итого:{' '}
+                  <span className="font-semibold text-slate-800">
+                    {new Intl.NumberFormat('ru-RU').format(Math.round(Number(form.price_per_m2) * Number(form.area)))} ₽
+                  </span>
+                </p>
+              )}
             </div>
+            {/* Payment type */}
+            {complex && (complex.pricing_conditions ?? []).length > 0 && (
+              <div>
+                <FieldLabel>Форма оплаты</FieldLabel>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button"
+                    onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'cash' ? '' : 'cash' }))}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${form.payment_type === 'cash' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                    💵 Наличные
+                  </button>
+                  {(complex.pricing_conditions ?? []).map((opt) => (
+                    <button key={opt.id} type="button"
+                      onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === opt.id ? '' : opt.id }))}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${form.payment_type === opt.id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                      {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
+                      {opt.payment_type === 'installment' && opt.installment_months ? ` · ${opt.installment_months} мес.` : ''}
+                    </button>
+                  ))}
+                  <button type="button"
+                    onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'mortgage' ? '' : 'mortgage' }))}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${form.payment_type === 'mortgage' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                    🏦 Ипотека
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Mortgage inputs */}
+            {form.payment_type === 'mortgage' && (
+              <div className="space-y-2 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Параметры ипотеки</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <FieldLabel>Ставка %</FieldLabel>
+                    <Input type="number" placeholder="10" value={form.mortgage_rate}
+                      onChange={(e) => setForm(f => ({ ...f, mortgage_rate: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Срок (лет)</FieldLabel>
+                    <Input type="number" placeholder="20" value={form.mortgage_years}
+                      onChange={(e) => setForm(f => ({ ...f, mortgage_years: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>ПВ %</FieldLabel>
+                    <Input type="number" placeholder="20" value={form.mortgage_down_payment_pct}
+                      onChange={(e) => setForm(f => ({ ...f, mortgage_down_payment_pct: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <FieldLabel>Заметки</FieldLabel>
               <Input placeholder="Доп. информация по квартире" value={form.notes}
@@ -306,6 +386,63 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
                 </div>
               )}
             </div>
+
+            {/* Calculator */}
+            {(() => {
+              const total = unit.price_per_m2 && unit.area
+                ? unit.price_per_m2 * unit.area
+                : unit.price
+              if (!total || !unit.payment_type) return null
+              const cond = complex?.pricing_conditions?.find((c) => c.id === unit.payment_type)
+              let result = null
+              if (cond?.payment_type === 'installment' && cond.installment_months && cond.installment_down_payment_pct != null) {
+                result = calcInstallment(total, cond.installment_months, cond.installment_down_payment_pct)
+              } else if (unit.payment_type === 'mortgage' && unit.mortgage_rate && unit.mortgage_years && unit.mortgage_down_payment_pct != null) {
+                result = calcMortgage(total, unit.mortgage_rate, unit.mortgage_years, unit.mortgage_down_payment_pct)
+              }
+              const paymentLabel = unit.payment_type === 'cash' ? '💵 Наличные'
+                : unit.payment_type === 'mortgage' ? '🏦 Ипотека'
+                : cond ? `${cond.payment_type === 'installment' ? '📅' : '💳'} ${cond.label}` : null
+              return (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Расчёт стоимости</p>
+                    {paymentLabel && (
+                      <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                        {paymentLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Общая стоимость</span>
+                      <span className="font-semibold text-slate-800">{new Intl.NumberFormat('ru-RU').format(Math.round(total))} ₽</span>
+                    </div>
+                    {result && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Первоначальный взнос</span>
+                          <span className="font-medium text-slate-700">{new Intl.NumberFormat('ru-RU').format(result.downPayment)} ₽</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">{unit.payment_type === 'mortgage' ? 'Сумма кредита' : 'Остаток'}</span>
+                          <span className="font-medium text-slate-700">{new Intl.NumberFormat('ru-RU').format(result.remainder)} ₽</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Срок</span>
+                          <span className="font-medium text-slate-700">{result.termMonths} мес.</span>
+                        </div>
+                        <div className="h-px bg-slate-200" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-slate-700">Ежемесячный платёж</span>
+                          <span className="text-lg font-bold text-blue-600">{new Intl.NumberFormat('ru-RU').format(result.monthlyPayment)} ₽</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
 
             {unit.notes && (
               <div className="px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-xs text-slate-700">
