@@ -1098,11 +1098,30 @@ export default function ComplexDetail({ complexId, onClose, previewMode, onCross
                 const typeLabels: Record<string, string> = {
                   cash: 'Наличный', installment: 'Рассрочка', mortgage: 'Ипотека', escrow: 'Эскроу', other: 'Другое',
                 }
+                const termStr = cond.payment_type === 'installment' && cond.installment_months
+                  ? (cond.installment_months % 12 === 0
+                      ? `${cond.installment_months / 12} ${cond.installment_months / 12 === 1 ? 'год' : cond.installment_months / 12 < 5 ? 'года' : 'лет'}`
+                      : `${cond.installment_months} мес.`)
+                  : null
                 return (
                   <div key={cond.id} className={`p-3 rounded-xl border ${typeColors[cond.payment_type] ?? typeColors.other}`}>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold truncate">{cond.label || typeLabels[cond.payment_type]}</p>
+                        {cond.payment_type === 'installment' && (termStr || cond.installment_down_payment_pct != null) && (
+                          <div className="flex flex-wrap gap-2 mt-1.5">
+                            {termStr && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-white/60 rounded-full">
+                                📅 Срок: <strong>{termStr}</strong>
+                              </span>
+                            )}
+                            {cond.installment_down_payment_pct != null && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-white/60 rounded-full">
+                                ПВ: <strong>{cond.installment_down_payment_pct}%</strong>
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {cond.notes && <p className="text-[11px] opacity-70 mt-0.5 truncate">{cond.notes}</p>}
                       </div>
                       <div className="text-right shrink-0">

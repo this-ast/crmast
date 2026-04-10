@@ -205,7 +205,11 @@ export default function DeveloperUnitForm({ onClose }: Props) {
         {/* ЖК selector */}
         <div>
           <FieldLabel>Жилой комплекс *</FieldLabel>
-          <ComplexPicker complexId={complexId} onChange={(id, c) => { setComplexId(id); setSelectedComplex(c) }} />
+          <ComplexPicker complexId={complexId} onChange={(id, c) => {
+          setComplexId(id)
+          setSelectedComplex(c)
+          if (c?.floors_total) setForm(f => ({ ...f, total_floors: c.floors_total ?? '' }))
+        }} />
         </div>
 
         {/* Title */}
@@ -304,17 +308,25 @@ export default function DeveloperUnitForm({ onClose }: Props) {
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === 'cash' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
                 💵 Наличные
               </button>
-              {(selectedComplex.pricing_conditions ?? []).map((opt) => (
-                <button key={opt.id} type="button"
-                  onClick={() => setForm((f) => {
-                    const newPt = f.payment_type === opt.id ? '' : opt.id
-                    return { ...f, payment_type: newPt, price_per_m2: newPt && opt.price_per_sqm ? String(opt.price_per_sqm) : f.price_per_m2 }
-                  })}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === opt.id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
-                  {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
-                  {opt.payment_type === 'installment' && opt.installment_months ? ` · ${opt.installment_months} мес.` : ''}
-                </button>
-              ))}
+              {(selectedComplex.pricing_conditions ?? []).map((opt) => {
+                const term = opt.payment_type === 'installment' && opt.installment_months
+                  ? (opt.installment_months % 12 === 0
+                      ? ` · ${opt.installment_months / 12} ${opt.installment_months / 12 === 1 ? 'год' : opt.installment_months / 12 < 5 ? 'года' : 'лет'}`
+                      : ` · ${opt.installment_months} мес.`)
+                  : ''
+                const pv = opt.payment_type === 'installment' && opt.installment_down_payment_pct != null
+                  ? ` · ПВ ${opt.installment_down_payment_pct}%` : ''
+                return (
+                  <button key={opt.id} type="button"
+                    onClick={() => setForm((f) => {
+                      const newPt = f.payment_type === opt.id ? '' : opt.id
+                      return { ...f, payment_type: newPt, price_per_m2: newPt && opt.price_per_sqm ? String(opt.price_per_sqm) : f.price_per_m2 }
+                    })}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === opt.id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                    {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}{term}{pv}
+                  </button>
+                )
+              })}
               <button type="button"
                 onClick={() => setForm((f) => ({ ...f, payment_type: f.payment_type === 'mortgage' ? '' : 'mortgage' }))}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border ${form.payment_type === 'mortgage' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
