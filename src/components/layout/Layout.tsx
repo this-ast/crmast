@@ -37,7 +37,7 @@ export default function Layout() {
         <Sidebar />
       </div>
 
-      <main className="flex-1 overflow-x-hidden overflow-y-auto pb-28 lg:pb-0">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto lg:pb-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -51,6 +51,12 @@ export default function Layout() {
             <Outlet />
           </motion.div>
         </AnimatePresence>
+        {/* Spacer so content isn't hidden behind mobile bottom nav + safe area */}
+        <div
+          className="lg:hidden shrink-0"
+          style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 130px)' }}
+          aria-hidden="true"
+        />
       </main>
 
       <MobileBottomNav />
