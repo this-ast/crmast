@@ -188,6 +188,18 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
                 {unit.area ? ` · ${unit.area} м²` : ''}
                 {unit.floor ? ` · ${unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
               </p>
+              {unit.payment_type && (() => {
+                if (unit.payment_type === 'cash') return <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">💵 Наличные</span>
+                if (unit.payment_type === 'mortgage') return <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700">🏦 Ипотека</span>
+                const cond = complex?.pricing_conditions?.find((c) => c.id === unit.payment_type)
+                if (cond) {
+                  const term = cond.payment_type === 'installment' && cond.installment_months
+                    ? (cond.installment_months % 12 === 0 ? ` · ${cond.installment_months / 12} лет` : ` · ${cond.installment_months} мес.`)
+                    : ''
+                  return <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700">{cond.payment_type === 'installment' ? '📅' : '💳'} {cond.label}{term}</span>
+                }
+                return null
+              })()}
               {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
             </div>
             <div className="flex items-center gap-2 ml-3 shrink-0" onClick={(e) => e.stopPropagation()}>

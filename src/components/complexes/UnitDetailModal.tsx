@@ -9,6 +9,8 @@ import {
   useDeleteComplexUnitPhoto,
   useComplexes,
 } from '@/hooks/useComplexes'
+import { useAgentSettings } from '@/hooks/useAgentSettings'
+import UnitPdfButton from '@/components/pdf/UnitPdfButton'
 import toast from 'react-hot-toast'
 import { calcInstallment, calcMortgage } from '@/utils/unitCalc'
 
@@ -56,6 +58,7 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: allComplexes = [] } = useComplexes()
   const complex = allComplexes.find((c) => c.id === unit.complex_id)
+  const { data: agentSettings } = useAgentSettings()
 
   const label = unit.title || (unit.rooms ? `${unit.rooms}-комн. квартира` : 'Объект')
   const photos = unit.photos?.length ? unit.photos : (unit.complex_photos ?? [])
@@ -184,6 +187,9 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-3">
+          {!editing && agentSettings && (
+            <UnitPdfButton unit={unit} complex={complex} agentSettings={agentSettings} />
+          )}
           <button
             onClick={() => setEditing((v) => !v)}
             className={`p-1.5 rounded-lg transition-colors ${editing ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}

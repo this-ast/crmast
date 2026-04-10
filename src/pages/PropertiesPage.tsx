@@ -131,6 +131,9 @@ export default function PropertiesPage() {
   const [tab, setTab] = useState<'all' | 'developer'>('all')
   const [unitSearch, setUnitSearch] = useState('')
   const [selectedUnit, setSelectedUnit] = useState<(ComplexUnit & { complex_name?: string; complex_photos?: string[] }) | null>(null)
+  const [unitFilters, setUnitFilters] = useState({
+    priceMin: '', priceMax: '', complexId: '', paymentType: '', completed: '', rooms: '',
+  })
   const [showUnitForm, setShowUnitForm] = useState(false)
   const {
     filters,
@@ -159,17 +162,49 @@ export default function PropertiesPage() {
 
   const filteredUnits = useMemo(() => {
     const q = unitSearch.toLowerCase().trim()
-    if (!q) return allUnits
     return allUnits.filter((u) => {
-      const label = u.title || (u.rooms ? `${u.rooms}-комн. кв.` : '')
-      return (
-        label.toLowerCase().includes(q) ||
-        (u.complex_name ?? '').toLowerCase().includes(q) ||
-        String(u.price ?? '').includes(q) ||
-        String(u.area ?? '').includes(q)
-      )
+      // Text search
+      if (q) {
+        const label = u.title || (u.rooms ? `${u.rooms}-комн. кв.` : '')
+        const match = label.toLowerCase().includes(q)
+          || (u.complex_name ?? '').toLowerCase().includes(q)
+          || String(u.price ?? '').includes(q)
+          || String(u.area ?? '').includes(q)
+        if (!match) return false
+      }
+      // Price range
+      const price = u.price ?? (u.price_per_m2 && u.area ? u.price_per_m2 * u.area : null)
+      if (unitFilters.priceMin && (price == null || price < Number(unitFilters.priceMin))) return false
+      if (unitFilters.priceMax && (price == null || price > Number(unitFilters.priceMax))) return false
+      // Complex
+      if (unitFilters.complexId && u.complex_id !== unitFilters.complexId) return false
+      // Rooms
+      if (unitFilters.rooms) {
+        if (unitFilters.rooms === '5+') { if (!u.rooms || u.rooms < 5) return false }
+        else { if (u.rooms !== Number(unitFilters.rooms)) return false }
+      }
+      // Payment type
+      if (unitFilters.paymentType) {
+        if (unitFilters.paymentType === 'cash' && u.payment_type !== 'cash') return false
+        if (unitFilters.paymentType === 'mortgage' && u.payment_type !== 'mortgage') return false
+        if (unitFilters.paymentType === 'installment') {
+          const cx = complexMap.get(u.complex_id)
+          const cond = cx?.pricing_conditions?.find((c) => c.id === u.payment_type)
+          if (!cond || cond.payment_type !== 'installment') return false
+        }
+      }
+      // Completed / under construction
+      if (unitFilters.completed) {
+        const cx = complexMap.get(u.complex_id)
+        const yearMatch = cx?.completion_date?.match(/\b(20\d{2})\b/)
+        const year = yearMatch ? parseInt(yearMatch[1]) : null
+        const isCompleted = year != null && year <= new Date().getFullYear()
+        if (unitFilters.completed === 'yes' && !isCompleted) return false
+        if (unitFilters.completed === 'no' && isCompleted) return false
+      }
+      return true
     })
-  }, [allUnits, unitSearch])
+  }, [allUnits, unitSearch, unitFilters, complexMap])
 
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId)
   const activeCount = properties.filter((p) => p.status === 'active').length
@@ -317,7 +352,8 @@ export default function PropertiesPage() {
       {/* ─── Developer units tab ─── */}
       {tab === 'developer' && (
         <>
-          <div className="relative mb-4">
+          {/* Search */}
+          <div className="relative mb-3">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={unitSearch}
@@ -325,6 +361,81 @@ export default function PropertiesPage() {
               placeholder="Поиск по ЖК, типу, площади, цене..."
               className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
             />
+          </div>
+          {/* Filters */}
+          <div className="space-y-2 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <input
+                type="number"
+                placeholder="Цена от"
+                value={unitFilters.priceMin}
+                onChange={(e) => setUnitFilters(f => ({ ...f, priceMin: e.target.value }))}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <input
+                type="number"
+                placeholder="Цена до"
+                value={unitFilters.priceMax}
+                onChange={(e) => setUnitFilters(f => ({ ...f, priceMax: e.target.value }))}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <select
+                value={unitFilters.complexId}
+                onChange={(e) => setUnitFilters(f => ({ ...f, complexId: e.target.value }))}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 col-span-2 sm:col-span-1"
+              >
+                <option value="">Все ЖК</option>
+                {complexes
+                  .filter((c) => allUnits.some((u) => u.complex_id === c.id))
+                  .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
+                }
+              </select>
+              <select
+                value={unitFilters.rooms}
+                onChange={(e) => setUnitFilters(f => ({ ...f, rooms: e.target.value }))}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Все комнаты</option>
+                <option value="0">Студия</option>
+                <option value="1">1-комн.</option>
+                <option value="2">2-комн.</option>
+                <option value="3">3-комн.</option>
+                <option value="4">4-комн.</option>
+                <option value="5+">5+ комн.</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['', 'cash', 'installment', 'mortgage'] as const).map((pt) => {
+                const labels: Record<string, string> = { '': 'Любая оплата', cash: '💵 Наличные', installment: '📅 Рассрочка', mortgage: '🏦 Ипотека' }
+                const active = unitFilters.paymentType === pt
+                return (
+                  <button key={pt} type="button"
+                    onClick={() => setUnitFilters(f => ({ ...f, paymentType: pt }))}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${active ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                    {labels[pt]}
+                  </button>
+                )
+              })}
+              <div className="w-px bg-slate-200 mx-1" />
+              {(['', 'yes', 'no'] as const).map((v) => {
+                const labels: Record<string, string> = { '': 'Любой статус', yes: '✅ Сдан', no: '🏗 Строится' }
+                const active = unitFilters.completed === v
+                return (
+                  <button key={v} type="button"
+                    onClick={() => setUnitFilters(f => ({ ...f, completed: v }))}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${active ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                    {labels[v]}
+                  </button>
+                )
+              })}
+              {(unitFilters.priceMin || unitFilters.priceMax || unitFilters.complexId || unitFilters.paymentType || unitFilters.completed || unitFilters.rooms) && (
+                <button type="button"
+                  onClick={() => setUnitFilters({ priceMin: '', priceMax: '', complexId: '', paymentType: '', completed: '', rooms: '' })}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-red-500 border border-red-100 bg-red-50 hover:bg-red-100 transition-colors ml-auto">
+                  Сбросить
+                </button>
+              )}
+            </div>
           </div>
 
           {unitsLoading && (
@@ -381,17 +492,32 @@ export default function PropertiesPage() {
                           <Building2 size={10} />{u.complex_name}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {u.floor != null && (
                           <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
-                            {u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.
+                            {u.floor_to && u.floor_to > u.floor ? `${u.floor}–${u.floor_to}` : u.floor}{u.total_floors ? `/${u.total_floors}` : ''} эт.
                           </span>
                         )}
-                        {u.price != null && (
-                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                            {formatPriceShort(u.price)}
-                          </span>
-                        )}
+                        {(() => {
+                          const price = u.price ?? (u.price_per_m2 && u.area ? u.price_per_m2 * u.area : null)
+                          return price != null ? (
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              {formatPriceShort(price)}
+                            </span>
+                          ) : null
+                        })()}
+                        {u.payment_type && (() => {
+                          if (u.payment_type === 'cash') return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">💵 Наличные</span>
+                          if (u.payment_type === 'mortgage') return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-100">🏦 Ипотека</span>
+                          const cond = cx?.pricing_conditions?.find((c) => c.id === u.payment_type)
+                          if (cond) {
+                            const term = cond.payment_type === 'installment' && cond.installment_months
+                              ? (cond.installment_months % 12 === 0 ? ` ${cond.installment_months / 12}г.` : ` ${cond.installment_months}м.`)
+                              : ''
+                            return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">{cond.payment_type === 'installment' ? '📅' : '💳'}{term}</span>
+                          }
+                          return null
+                        })()}
                       </div>
                       {taskCounts[u.id] > 0 && (
                         <div className="mt-2">
