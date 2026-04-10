@@ -5,11 +5,14 @@ import {
   Pencil, Trash2, ChevronRight, ChevronLeft, Download, Plus, Loader2, ZoomIn, Share2, ExternalLink,
 } from 'lucide-react'
 import LinkedTasksSection from '@/components/tasks/LinkedTasksSection'
-import { useComplex, useComplexUnits, useCreateComplexUnit, useUpdateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout, useDeleteComplexPhoto, useReorderComplexPhotos, useReorderComplexLayouts } from '@/hooks/useComplexes'
+import { useComplex, useComplexUnits, useCreateComplexUnit, useDeleteComplexUnit, useDeleteComplex, useUploadComplexDocument, useDeleteComplexDocument, useUploadComplexLayout, useDeleteComplexLayout, useDeleteComplexPhoto, useReorderComplexPhotos, useReorderComplexLayouts } from '@/hooks/useComplexes'
+import Modal from '@/components/ui/Modal'
+import UnitDetailModal from './UnitDetailModal'
 import { useComplexStore } from '@/store/useComplexStore'
 import { useAgentSettings } from '@/hooks/useAgentSettings'
 import { formatPriceShort } from '@/utils/format'
 import { PROPERTY_TYPE_LABELS, PROPERTY_STATUS_COLORS, PROPERTY_STATUS_LABELS } from '@/types'
+import type { ComplexUnit } from '@/types'
 import toast from 'react-hot-toast'
 import PropertyTypeIcon from '@/components/properties/PropertyTypeIcon'
 import ComplexPdfButton from '@/components/pdf/ComplexPdfButton'
@@ -27,36 +30,71 @@ const DOC_TYPE_LABELS = {
   other: 'Документ',
 }
 
-const EMPTY_UNIT_FORM = { title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' }
+const EMPTY_UNIT_FORM = { title: '', rooms: '', area: '', floor: '', floor_to: '', total_floors: '', price_per_m2: '', payment_type: '', notes: '' }
 
-function UnitForm({
-  initial,
+function UnitAddForm({
+  complexId,
   onSave,
   onCancel,
   isPending,
-  accent = 'blue',
 }: {
-  initial?: typeof EMPTY_UNIT_FORM
+  complexId: string
   onSave: (f: typeof EMPTY_UNIT_FORM) => void
   onCancel: () => void
   isPending: boolean
-  accent?: 'blue' | 'amber'
 }) {
-  const [form, setForm] = useState(initial ?? EMPTY_UNIT_FORM)
+  const { data: complex } = useComplex(complexId)
+  const [form, setForm] = useState(EMPTY_UNIT_FORM)
+  const paymentOptions = complex?.pricing_conditions ?? []
   const inp = 'w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500'
-  const bg = accent === 'amber' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
   return (
-    <div className={`p-3 rounded-xl border space-y-2 ${bg}`}>
+    <div className="p-3 rounded-xl border space-y-2 bg-blue-50 border-blue-100">
       <input className={inp} placeholder="Название (2-комн. кв., студия...)" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
       <div className="grid grid-cols-2 gap-2">
         <input className={inp} type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
         <input className={inp} type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <input className={inp} type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
-        <input className={inp} type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
+      <div className="grid grid-cols-3 gap-2">
+        <input className={inp} type="number" placeholder="Этаж от" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
+        <input className={inp} type="number" placeholder="Этаж до" value={form.floor_to} onChange={(e) => setForm(f => ({ ...f, floor_to: e.target.value }))} />
+        <input className={inp} type="number" placeholder="Всего эт." value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
       </div>
-      <input className={inp} type="number" placeholder="Цена (наличный) ₽" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
+      <div>
+        <input className={inp} type="number" placeholder="Цена за м² (₽/м²)" value={form.price_per_m2} onChange={(e) => setForm(f => ({ ...f, price_per_m2: e.target.value }))} />
+        {form.price_per_m2 && form.area && (
+          <p className="text-xs text-emerald-600 font-semibold mt-1 pl-1">
+            Итого: {new Intl.NumberFormat('ru-RU').format(Number(form.price_per_m2) * Number(form.area))} ₽
+          </p>
+        )}
+      </div>
+      {paymentOptions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          <button type="button"
+            onClick={() => setForm(f => {
+              const newPt = f.payment_type === 'cash' ? '' : 'cash'
+              const cashCond = paymentOptions.find(c => c.payment_type === 'cash')
+              return { ...f, payment_type: newPt, price_per_m2: newPt && cashCond?.price_per_sqm ? String(cashCond.price_per_sqm) : f.price_per_m2 }
+            })}
+            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${form.payment_type === 'cash' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+            💵 Наличные
+          </button>
+          {paymentOptions.map((opt) => (
+            <button key={opt.id} type="button"
+              onClick={() => setForm(f => {
+                const newPt = f.payment_type === opt.id ? '' : opt.id
+                return { ...f, payment_type: newPt, price_per_m2: newPt && opt.price_per_sqm ? String(opt.price_per_sqm) : f.price_per_m2 }
+              })}
+              className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${form.payment_type === opt.id ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+              {opt.payment_type === 'installment' ? '📅' : opt.payment_type === 'mortgage' ? '🏦' : opt.payment_type === 'escrow' ? '🔒' : '💳'} {opt.label}
+            </button>
+          ))}
+          <button type="button"
+            onClick={() => setForm(f => ({ ...f, payment_type: f.payment_type === 'mortgage' ? '' : 'mortgage' }))}
+            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${form.payment_type === 'mortgage' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+            🏦 Ипотека
+          </button>
+        </div>
+      )}
       <input className={inp} placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
       <div className="flex gap-2">
         <button type="button" onClick={onCancel} className="flex-1 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50">Отмена</button>
@@ -71,11 +109,11 @@ function UnitForm({
 
 function DeveloperUnitsView({ complexId }: { complexId: string }) {
   const { data: units = [] } = useComplexUnits(complexId)
+  const { data: complex } = useComplex(complexId)
   const createUnit = useCreateComplexUnit()
-  const updateUnit = useUpdateComplexUnit()
   const deleteUnit = useDeleteComplexUnit()
   const [showAdd, setShowAdd] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<ComplexUnit | null>(null)
 
   const handleAdd = async (form: typeof EMPTY_UNIT_FORM) => {
     try {
@@ -86,35 +124,16 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
           rooms: form.rooms ? Number(form.rooms) : undefined,
           area: form.area ? Number(form.area) : undefined,
           floor: form.floor ? Number(form.floor) : undefined,
+          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price) : undefined,
+          price_per_m2: form.price_per_m2 ? Number(form.price_per_m2) : undefined,
+          price: form.price_per_m2 && form.area ? Number(form.price_per_m2) * Number(form.area) : undefined,
+          payment_type: form.payment_type || undefined,
           notes: form.notes || undefined,
         },
       })
       setShowAdd(false)
       toast.success('Объект добавлен')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Ошибка')
-    }
-  }
-
-  const handleEdit = async (id: string, form: typeof EMPTY_UNIT_FORM) => {
-    try {
-      await updateUnit.mutateAsync({
-        id,
-        complexId,
-        data: {
-          title: form.title || undefined,
-          rooms: form.rooms ? Number(form.rooms) : undefined,
-          area: form.area ? Number(form.area) : undefined,
-          floor: form.floor ? Number(form.floor) : undefined,
-          total_floors: form.total_floors ? Number(form.total_floors) : undefined,
-          price: form.price ? Number(form.price) : undefined,
-          notes: form.notes || undefined,
-        },
-      })
-      setEditingId(null)
-      toast.success('Объект обновлён')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка')
     }
@@ -148,7 +167,7 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
 
       {showAdd && (
         <div className="mb-3">
-          <UnitForm onSave={handleAdd} onCancel={() => setShowAdd(false)} isPending={createUnit.isPending} />
+          <UnitAddForm complexId={complexId} onSave={handleAdd} onCancel={() => setShowAdd(false)} isPending={createUnit.isPending} />
         </div>
       )}
 
@@ -157,64 +176,44 @@ function DeveloperUnitsView({ complexId }: { complexId: string }) {
       )}
 
       <div className="space-y-2">
-        {units.map((unit) => {
-          const unitInitial: typeof EMPTY_UNIT_FORM = {
-            title: unit.title ?? '',
-            rooms: unit.rooms != null ? String(unit.rooms) : '',
-            area: unit.area != null ? String(unit.area) : '',
-            floor: unit.floor != null ? String(unit.floor) : '',
-            total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
-            price: unit.price != null ? String(unit.price) : '',
-            notes: unit.notes ?? '',
-          }
-          if (editingId === unit.id) {
-            return (
-              <UnitForm
-                key={unit.id}
-                initial={unitInitial}
-                onSave={(f) => handleEdit(unit.id, f)}
-                onCancel={() => setEditingId(null)}
-                isPending={updateUnit.isPending}
-                accent="amber"
-              />
-            )
-          }
-          return (
-            <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-800">
-                  {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
-                  {unit.area ? ` · ${unit.area} м²` : ''}
-                  {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
-                </p>
-                {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
-              </div>
-              <div className="flex items-center gap-2 ml-3 shrink-0">
-                {unit.price != null && (
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Наличный</p>
-                    <p className="text-sm font-bold text-emerald-600">{new Intl.NumberFormat('ru-RU').format(unit.price)} ₽</p>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setEditingId(unit.id)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(unit.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
+        {units.map((unit) => (
+          <div
+            key={unit.id}
+            className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30 transition-colors"
+            onClick={() => setSelectedUnit(unit)}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-800">
+                {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
+                {unit.area ? ` · ${unit.area} м²` : ''}
+                {unit.floor ? ` · ${unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+              </p>
+              {unit.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{unit.notes}</p>}
             </div>
-          )
-        })}
+            <div className="flex items-center gap-2 ml-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+              {unit.price != null && (
+                <p className="text-sm font-bold text-emerald-600">{new Intl.NumberFormat('ru-RU').format(unit.price)} ₽</p>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(unit.id)}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
+
+      {selectedUnit && (
+        <Modal isOpen={true} onClose={() => setSelectedUnit(null)} size="md">
+          <UnitDetailModal
+            unit={{ ...selectedUnit, complex_name: complex?.name, complex_photos: complex?.photos }}
+            onClose={() => setSelectedUnit(null)}
+          />
+        </Modal>
+      )}
     </div>
   )
 }
