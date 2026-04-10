@@ -92,7 +92,7 @@ export function useCreateClient() {
       }
 
       // Strip empty strings from date fields — Supabase rejects "" for date columns
-      const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
+      const DATE_FIELDS = ['contact_date', 'first_contact', 'last_contact', 'next_contact'] as const
       const cleaned = { ...data } as Record<string, unknown>
       DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = undefined })
       // Strip NaN from numeric fields
@@ -133,7 +133,7 @@ export function useUpdateClient() {
         return OFFLINE_MARKER
       }
 
-      const DATE_FIELDS = ['contact_date', 'last_contact', 'next_contact'] as const
+      const DATE_FIELDS = ['contact_date', 'first_contact', 'last_contact', 'next_contact'] as const
       const cleaned = { ...data } as Record<string, unknown>
       DATE_FIELDS.forEach(f => { if (cleaned[f] === '') cleaned[f] = null })
       // Strip NaN from numeric fields
