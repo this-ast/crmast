@@ -37,6 +37,7 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
     rooms: unit.rooms != null ? String(unit.rooms) : '',
     area: unit.area != null ? String(unit.area) : '',
     floor: unit.floor != null ? String(unit.floor) : '',
+    floor_to: unit.floor_to != null ? String(unit.floor_to) : '',
     total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
     price: unit.price != null ? String(unit.price) : '',
     notes: unit.notes ?? '',
@@ -60,6 +61,7 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
           rooms: form.rooms ? Number(form.rooms) : undefined,
           area: form.area ? Number(form.area) : undefined,
           floor: form.floor ? Number(form.floor) : undefined,
+          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
           price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
           notes: form.notes || undefined,
@@ -72,6 +74,7 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
         rooms: form.rooms ? Number(form.rooms) : undefined,
         area: form.area ? Number(form.area) : undefined,
         floor: form.floor ? Number(form.floor) : undefined,
+        floor_to: form.floor_to ? Number(form.floor_to) : undefined,
         total_floors: form.total_floors ? Number(form.total_floors) : undefined,
         price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
         notes: form.notes || undefined,
@@ -193,14 +196,19 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
                   onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <FieldLabel>Этаж</FieldLabel>
-                <Input type="number" placeholder="5" value={form.floor}
+                <FieldLabel>Этаж от</FieldLabel>
+                <Input type="number" placeholder="3" value={form.floor}
                   onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
               </div>
               <div>
-                <FieldLabel>Всего этажей</FieldLabel>
+                <FieldLabel>Этаж до</FieldLabel>
+                <Input type="number" placeholder="15" value={form.floor_to}
+                  onChange={(e) => setForm(f => ({ ...f, floor_to: e.target.value }))} />
+              </div>
+              <div>
+                <FieldLabel>Всего эт.</FieldLabel>
                 <Input type="number" placeholder="16" value={form.total_floors}
                   onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
               </div>
@@ -277,7 +285,10 @@ export default function UnitDetailModal({ unit: initialUnit, onClose }: UnitDeta
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase tracking-wide">Этаж</p>
                     <p className="text-sm font-semibold text-slate-800">
-                      {unit.floor}{unit.total_floors ? `/${unit.total_floors}` : ''}
+                      {unit.floor_to && unit.floor_to > unit.floor
+                        ? `${unit.floor}–${unit.floor_to}`
+                        : unit.floor}
+                      {unit.total_floors ? `/${unit.total_floors}` : ''}
                     </p>
                   </div>
                 </div>

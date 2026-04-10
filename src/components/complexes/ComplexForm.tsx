@@ -215,7 +215,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
   const [editingUnit, setEditingUnit] = useState<ComplexUnit | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
 
-  const emptyForm = { title: '', rooms: '', area: '', floor: '', total_floors: '', price: '', notes: '' }
+  const emptyForm = { title: '', rooms: '', area: '', floor: '', floor_to: '', total_floors: '', price: '', notes: '' }
   const [form, setForm] = useState<typeof emptyForm>(emptyForm)
 
   const handleAdd = async () => {
@@ -227,6 +227,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
           rooms: form.rooms ? Number(form.rooms) : undefined,
           area: form.area ? Number(form.area) : undefined,
           floor: form.floor ? Number(form.floor) : undefined,
+          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
           price: form.price ? Number(form.price) : undefined,
           notes: form.notes || undefined,
@@ -251,6 +252,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
           rooms: form.rooms ? Number(form.rooms) : undefined,
           area: form.area ? Number(form.area) : undefined,
           floor: form.floor ? Number(form.floor) : undefined,
+          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
           price: form.price ? Number(form.price) : undefined,
           notes: form.notes || undefined,
@@ -279,6 +281,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
       rooms: unit.rooms != null ? String(unit.rooms) : '',
       area: unit.area != null ? String(unit.area) : '',
       floor: unit.floor != null ? String(unit.floor) : '',
+      floor_to: unit.floor_to != null ? String(unit.floor_to) : '',
       total_floors: unit.total_floors != null ? String(unit.total_floors) : '',
       price: unit.price != null ? String(unit.price) : '',
       notes: unit.notes ?? '',
@@ -293,9 +296,10 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
         <Input type="number" placeholder="Комнат" value={form.rooms} onChange={(e) => setForm(f => ({ ...f, rooms: e.target.value }))} />
         <Input type="number" placeholder="Площадь м²" value={form.area} onChange={(e) => setForm(f => ({ ...f, area: e.target.value }))} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Input type="number" placeholder="Этаж" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
-        <Input type="number" placeholder="Всего этажей" value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
+      <div className="grid grid-cols-3 gap-2">
+        <Input type="number" placeholder="Этаж от" value={form.floor} onChange={(e) => setForm(f => ({ ...f, floor: e.target.value }))} />
+        <Input type="number" placeholder="Этаж до" value={form.floor_to} onChange={(e) => setForm(f => ({ ...f, floor_to: e.target.value }))} />
+        <Input type="number" placeholder="Всего эт." value={form.total_floors} onChange={(e) => setForm(f => ({ ...f, total_floors: e.target.value }))} />
       </div>
       <Input type="number" placeholder="Цена (наличный)" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
       <Input placeholder="Заметки" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
@@ -340,7 +344,7 @@ function DeveloperUnitsSection({ complexId }: { complexId: string }) {
                   <p className="text-sm font-medium text-slate-800 truncate">
                     {unit.title || (unit.rooms ? `${unit.rooms}-комн. кв.` : 'Объект')}
                     {unit.area ? ` · ${unit.area} м²` : ''}
-                    {unit.floor ? ` · ${unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
+                    {unit.floor ? ` · ${unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : unit.floor}${unit.total_floors ? `/${unit.total_floors}` : ''} эт.` : ''}
                   </p>
                   {unit.price != null && (
                     <p className="text-xs font-semibold text-emerald-600 mt-0.5">

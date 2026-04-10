@@ -94,6 +94,7 @@ export interface ComplexUnit {
   rooms?: number
   area?: number
   floor?: number
+  floor_to?: number
   total_floors?: number
   price?: number
   notes?: string
@@ -107,6 +108,7 @@ export interface ComplexUnitFormData {
   rooms?: number
   area?: number
   floor?: number
+  floor_to?: number
   total_floors?: number
   price?: number
   notes?: string

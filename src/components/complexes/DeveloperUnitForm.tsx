@@ -123,6 +123,7 @@ export default function DeveloperUnitForm({ onClose }: Props) {
     rooms: '',
     area: '',
     floor: '',
+    floor_to: '',
     total_floors: '',
     price: '',
     notes: '',
@@ -156,6 +157,7 @@ export default function DeveloperUnitForm({ onClose }: Props) {
           rooms: form.rooms ? Number(form.rooms) : undefined,
           area: form.area ? Number(form.area) : undefined,
           floor: form.floor ? Number(form.floor) : undefined,
+          floor_to: form.floor_to ? Number(form.floor_to) : undefined,
           total_floors: form.total_floors ? Number(form.total_floors) : undefined,
           price: form.price ? Number(form.price.replace(/\s/g, '')) : undefined,
           notes: form.notes || undefined,
@@ -223,19 +225,28 @@ export default function DeveloperUnitForm({ onClose }: Props) {
           </div>
         </div>
 
-        {/* Floor */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Floor range */}
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <FieldLabel>Этаж</FieldLabel>
+            <FieldLabel>Этаж от</FieldLabel>
             <Input
               type="number"
-              placeholder="5"
+              placeholder="3"
               value={form.floor}
               onChange={(e) => setForm((f) => ({ ...f, floor: e.target.value }))}
             />
           </div>
           <div>
-            <FieldLabel>Всего этажей</FieldLabel>
+            <FieldLabel>Этаж до</FieldLabel>
+            <Input
+              type="number"
+              placeholder="15"
+              value={form.floor_to}
+              onChange={(e) => setForm((f) => ({ ...f, floor_to: e.target.value }))}
+            />
+          </div>
+          <div>
+            <FieldLabel>Всего эт.</FieldLabel>
             <Input
               type="number"
               placeholder="16"

@@ -180,8 +180,11 @@ function UnitFullDetail({ unit, complex, onClose }: {
   const specs: string[] = []
   if (unit.area) specs.push(`${unit.area} м²`)
   if (unit.rooms != null) specs.push(unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн.`)
-  if (unit.floor && unit.total_floors) specs.push(`${unit.floor}/${unit.total_floors} эт.`)
-  else if (unit.floor) specs.push(`${unit.floor} эт.`)
+  const floorStr = unit.floor
+    ? (unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : `${unit.floor}`)
+    : null
+  if (floorStr && unit.total_floors) specs.push(`${floorStr}/${unit.total_floors} эт.`)
+  else if (floorStr) specs.push(`${floorStr} эт.`)
 
   const paymentTypes: string[] = []
   if (complex?.pricing_conditions?.length) {
@@ -340,8 +343,11 @@ function UnitCard({ unit, complex, index, onOpen }: {
   const specs: string[] = []
   if (unit.area) specs.push(`${unit.area} м²`)
   if (unit.rooms !== undefined) specs.push(unit.rooms === 0 ? 'Студия' : `${unit.rooms}-комн.`)
-  if (unit.floor && unit.total_floors) specs.push(`${unit.floor}/${unit.total_floors} эт.`)
-  else if (unit.floor) specs.push(`${unit.floor} эт.`)
+  const floorStr = unit.floor
+    ? (unit.floor_to && unit.floor_to > unit.floor ? `${unit.floor}–${unit.floor_to}` : `${unit.floor}`)
+    : null
+  if (floorStr && unit.total_floors) specs.push(`${floorStr}/${unit.total_floors} эт.`)
+  else if (floorStr) specs.push(`${floorStr} эт.`)
 
   const paymentTypes: string[] = []
   if (complex?.pricing_conditions?.length) {

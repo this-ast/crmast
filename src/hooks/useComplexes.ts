@@ -388,7 +388,15 @@ export function useCreateComplexUnit() {
     mutationFn: async ({ complexId, data }: { complexId: string; data: ComplexUnitFormData }) => {
       const payload = Object.fromEntries(Object.entries({ ...data, complex_id: complexId }).filter(([, v]) => v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v))))
       const { data: created, error } = await supabase.from('complex_units').insert(payload).select('*').single()
-      if (error) throw new Error(error.message)
+      if (error) {
+        if (error.message?.includes('floor_to')) {
+          const { floor_to: _ft, ...payloadWithout } = payload as any
+          const { data: created2, error: error2 } = await supabase.from('complex_units').insert(payloadWithout).select('*').single()
+          if (error2) throw new Error(error2.message)
+          return created2 as ComplexUnit
+        }
+        throw new Error(error.message)
+      }
       return created as ComplexUnit
     },
     onSuccess: (_, { complexId }) => {
@@ -404,7 +412,15 @@ export function useUpdateComplexUnit() {
     mutationFn: async ({ id, complexId, data }: { id: string; complexId: string; data: Partial<ComplexUnitFormData> }) => {
       const payload = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined))
       const { data: updated, error } = await supabase.from('complex_units').update(payload).eq('id', id).select('*').single()
-      if (error) throw new Error(error.message)
+      if (error) {
+        if (error.message?.includes('floor_to')) {
+          const { floor_to: _ft, ...payloadWithout } = payload as any
+          const { data: updated2, error: error2 } = await supabase.from('complex_units').update(payloadWithout).eq('id', id).select('*').single()
+          if (error2) throw new Error(error2.message)
+          return updated2 as ComplexUnit
+        }
+        throw new Error(error.message)
+      }
       return updated as ComplexUnit
     },
     onSuccess: (_, { complexId }) => {
