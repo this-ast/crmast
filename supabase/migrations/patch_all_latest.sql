@@ -2,6 +2,7 @@
 -- ПОЛНЫЙ ПАТЧ — запустить в Supabase SQL Editor
 -- Идемпотентно: безопасно запускать повторно на любой базе
 -- ================================================================
+-- ВАЖНО: НЕ запускай final.sql повторно — он удаляет clients и properties!
 
 -- ─── Вспомогательная функция updated_at ──────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -43,6 +44,45 @@ DROP POLICY IF EXISTS "allow all tasks" ON tasks;
 DROP POLICY IF EXISTS allow_all_tasks ON tasks;
 CREATE POLICY allow_all_tasks ON tasks FOR ALL USING (true) WITH CHECK (true);
 
+-- ─── demands — таблица заявок покупателей ────────────────────────
+-- (нигде не создавалась отдельным файлом — КРИТИЧНО)
+CREATE TABLE IF NOT EXISTS demands (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  demand_number   SERIAL,
+  title           TEXT,
+  client_id       UUID        REFERENCES clients(id) ON DELETE CASCADE,
+  budget_min      NUMERIC,
+  budget_max      NUMERIC,
+  districts       TEXT[]      DEFAULT '{}',
+  property_types  TEXT[]      DEFAULT '{}',
+  payment_types   TEXT[]      DEFAULT '{}',
+  floor_min       INTEGER,
+  floor_max       INTEGER,
+  area_min        NUMERIC,
+  area_max        NUMERIC,
+  area_sotki_min  NUMERIC,
+  area_sotki_max  NUMERIC,
+  market_type     TEXT,
+  complex_ids     UUID[]      DEFAULT '{}',
+  renovation      TEXT[]      DEFAULT '{}',
+  funnel_stage    TEXT        DEFAULT 'new',
+  status          TEXT        DEFAULT 'active',
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE demands ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "allow all demands" ON demands;
+DROP POLICY IF EXISTS allow_all_demands ON demands;
+CREATE POLICY allow_all_demands ON demands FOR ALL USING (true) WITH CHECK (true);
+DROP TRIGGER IF EXISTS trg_demands_updated_at ON demands;
+CREATE TRIGGER trg_demands_updated_at
+  BEFORE UPDATE ON demands
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ─── clients — seller_status (добавлялся в patch_client_demand_v2) ─
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS seller_status TEXT DEFAULT 'Активный';
+
 -- ─── saved_filters ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS saved_filters (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,6 +93,8 @@ CREATE TABLE IF NOT EXISTS saved_filters (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE saved_filters ENABLE ROW LEVEL SECURITY;
+-- Удаляем обе версии имени полиса (с пробелом и с подчёркиванием)
+DROP POLICY IF EXISTS "allow all saved_filters" ON saved_filters;
 DROP POLICY IF EXISTS allow_all_saved_filters ON saved_filters;
 CREATE POLICY allow_all_saved_filters ON saved_filters FOR ALL USING (true) WITH CHECK (true);
 
@@ -67,6 +109,8 @@ CREATE TABLE IF NOT EXISTS custom_statuses (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE custom_statuses ENABLE ROW LEVEL SECURITY;
+-- Удаляем обе версии имени полиса (с пробелом и с подчёркиванием)
+DROP POLICY IF EXISTS "allow all custom_statuses" ON custom_statuses;
 DROP POLICY IF EXISTS allow_all_custom_statuses ON custom_statuses;
 CREATE POLICY allow_all_custom_statuses ON custom_statuses FOR ALL USING (true) WITH CHECK (true);
 
