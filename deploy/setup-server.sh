@@ -241,10 +241,27 @@ ENV
   git reset --hard FETCH_HEAD
 
   log "Установка npm-зависимостей..."
-  npm install
+  npm install --legacy-peer-deps 2>&1 | grep -v "npm warn" || true
 
   log "Сборка проекта..."
   npm run build
+
+  # Обновляем nginx конфиг из репозитория (preserves domain from existing config)
+  if [[ -f "$NGINX_CONF" ]]; then
+    DOMAIN=$(grep -m1 "server_name" "$NGINX_CONF" 2>/dev/null | grep -v "return 301" | awk '{print $2}' | tr -d ';' || echo "")
+    if [[ -n "$DOMAIN" && "$DOMAIN" != "_" ]]; then
+      log "Обновление конфига nginx (домен: $DOMAIN)..."
+      cp "$INSTALL_DIR/nginx/crm.conf" "$NGINX_CONF"
+      sed -i "s|server_name _;|server_name $DOMAIN;|g" "$NGINX_CONF"
+      sed -i "s|root /var/www/crm/dist;|root $INSTALL_DIR/dist;|g" "$NGINX_CONF"
+      # Восстанавливаем SSL блок если certbot уже настроен
+      if [[ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]]; then
+        log "SSL сертификат найден, настраиваем HTTPS..."
+        certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email 2>/dev/null || true
+      fi
+      nginx -t && log "Конфиг nginx валиден" || warn "Ошибка в конфиге nginx, откатываемся..."
+    fi
+  fi
 
   log "Перезагрузка Nginx..."
   systemctl reload nginx
@@ -357,24 +374,49 @@ server {
     root INSTALL_DIR_PLACEHOLDER/dist;
     index index.html;
 
-    # Прокси для Supabase (обход блокировок в РФ)
-    # ^~ — префиксный матч приоритетнее regex (иначе .jpg/.png перехватывались бы правилом статики)
-    client_max_body_size 20m;
+    client_max_body_size 50m;
+
+    # ^~ — обязателен: без него regex (.jpg/.png...) перехватывает Storage-запросы к Supabase
     location ^~ /supabase-proxy/ {
         proxy_pass https://mtigcxqcymxvqjjqfyts.supabase.co/;
         proxy_ssl_server_name on;
         proxy_ssl_name mtigcxqcymxvqjjqfyts.supabase.co;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
 
         proxy_set_header Host mtigcxqcymxvqjjqfyts.supabase.co;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        proxy_pass_request_headers on;
+        proxy_set_header apikey $http_apikey;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Prefer $http_prefer;
+        proxy_set_header Content-Profile $http_content_profile;
+        proxy_set_header Accept-Profile $http_accept_profile;
+
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_read_timeout 300s;
         proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+    }
+
+    # index.html — всегда свежий (PWA обновляет SW при каждом заходе)
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # Service worker — без кеша
+    location ~* (sw\.js|workbox-.*\.js)$ {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        try_files $uri =404;
     }
 
     # SPA fallback
@@ -382,7 +424,7 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Кэширование статики
+    # Кэширование статики с контент-хешами (Vite → безопасно кешировать)
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
@@ -423,24 +465,49 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
-    # Прокси для Supabase (обход блокировок в РФ)
-    # ^~ — префиксный матч приоритетнее regex (иначе .jpg/.png перехватывались бы правилом статики)
-    client_max_body_size 20m;
+    client_max_body_size 50m;
+
+    # ^~ — обязателен: без него regex (.jpg/.png...) перехватывает Storage-запросы к Supabase
     location ^~ /supabase-proxy/ {
         proxy_pass https://mtigcxqcymxvqjjqfyts.supabase.co/;
         proxy_ssl_server_name on;
         proxy_ssl_name mtigcxqcymxvqjjqfyts.supabase.co;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
 
         proxy_set_header Host mtigcxqcymxvqjjqfyts.supabase.co;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        proxy_pass_request_headers on;
+        proxy_set_header apikey $http_apikey;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Prefer $http_prefer;
+        proxy_set_header Content-Profile $http_content_profile;
+        proxy_set_header Accept-Profile $http_accept_profile;
+
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_read_timeout 300s;
         proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+    }
+
+    # index.html — всегда свежий (PWA обновляет SW при каждом заходе)
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # Service worker — без кеша
+    location ~* (sw\.js|workbox-.*\.js)$ {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        try_files $uri =404;
     }
 
     # SPA fallback
@@ -448,7 +515,7 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Кэширование статики
+    # Кэширование статики с контент-хешами (Vite → безопасно кешировать)
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
