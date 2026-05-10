@@ -269,7 +269,7 @@ export default function ComplexDetail({ complexId, onClose, previewMode, onCross
   const [layoutDismissing, setLayoutDismissing] = useState(false)
   const [layoutTouchStartX, setLayoutTouchStartX] = useState(0)
   const [layoutTouchStartY, setLayoutTouchStartY] = useState(0)
-  const thumbStripRef = useState<HTMLDivElement | null>(null)
+  const thumbStripRef = useRef<HTMLDivElement | null>(null)
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -322,7 +322,7 @@ export default function ComplexDetail({ complexId, onClose, previewMode, onCross
   const goToPhoto = (i: number, dir: 'left' | 'right') => {
     setSlideDir(dir)
     setActivePhotoIdx(i)
-    const el = thumbStripRef[0]
+    const el = thumbStripRef.current
     if (el) {
       const thumb = el.children[i] as HTMLElement
       if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
@@ -666,7 +666,7 @@ export default function ComplexDetail({ complexId, onClose, previewMode, onCross
                 {/* Thumbnail strip */}
                 {complex.photos.length > 1 && (
                   <div
-                    ref={(el) => { thumbStripRef[1](el) }}
+                    ref={thumbStripRef}
                     className="flex gap-2 overflow-x-auto pb-1 mt-2"
                     style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
                   >
