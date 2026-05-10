@@ -38,6 +38,11 @@ ALTER TABLE properties ADD COLUMN IF NOT EXISTS complex_id      UUID REFERENCES 
 -- ─── tasks — also_linked (множественные привязки) ────────────────
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS also_linked JSONB DEFAULT '[]';
 
+-- ─── tasks — idempotent policy (удалить обе возможные версии) ────
+DROP POLICY IF EXISTS "allow all tasks" ON tasks;
+DROP POLICY IF EXISTS allow_all_tasks ON tasks;
+CREATE POLICY allow_all_tasks ON tasks FOR ALL USING (true) WITH CHECK (true);
+
 -- ─── saved_filters ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS saved_filters (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
